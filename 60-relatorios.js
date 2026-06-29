@@ -53,6 +53,12 @@
         } catch (e) {}
     };
 
+    // ── Normalização para ordenação ──────────────────────────────
+
+    function normSort(s) {
+        return (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    }
+
     // ── Relatório do Executar (40-fases) — TSV ─────────────────────
 
     AF.relatorios.gerarFolgas = function (relStats, relLista, tempoMs, cancelado) {
@@ -99,12 +105,12 @@
         AF.estado.relatorio     = rel;
         AF.estado.textoCopiavel = rel.replace(/\n/g, '\r\n');
 
-        // ── listaJanela: TODOS os nomes do relLista ──
+        // ── listaJanela: usa relLista já ordenado (vem ordenado de 40-fases) ──
         var listaJanela = [];
         for (var ji = 0; ji < relLista.length; ji++) {
             var jr = relLista[ji];
             if (!jr.nome || !jr.nome.trim()) continue;
-            var foiLido = jr.lido !== false && !jr.pulada;
+            var foiLido = jr.lido === true && !jr.pulada;
             var jhe  = foiLido ? normHora(jr.HE)  : null;
             var jhef = foiLido ? normHora(jr.HEF) : null;
             var jhec = foiLido ? normHora(jr.HEC) : null;
@@ -185,7 +191,7 @@
         AF.estado.relatorio     = rel;
         AF.estado.textoCopiavel = rel.replace(/\n/g, '\r\n');
 
-        // ── listaJanela: TODOS os nomes, com lido=false onde não foi analisado ──
+        // ── listaJanela: TODOS os nomes, ordenados, com lido=false onde não foi analisado ──
         var listaJanela = [];
         for (var ji = 0; ji < lista.length; ji++) {
             var jr = lista[ji];
@@ -204,11 +210,15 @@
                 lido: foiLido
             });
         }
+        // ordenação alfabética (sem acentos)
+        listaJanela.sort(function (a, b) {
+            return normSort(a.nome) < normSort(b.nome) ? -1 : normSort(a.nome) > normSort(b.nome) ? 1 : 0;
+        });
 
         AF.estado.relatorioLista = listaJanela;
         AF.estado.relatorioTipo  = 'analise';
         AF.estado.relatorioMeta  = {
-            titulo:  'Relatório de Análise — ' + nomeMesStr,
+            titulo:  'Relatório de Análise \u2014 ' + nomeMesStr,
             status:  cancelado ? 'INTERROMPIDO' : 'CONCLUÍDO',
             folhas:  stats.totalFolhas + stats.vazias,
             tempo:   min + 'min ' + seg + 's',
@@ -263,7 +273,6 @@
             if (temPressa && (lista[i].presas || 0) > maxPressa) maxPressa = lista[i].presas;
         }
 
-        // chips — usam cores fixas, funcionam em light e dark
         var chipRed = function (val, mx) {
             if (val === null || val === undefined) return '<span class="cell-dash">-</span>';
             if (!val) return '<span class="cell-zero">0</span>';
@@ -321,7 +330,7 @@
                          + '<span style="color:var(--text-faint);margin:0 3px">/</span>'
                          + '<span style="color:#ef4444;font-weight:700">' + minToHe(tHECneg) + '</span>';
 
-        // ── linhas da tabela (TODOS os nomes) ──
+        // ── linhas da tabela (TODOS os nomes, já ordenados) ──
         var rows = '';
         for (var ri = 0; ri < lista.length; ri++) {
             var d = lista[ri];
@@ -348,7 +357,6 @@
         var statusColor  = meta.status === 'CONCLUÍDO' ? '#22c55e' : '#f97316';
         var badgeStatus  = '<span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:99px;background:rgba(34,197,94,.12);color:' + statusColor + ';border:1px solid rgba(34,197,94,.2);text-transform:uppercase;letter-spacing:.04em">' + meta.status + '</span>';
 
-        // ── log: parsear grupos ──
         var grupos = parsearLogPorFuncionario(logBuffer || []);
 
         var opcoesSelect = '<option value="__todos__">Todos os funcionários</option>';
@@ -356,7 +364,7 @@
             opcoesSelect += '<option value="' + gi + '">' + abrevNome(grupos[gi].nome) + '</option>';
         }
 
-        var gruposJson     = JSON.stringify(grupos.map(function(g) { return { nome: g.nome, linhas: g.linhas }; }));
+        var gruposJson      = JSON.stringify(grupos.map(function(g) { return { nome: g.nome, linhas: g.linhas }; }));
         var logCompletoJson = JSON.stringify(logBuffer || []);
         var tsvEsc = JSON.stringify(tsv);
         var hasLog = grupos.length > 0;
@@ -365,7 +373,6 @@
             + '<title>FPW \u2014 ' + meta.titulo + '</title>'
             + '<link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,600,700&display=swap" rel="stylesheet">'
             + '<style>'
-            // tokens light
             + ':root,[data-theme="light"]{'
             + '--bg:#f8fafc;--surface:#ffffff;--surface2:#f1f5f9;'
             + '--border:rgba(0,0,0,.09);'
@@ -382,7 +389,6 @@
             + '--cell-dash:#475569;--cell-zero:#475569;'
             + '--row-name:#0f172a;'
             + '}'
-            // tokens dark
             + '[data-theme="dark"]{'
             + '--bg:#0f1117;--surface:#161b22;--surface2:#0d1117;'
             + '--border:rgba(255,255,255,.08);'
@@ -442,7 +448,6 @@
             + '.theme-toggle:hover{background:rgba(128,128,128,.1)}'
             + '</style></head><body>'
             + '<div class="frame">'
-            // ── cabeçalho ──
             + '<div class="hdr">'
             +   '<div class="hdr-row1">'
             +     '<div class="hdr-title">\uD83D\uDCCB ' + meta.titulo + ' ' + badgeStatus + '</div>'
@@ -454,7 +459,6 @@
             +     '<span class="meta-lbl">Gerado em:&nbsp;</span><span class="meta-val">' + meta.gerado + '</span>'
             +   '</div>'
             + '</div>'
-            // ── scroll principal ──
             + '<div class="body-scroll">'
             + '<div class="sec">'
             + '<div class="sec-label">\uD83D\uDCCA Tabela de resultados</div>'
@@ -480,12 +484,10 @@
             +   '</tr></tfoot>'
             + '</table></div>'
             + '</div>'
-            // ── barra tabela ──
             + '<div class="action-bar">'
             +   '<span class="hint">\uD83D\uDC46 Clique em uma linha para navegar at\u00E9 o funcion\u00E1rio</span>'
             +   '<button class="btn btn-blue" id="btn-tsv">\uD83D\uDCCB Copiar Relat\u00F3rio</button>'
             + '</div>'
-            // ── seção log ──
             + (hasLog
                 ? '<div class="log-header">'
                 +   '<span class="log-title">\uD83D\uDCC4 Log</span>'
@@ -496,9 +498,7 @@
                 : '')
             + '</div>'
             + '</div>'
-            // ── scripts ──
             + '<script>'
-            // dark/light toggle — inicia em light
             + '(function(){'
             + 'var html=document.documentElement;'
             + 'var btn=document.getElementById("btn-theme");'
@@ -509,7 +509,6 @@
             +   'btn.textContent=t==="dark"?"\uD83C\uDF19":"\u2600\uFE0F";'
             + '});'
             + '})();'
-            // copiar relatório TSV
             + 'var _tsv=' + tsvEsc + ';'
             + 'var _grupos=' + gruposJson + ';'
             + 'var _logCompleto=' + logCompletoJson + ';'
@@ -520,7 +519,6 @@
             +     'setTimeout(function(){b.classList.remove("ok");b.innerHTML="\uD83D\uDCCB Copiar Relat\u00F3rio";},2500);'
             +   '}).catch(function(){alert("Erro ao copiar.");});'
             + '};'
-            // log
             + (hasLog
                 ? 'function renderLog(grupos,filtro){'
                 +   'var box=document.getElementById("log-box");'
@@ -563,7 +561,6 @@
                 +   '}).catch(function(){alert("Erro ao copiar.");});'
                 + '};'
                 : '')
-            // navegação por clique na linha
             + 'document.querySelectorAll(".fpw-row").forEach(function(tr){'
             +   'tr.addEventListener("click",function(){'
             +     'document.querySelectorAll(".fpw-row").forEach(function(r){r.classList.remove("active-row");});'

@@ -189,11 +189,6 @@
     };
 
     // ── Fase 3 ─────────────────────────────────────────────────────────
-    // Gatilho: folga presa após Fase 1 + Fase 2.
-    // Escopo: semana da folga presa.
-    // numAbrirPopup: usa ausenciasMes[0] se disponível, senão usa numFolga da presa.
-    // Prioridade: feriado visível no DOM (feriadosSemana) primeiro,
-    //             depois feriado oculto calculado (feriadosOcultos).
 
     AF.fases.planejarFase3 = function (mapa, presasAnteriores) {
         var acoes = [];
@@ -209,7 +204,6 @@
             var semana = mapa.semanas[presa.semanaId];
             if (!semana) { presasFinais.push(presa); continue; }
 
-            // Determina num e dataAusencia: prioriza ausenciasMes, fallback = própria folga
             var ausencias = (semana.ausenciasMes || []).slice();
             var numPopup, dataAusencia;
             if (ausencias.length) {
@@ -223,7 +217,6 @@
                 continue;
             }
 
-            // 1º tenta feriado visível no DOM
             var feriadosVisiveis = (semana.feriadosSemana || []);
             if (feriadosVisiveis.length > 0) {
                 acoes.push({
@@ -238,7 +231,6 @@
                 continue;
             }
 
-            // 2º tenta feriado oculto calculado (ex: 01/05 sem irregularidade)
             var feriadosOcultos = (semana.feriadosOcultos || []);
             if (feriadosOcultos.length > 0) {
                 acoes.push({
@@ -253,7 +245,6 @@
                 continue;
             }
 
-            // sem feriado na semana: folga permanece presa
             presasFinais.push(presa);
         }
 
@@ -261,8 +252,6 @@
     };
 
     // ── Fase 4: Alterar 47 → 48 ────────────────────────────────────────
-    // Escopo: mês alvo + última semana (igual ao mapa).
-    // Log: Fase 4: DD/MM/AAAA | 47 → 48
 
 	AF.fases.processarFase4 = function () {
 		var doc1   = AF.core.getDoc1();
@@ -277,7 +266,6 @@
 			var inp = campos[i];
 			if (!inp.value || inp.value.trim() !== '47') continue;
 
-			// Filtro de escopo: mes alvo ou última semana
 			var dataStr = AF.mapa.obterDataDoInput(inp);
 			var dataObj = AF.utils.parseDataBR(dataStr);
 			if (!dataObj) continue;
@@ -383,15 +371,25 @@
 };
 
     // ── Processar folha atual ──────────────────────────────────────────
+    // relLista é um mapa { nome → objeto } pré-populado com todos os nomes.
+    // Aqui atualizamos o registro existente em vez de fazer push.
 
-    AF.fases.processarFolhaAtual = async function (relStats, relLista) {
+    AF.fases.processarFolhaAtual = async function (relStats, relLista, relListaMap) {
         var nome = AF.core.nomeAtual();
-        AF.core.log('── ' + nome + ' ──', '#c084fc');
+        AF.core.log('\u2500\u2500 ' + nome + ' \u2500\u2500', '#c084fc');
+
+        var entry = relListaMap[nome] || relListaMap[nome.trim()];
 
         if (AF.core.paginaVaziaAgora()) {
             AF.core.log('Sem marcacoes, pulando.', '#4b5563');
             relStats.semMarcacoes++;
-            relLista.push({ nome: nome, folgasAlteradas: 0, folgasSemAlteracao: 0, linhas47: 0, irregs: 0, interj: 0, HE: '00:00', HEF: '00:00', HEC: '00:00', pulada: true });
+            if (entry) {
+                entry.lido = true;
+                entry.pulada = true;
+                entry.folgasAlteradas = 0; entry.folgasSemAlteracao = 0;
+                entry.linhas47 = 0; entry.irregs = 0; entry.interj = 0;
+                entry.HE = '00:00'; entry.HEF = '00:00'; entry.HEC = '00:00';
+            }
             return;
         }
 
@@ -442,18 +440,18 @@
         relStats.interjRestantes    += analise.interj;
         relStats.linhas47           += linhas47;
 
-        relLista.push({
-            nome:               nome,
-            folgasAlteradas:    totalMovidas,
-            folgasSemAlteracao: presasFinais.length,
-            linhas47:           linhas47,
-            irregs:             analise.marc + analise.he + analise.smES,
-            interj:             analise.interj,
-            HE:                 extras.HE,
-            HEF:                extras.HEF,
-            HEC:                saldoHEC,
-            pulada:             false
-        });
+        if (entry) {
+            entry.lido               = true;
+            entry.pulada             = false;
+            entry.folgasAlteradas    = totalMovidas;
+            entry.folgasSemAlteracao = presasFinais.length;
+            entry.linhas47           = linhas47;
+            entry.irregs             = analise.marc + analise.he + analise.smES;
+            entry.interj             = analise.interj;
+            entry.HE                 = extras.HE;
+            entry.HEF                = extras.HEF;
+            entry.HEC                = saldoHEC;
+        }
 
         AF.core.log('Folha concluida | Folgas: ' + totalMovidas + ' | Presas: ' + presasFinais.length + ' | 47>48: ' + linhas47 + ' | HE100%: ' + extras.HE + ' | HEF100%: ' + extras.HEF + ' | HEC70%: ' + saldoHEC, '#a6e3a1');
     };
@@ -474,10 +472,33 @@
             folgasAlteradas: 0, folgasNaoAlteradas: 0,
             irregsRestantes: 0, interjRestantes: 0, linhas47: 0
         };
-        var relLista = [];
 
         var sel = AF.core.getSelNome();
         if (!sel) { AF.core.log('ERRO: Lista de funcionarios nao encontrada.', '#f87171'); AF.core.setBotoes(false); return; }
+
+        // ── snapshot de TODOS os nomes antes de iniciar o loop ──
+        var relLista    = [];   // array ordenado
+        var relListaMap = {};   // mapa nome → objeto (para atualização rápida)
+        for (var pi = 0; pi < sel.options.length; pi++) {
+            var nomeTxt = (sel.options[pi].text || '').trim();
+            if (!nomeTxt) continue;
+            var obj = {
+                nome: nomeTxt,
+                lido: false, pulada: false,
+                folgasAlteradas: null, folgasSemAlteracao: null,
+                linhas47: null, irregs: null, interj: null,
+                HE: null, HEF: null, HEC: null
+            };
+            relLista.push(obj);
+            relListaMap[nomeTxt] = obj;
+        }
+        // ordenação alfabética (sem acentos) desde o início
+        var normSort = function (s) {
+            return (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+        };
+        relLista.sort(function (a, b) {
+            return normSort(a.nome) < normSort(b.nome) ? -1 : normSort(a.nome) > normSort(b.nome) ? 1 : 0;
+        });
 
         var cabec = AF.core.getCabec();
         var docC  = AF.core.getDocC();
@@ -485,8 +506,8 @@
         var nomeSelecionado = (sel.options[sel.selectedIndex] && (sel.options[sel.selectedIndex].text || '').trim());
         if (!nomeSelecionado) {
             var primeiroValido = -1;
-            for (var pi = 0; pi < sel.options.length; pi++) {
-                if ((sel.options[pi].text || '').trim()) { primeiroValido = pi; break; }
+            for (var pi2 = 0; pi2 < sel.options.length; pi2++) {
+                if ((sel.options[pi2].text || '').trim()) { primeiroValido = pi2; break; }
             }
             if (primeiroValido < 0) { AF.core.log('ERRO: Nenhum funcionario encontrado.', '#f87171'); AF.core.setBotoes(false); return; }
 
@@ -520,7 +541,7 @@
         while (true) {
             if (AF.estado.cancelado) break;
 
-            await AF.fases.processarFolhaAtual(relStats, relLista);
+            await AF.fases.processarFolhaAtual(relStats, relLista, relListaMap);
             total++;
 
             if (AF.estado.cancelado) break;
