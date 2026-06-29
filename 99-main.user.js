@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Automacao Folha de Ponto
 // @namespace    http://tampermonkey.net/
-// @version      9.0
+// @version      9.1
 // @match        https://myway.g.globo/WebPonto/just_user/justuser.asp*
 // @grant        GM_xmlhttpRequest
 // @connect      raw.githubusercontent.com
@@ -83,7 +83,7 @@
                 '<div style="display:flex;flex-direction:column;justify-content:center;gap:4px;padding:5px 4px;border-right:1px solid #374151;background:#1a2233;min-width:38px;align-items:center;flex-shrink:0;">' +
                 '<button id="btn-analisar" title="Analisar mes alvo" style="width:28px;height:28px;border:0;border-radius:6px;background:#2563eb;color:white;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;line-height:1;">&#128269;</button>' +
                 '<button id="btn-executar" title="Folgas + Gravar" style="width:28px;height:28px;border:0;border-radius:6px;background:#7c3aed;color:white;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;line-height:1;">&#9881;&#65039;</button>' +
-                '<button id="btn-copiar" title="Copiar relatorio" style="width:28px;height:28px;border:0;border-radius:6px;background:#16a34a;color:white;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;line-height:1;" disabled>&#128203;</button>' +
+                '<button id="btn-copiar" title="Relatório" style="width:28px;height:28px;border:0;border-radius:6px;background:#16a34a;color:white;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;line-height:1;" disabled>&#128202;</button>' +
                 '<div style="width:24px;height:1px;background:#374151;"></div>' +
                 '<button id="btn-parar" title="Parar execucao" style="width:28px;height:28px;border:0;border-radius:6px;background:#1f2937;border:1px solid #dc2626;color:white;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;line-height:1;" disabled>&#128721;</button>' +
                 '</div>' +
@@ -115,14 +115,14 @@
                 AF.core.setBotoes(false);
             };
 
+            // btn-copiar abre a janela visual de relatório
             docC.getElementById('btn-copiar').onclick = function () {
-                if (!AF.estado.textoCopiavel) return;
-                navigator.clipboard.writeText(AF.estado.textoCopiavel).then(function () {
-                    AF.sons.tocar('copia');
-                    AF.core.log('Relatorio copiado!', '#a3e635');
-                }).catch(function () {
-                    AF.core.log('Erro ao copiar.', '#f87171');
-                });
+                if (!AF.estado.relatorioLista || !AF.estado.relatorioLista.length) {
+                    AF.core.log('Nenhum relatorio disponivel.', '#f87171');
+                    return;
+                }
+                AF.relatorios.abrirJanela();
+                AF.sons.tocar('copia');
             };
 
             AF.core.log('Pronto para executar.', '#a3e635');
