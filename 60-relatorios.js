@@ -98,25 +98,38 @@
         AF.estado.relatorio     = rel;
         AF.estado.textoCopiavel = rel.replace(/\n/g, '\r\n');
 
+        // ── listaJanela: TODOS os nomes, com '-' onde não foi lido ──
         var listaJanela = [];
+        // Coletar todos os nomes disponíveis (não pulados)
+        var mapaLido = {};
         for (var ji = 0; ji < relLista.length; ji++) {
             var jr = relLista[ji];
-            if (jr.pulada) continue;
+            if (!jr.nome || !jr.nome.trim()) continue;
             var jhe  = normHora(jr.HE);
             var jhef = normHora(jr.HEF);
             var jhec = normHora(jr.HEC);
-            var temJ = jr.folgasAlteradas || jr.folgasSemAlteracao || jr.linhas47 ||
-                       jr.irregs || jr.interj || jhe !== '00:00' || jhef !== '00:00';
-            if (!temJ) continue;
-            listaJanela.push({
-                nome:   jr.nome.trim(),
-                folgas: jr.folgasAlteradas    || 0,
-                cod47:  jr.linhas47           || 0,
-                presas: jr.folgasSemAlteracao || 0,
-                irregs: jr.irregs             || 0,
-                interj: jr.interj             || 0,
-                he: jhe, hef: jhef, hec: jhec
-            });
+            var foiLido = !jr.pulada;
+            mapaLido[jr.nome.trim()] = foiLido;
+            if (foiLido) {
+                listaJanela.push({
+                    nome:   jr.nome.trim(),
+                    folgas: jr.folgasAlteradas    !== undefined ? jr.folgasAlteradas    : null,
+                    cod47:  jr.linhas47           !== undefined ? jr.linhas47           : null,
+                    presas: jr.folgasSemAlteracao !== undefined ? jr.folgasSemAlteracao : null,
+                    irregs: jr.irregs             !== undefined ? jr.irregs             : null,
+                    interj: jr.interj             !== undefined ? jr.interj             : null,
+                    he: jhe, hef: jhef, hec: jhec,
+                    lido: true
+                });
+            } else {
+                listaJanela.push({
+                    nome: jr.nome.trim(),
+                    folgas: null, cod47: null, presas: null,
+                    irregs: null, interj: null,
+                    he: null, hef: null, hec: null,
+                    lido: false
+                });
+            }
         }
 
         AF.estado.relatorioLista = listaJanela;
@@ -183,20 +196,23 @@
         AF.estado.relatorio     = rel;
         AF.estado.textoCopiavel = rel.replace(/\n/g, '\r\n');
 
+        // ── listaJanela: TODOS os nomes, com lido=false onde não foi analisado ──
         var listaJanela = [];
         for (var ji = 0; ji < lista.length; ji++) {
             var jr = lista[ji];
             if (!jr.nome || !jr.nome.trim()) continue;
+            var foiLido = jr.lido !== false; // compatibilidade: assume lido se não marcado
             listaJanela.push({
                 nome:   jr.nome.trim(),
-                folgas: jr.folgas != null ? jr.folgas : 0,
-                cod47:  jr.cod47  != null ? jr.cod47  : 0,
+                folgas: foiLido && jr.folgas != null ? jr.folgas : (foiLido ? 0 : null),
+                cod47:  foiLido && jr.cod47  != null ? jr.cod47  : (foiLido ? 0 : null),
                 presas: null,
-                irregs: jr.irregs != null ? jr.irregs : 0,
-                interj: jr.interj != null ? jr.interj : 0,
-                he:  normHora(jr.HE),
-                hef: normHora(jr.HEF),
-                hec: normHora(jr.HEC)
+                irregs: foiLido && jr.irregs != null ? jr.irregs : (foiLido ? 0 : null),
+                interj: foiLido && jr.interj != null ? jr.interj : (foiLido ? 0 : null),
+                he:  foiLido ? normHora(jr.HE)  : null,
+                hef: foiLido ? normHora(jr.HEF) : null,
+                hec: foiLido ? normHora(jr.HEC) : null,
+                lido: foiLido
             });
         }
 
@@ -223,10 +239,9 @@
     };
 
     // ── Parser do logBuffer → grupos por funcionário ───────────────
-    // Detecta linhas "── NOME ──" como separador de funcionário
 
     function parsearLogPorFuncionario(buffer) {
-        var grupos   = [];   // [{ nome, linhas: [{msg,cor}] }]
+        var grupos   = [];
         var atual    = null;
         var sepRe    = /^\u2500+ (.+?) \u2500+$/;
 
@@ -251,14 +266,16 @@
         // ── escalas de cor ──
         var maxIrregs = 1, maxInterj = 1, maxFolgas = 1, maxCod47 = 1, maxPressa = 1;
         for (var i = 0; i < lista.length; i++) {
-            if (lista[i].irregs > maxIrregs) maxIrregs = lista[i].irregs;
-            if (lista[i].interj > maxInterj) maxInterj = lista[i].interj;
-            if (lista[i].folgas > maxFolgas) maxFolgas = lista[i].folgas;
-            if (lista[i].cod47  > maxCod47)  maxCod47  = lista[i].cod47;
-            if (temPressa && lista[i].presas > maxPressa) maxPressa = lista[i].presas;
+            if (lista[i].lido === false) continue;
+            if ((lista[i].irregs || 0) > maxIrregs) maxIrregs = lista[i].irregs;
+            if ((lista[i].interj || 0) > maxInterj) maxInterj = lista[i].interj;
+            if ((lista[i].folgas || 0) > maxFolgas) maxFolgas = lista[i].folgas;
+            if ((lista[i].cod47  || 0) > maxCod47)  maxCod47  = lista[i].cod47;
+            if (temPressa && (lista[i].presas || 0) > maxPressa) maxPressa = lista[i].presas;
         }
 
         var chipRed = function (val, mx) {
+            if (val === null || val === undefined) return '<span style="color:#4a5568">-</span>';
             if (!val) return '<span style="color:#4a5568">0</span>';
             var r = val / mx;
             var bg = r <= 0.2 ? 'rgba(239,68,68,.10)' : r <= 0.4 ? 'rgba(239,68,68,.20)' : r <= 0.6 ? 'rgba(239,68,68,.32)' : r <= 0.8 ? 'rgba(239,68,68,.48)' : 'rgba(239,68,68,.68)';
@@ -266,6 +283,7 @@
             return '<span style="background:' + bg + ';color:' + fg + ';padding:1px 6px;border-radius:4px;font-weight:600">' + val + '</span>';
         };
         var chipOra = function (val, mx) {
+            if (val === null || val === undefined) return '<span style="color:#4a5568">-</span>';
             if (!val) return '<span style="color:#4a5568">0</span>';
             var r = val / mx;
             var bg = r <= 0.2 ? 'rgba(249,115,22,.10)' : r <= 0.4 ? 'rgba(249,115,22,.20)' : r <= 0.6 ? 'rgba(249,115,22,.32)' : r <= 0.8 ? 'rgba(249,115,22,.48)' : 'rgba(249,115,22,.68)';
@@ -273,6 +291,7 @@
             return '<span style="background:' + bg + ';color:' + fg + ';padding:1px 6px;border-radius:4px;font-weight:600">' + val + '</span>';
         };
         var heToMin = function (str) {
+            if (str === null || str === undefined) return null;
             var s = String(str || '00:00').trim().replace(/^'/, '');
             var neg = s.charAt(0) === '-';
             var b = neg ? s.slice(1) : s;
@@ -285,6 +304,7 @@
             return (neg ? '-' : '') + String(Math.floor(abs / 60)).padStart(2, '0') + ':' + String(abs % 60).padStart(2, '0');
         };
         var cellHe = function (val) {
+            if (val === null || val === undefined) return '<span style="color:#4a5568">-</span>';
             var s = String(val || '00:00').replace(/^'/, '');
             var m = heToMin(s);
             if (m > 0) return '<span style="color:#22c55e;font-weight:600">' + s + '</span>';
@@ -292,32 +312,37 @@
             return '<span style="color:#374151">00:00</span>';
         };
 
-        // ── totais ──
+        // ── totais (apenas lidos) ──
         var tF = 0, tC = 0, tP = 0, tI = 0, tJ = 0, tHE = 0, tHEF = 0, tHECpos = 0, tHECneg = 0;
         for (var ti = 0; ti < lista.length; ti++) {
             var d = lista[ti];
+            if (d.lido === false) continue;
             tF  += d.folgas || 0;
             tC  += d.cod47  || 0;
             tP  += d.presas || 0;
             tI  += d.irregs || 0;
             tJ  += d.interj || 0;
-            tHE  += heToMin(d.he);
-            tHEF += heToMin(d.hef);
-            var hecMin = heToMin(d.hec);
+            tHE  += heToMin(d.he)  || 0;
+            tHEF += heToMin(d.hef) || 0;
+            var hecMin = heToMin(d.hec) || 0;
             if (hecMin >= 0) tHECpos += hecMin; else tHECneg += hecMin;
         }
         var hecTotalHtml = '<span style="color:#22c55e;font-weight:700">+' + minToHe(tHECpos) + '</span>'
                          + '<span style="color:#4a5568;margin:0 3px">/</span>'
                          + '<span style="color:#ef4444;font-weight:700">' + minToHe(tHECneg) + '</span>';
 
-        // ── linhas da tabela ──
+        // ── linhas da tabela (TODOS os nomes) ──
         var rows = '';
         for (var ri = 0; ri < lista.length; ri++) {
             var d = lista[ri];
+            var naoLido = d.lido === false;
             var pressaCell = temPressa
                 ? '<td style="text-align:right;padding:5px 10px">' + chipOra(d.presas, maxPressa) + '</td>'
                 : '';
-            rows += '<tr class="fpw-row" data-nome="' + d.nome + '" style="border-bottom:1px solid rgba(255,255,255,.06);cursor:pointer">'
+            var rowStyle = naoLido
+                ? 'border-bottom:1px solid rgba(255,255,255,.06);cursor:pointer;opacity:.45;'
+                : 'border-bottom:1px solid rgba(255,255,255,.06);cursor:pointer';
+            rows += '<tr class="fpw-row" data-nome="' + d.nome + '" style="' + rowStyle + '">'
                 + '<td style="padding:5px 10px;color:#e2e8f0;font-size:11px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + d.nome + '">' + abrevNome(d.nome) + '</td>'
                 + '<td style="text-align:right;padding:5px 10px">' + chipOra(d.folgas, maxFolgas) + '</td>'
                 + '<td style="text-align:right;padding:5px 10px">' + chipOra(d.cod47, maxCod47) + '</td>'
@@ -344,68 +369,67 @@
             opcoesSelect += '<option value="' + gi + '">' + abrevNome(grupos[gi].nome) + '</option>';
         }
 
-        // serializar grupos para JS inline
         var gruposJson = JSON.stringify(grupos.map(function(g) {
             return { nome: g.nome, linhas: g.linhas };
         }));
 
-        // log completo (todas as linhas do buffer)
         var logCompletoJson = JSON.stringify(logBuffer || []);
-
         var tsvEsc = JSON.stringify(tsv);
-
         var hasLog = grupos.length > 0;
 
-        return '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">'
+        // ── CSS: light como padrão ──
+        return '<!DOCTYPE html><html lang="pt-BR" data-theme="light"><head><meta charset="UTF-8">'
             + '<title>FPW — ' + meta.titulo + '</title>'
             + '<link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,600,700&display=swap" rel="stylesheet">'
             + '<style>'
+            + ':root,[data-theme="light"]{--bg:#f8fafc;--surface:#ffffff;--surface2:#f1f5f9;--border:rgba(0,0,0,.09);--text:#0f172a;--text-muted:#64748b;--text-faint:#94a3b8;--hdr-bg:#ffffff;--hdr-border:rgba(0,0,0,.08);--tbl-head:#f8fafc;--tbl-head-txt:#64748b;--tbl-row-hover:rgba(0,0,0,.025);--tbl-row-active:rgba(59,130,246,.08);--tbl-row-active-outline:rgba(59,130,246,.25);--tbl-total-bg:rgba(59,130,246,.05);--tbl-total-border:#3b82f6;--tbl-total-txt:#1e40af;--action-bg:#f8fafc;--log-bg:#f1f5f9;--log-hdr-bg:#ffffff;--log-sel-bg:#f8fafc;--log-sel-border:rgba(0,0,0,.15);--log-empty:#94a3b8;--log-sep:#cbd5e1;--scroll-thumb:rgba(0,0,0,.12);--badge-done-bg:rgba(34,197,94,.1);--badge-done-border:rgba(34,197,94,.25);--sec-label:#94a3b8;--hint:#94a3b8;}'
+            + '[data-theme="dark"]{--bg:#0f1117;--surface:#161b22;--surface2:#0d1117;--border:rgba(255,255,255,.08);--text:#e2e8f0;--text-muted:#8b95a5;--text-faint:#4a5568;--hdr-bg:#0d1117;--hdr-border:rgba(255,255,255,.12);--tbl-head:#0d1117;--tbl-head-txt:#6b7280;--tbl-row-hover:rgba(255,255,255,.04);--tbl-row-active:rgba(59,130,246,.12);--tbl-row-active-outline:rgba(59,130,246,.3);--tbl-total-bg:rgba(59,130,246,.07);--tbl-total-border:#3b82f6;--tbl-total-txt:#3b82f6;--action-bg:#0d1117;--log-bg:#0f1117;--log-hdr-bg:#0d1117;--log-sel-bg:#161b22;--log-sel-border:rgba(255,255,255,.12);--log-empty:#374151;--log-sep:#1f2937;--scroll-thumb:rgba(255,255,255,.12);--badge-done-bg:rgba(34,197,94,.12);--badge-done-border:rgba(34,197,94,.2);--sec-label:#374151;--hint:#374151;}'
             + '*{box-sizing:border-box;margin:0;padding:0}'
-            + 'html,body{background:#0f1117;color:#e2e8f0;font-family:"Satoshi","Inter",sans-serif;font-size:12px;height:100%;overflow:hidden}'
-            + '.frame{display:flex;flex-direction:column;height:100vh;border:1px solid rgba(255,255,255,.08);border-radius:10px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.5)}'
-            + '.hdr{background:#0d1117;border-bottom:1px solid rgba(255,255,255,.12);padding:10px 16px;flex-shrink:0}'
+            + 'html,body{background:var(--bg);color:var(--text);font-family:"Satoshi","Inter",sans-serif;font-size:12px;height:100%;overflow:hidden;transition:background .2s,color .2s}'
+            + '.frame{display:flex;flex-direction:column;height:100vh;border:1px solid var(--border);border-radius:10px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.15)}'
+            + '.hdr{background:var(--hdr-bg);border-bottom:1px solid var(--hdr-border);padding:10px 16px;flex-shrink:0}'
             + '.hdr-row1{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px}'
-            + '.hdr-title{font-size:14px;font-weight:700;letter-spacing:-.02em;display:flex;align-items:center;gap:8px}'
-            + '.hdr-meta{display:flex;flex-wrap:wrap;gap:4px 20px;font-size:11px;color:#6b7280}'
-            + '.meta-lbl{color:#374151}.meta-val{color:#8b95a5;font-weight:500}.meta-hi{color:#3b82f6;font-weight:700}'
-            // scroll global
+            + '.hdr-title{font-size:14px;font-weight:700;letter-spacing:-.02em;display:flex;align-items:center;gap:8px;color:var(--text)}'
+            + '.hdr-meta{display:flex;flex-wrap:wrap;gap:4px 20px;font-size:11px;color:var(--text-muted)}'
+            + '.meta-lbl{color:var(--text-faint)}.meta-val{color:var(--text-muted);font-weight:500}.meta-hi{color:#3b82f6;font-weight:700}'
             + '.body-scroll{flex:1;overflow-y:auto;overflow-x:hidden}'
-            + '.body-scroll::-webkit-scrollbar{width:5px}.body-scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:99px}'
-            // seção tabela
+            + '.body-scroll::-webkit-scrollbar{width:5px}.body-scroll::-webkit-scrollbar-thumb{background:var(--scroll-thumb);border-radius:99px}'
             + '.sec{padding:0}'
-            + '.sec-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#374151;padding:10px 16px 4px;border-top:1px solid rgba(255,255,255,.06)}'
+            + '.sec-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--sec-label);padding:10px 16px 4px;border-top:1px solid var(--border)}'
             + '.tbl-wrap{overflow-x:auto}'
-            + '.tbl-wrap::-webkit-scrollbar{height:4px}.tbl-wrap::-webkit-scrollbar-thumb{background:rgba(255,255,255,.10);border-radius:99px}'
+            + '.tbl-wrap::-webkit-scrollbar{height:4px}.tbl-wrap::-webkit-scrollbar-thumb{background:var(--scroll-thumb);border-radius:99px}'
             + 'table{width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed}'
-            + 'thead th{background:#0d1117;color:#6b7280;font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.05em;padding:6px 10px;border-bottom:1px solid rgba(255,255,255,.10);white-space:nowrap;text-align:right;position:sticky;top:0;z-index:5}'
+            + 'thead th{background:var(--tbl-head);color:var(--tbl-head-txt);font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.05em;padding:6px 10px;border-bottom:1px solid var(--border);white-space:nowrap;text-align:right;position:sticky;top:0;z-index:5}'
             + 'thead th:first-child{text-align:left;width:180px}'
-            + 'tbody tr:hover{background:rgba(255,255,255,.04)}'
-            + 'tbody tr.active-row{background:rgba(59,130,246,.12)!important;outline:1px solid rgba(59,130,246,.3)}'
-            + '.row-total{background:rgba(59,130,246,.07)!important;border-top:2px solid #3b82f6!important}'
-            + '.row-total td{font-weight:700;color:#e2e8f0!important;padding:7px 10px;font-size:11px}'
-            + '.row-total td:first-child{color:#3b82f6!important;font-size:10px;text-transform:uppercase;letter-spacing:.05em}'
-            // barra de ação
-            + '.action-bar{display:flex;align-items:center;justify-content:space-between;padding:7px 14px;background:#0d1117;border-top:1px solid rgba(255,255,255,.06);flex-shrink:0}'
-            + '.hint{font-size:10px;color:#374151}'
-            // log
-            + '.log-header{display:flex;align-items:center;gap:10px;padding:10px 16px 6px;border-top:2px solid rgba(255,255,255,.10);flex-shrink:0}'
-            + '.log-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#6b7280}'
-            + 'select.log-sel{background:#161b22;color:#e2e8f0;border:1px solid rgba(255,255,255,.12);border-radius:5px;padding:3px 8px;font-size:11px;font-family:inherit;cursor:pointer;max-width:280px}'
+            + 'tbody tr:hover{background:var(--tbl-row-hover)}'
+            + 'tbody tr.active-row{background:var(--tbl-row-active)!important;outline:1px solid var(--tbl-row-active-outline)}'
+            + '.row-total{background:var(--tbl-total-bg)!important;border-top:2px solid var(--tbl-total-border)!important}'
+            + '.row-total td{font-weight:700;color:var(--text)!important;padding:7px 10px;font-size:11px}'
+            + '.row-total td:first-child{color:var(--tbl-total-txt)!important;font-size:10px;text-transform:uppercase;letter-spacing:.05em}'
+            + '.action-bar{display:flex;align-items:center;justify-content:space-between;padding:7px 14px;background:var(--action-bg);border-top:1px solid var(--border);flex-shrink:0}'
+            + '.hint{font-size:10px;color:var(--hint)}'
+            + '.log-header{display:flex;align-items:center;gap:8px;padding:8px 14px 6px;background:var(--log-hdr-bg);border-top:2px solid var(--border);flex-shrink:0;flex-wrap:nowrap}'
+            + '.log-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);white-space:nowrap}'
+            + 'select.log-sel{background:var(--log-sel-bg);color:var(--text);border:1px solid var(--log-sel-border);border-radius:5px;padding:3px 8px;font-size:11px;font-family:inherit;cursor:pointer;flex:1;min-width:0}'
             + 'select.log-sel:focus{outline:none;border-color:#3b82f6}'
-            + '.log-box{flex:1;overflow-y:auto;padding:6px 14px 10px;font-size:11px;line-height:1.55;min-height:120px;max-height:260px}'
-            + '.log-box::-webkit-scrollbar{width:4px}.log-box::-webkit-scrollbar-thumb{background:rgba(255,255,255,.10);border-radius:99px}'
+            + '.log-box{flex:1;overflow-y:auto;padding:6px 14px 10px;font-size:11px;line-height:1.55;min-height:120px;max-height:260px;background:var(--log-bg)}'
+            + '.log-box::-webkit-scrollbar{width:4px}.log-box::-webkit-scrollbar-thumb{background:var(--scroll-thumb);border-radius:99px}'
             + '.log-line{margin-top:2px;white-space:pre-wrap;word-break:break-all}'
-            + '.log-sep{color:#1f2937;margin:4px 0;font-size:10px;letter-spacing:.03em}'
-            + '.log-empty{color:#374151;font-style:italic;padding:8px 0}'
-            // botões
+            + '.log-sep{color:var(--log-sep);margin:4px 0;font-size:10px;letter-spacing:.03em}'
+            + '.log-empty{color:var(--log-empty);font-style:italic;padding:8px 0}'
             + '.btn{display:inline-flex;align-items:center;gap:5px;border:none;border-radius:5px;padding:5px 12px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;letter-spacing:.02em;transition:filter .15s}'
             + '.btn-blue{background:#3b82f6;color:#fff}.btn-blue:hover{filter:brightness(1.15)}.btn-blue.ok{background:#22c55e}'
-            + '.btn-gray{background:rgba(255,255,255,.08);color:#9ca3af}.btn-gray:hover{background:rgba(255,255,255,.14)}'
+            + '.btn-gray{background:rgba(128,128,128,.12);color:var(--text-muted);border:1px solid var(--border)}.btn-gray:hover{background:rgba(128,128,128,.2)}'
+            + '.theme-toggle{background:none;border:1px solid var(--border);border-radius:5px;padding:3px 8px;cursor:pointer;color:var(--text-muted);font-size:13px;line-height:1;font-family:inherit;flex-shrink:0}'
+            + '.theme-toggle:hover{background:rgba(128,128,128,.1)}'
             + '</style></head><body>'
             + '<div class="frame">'
             // ── cabeçalho ──
             + '<div class="hdr">'
-            +   '<div class="hdr-row1"><div class="hdr-title">📋 ' + meta.titulo + ' ' + badgeStatus + '</div></div>'
+            +   '<div class="hdr-row1">'
+            +     '<div class="hdr-title">📋 ' + meta.titulo + ' ' + badgeStatus + '</div>'
+            +     '<button class="theme-toggle" id="btn-theme" title="Alternar tema">☀️</button>'
+            +   '</div>'
             +   '<div class="hdr-meta">'
             +     '<span class="meta-lbl">Folhas:&nbsp;</span><span class="meta-hi">' + meta.folhas + '</span>'
             +     '<span class="meta-lbl">Duração:&nbsp;</span><span class="meta-hi">' + meta.tempo + '</span>'
@@ -447,24 +471,31 @@
             // ── seção log ──
             + (hasLog
                 ? '<div class="log-header">'
-                +   '<span class="log-title">📄 Log dos ajustes</span>'
+                +   '<span class="log-title">📄 Log</span>'
                 +   '<select class="log-sel" id="log-sel">' + opcoesSelect + '</select>'
-                +   '<button class="btn btn-gray" id="btn-log-copy" style="margin-left:auto">📋 Copiar Log</button>'
+                +   '<button class="btn btn-gray" id="btn-log-copy">📋 Copiar Log</button>'
                 + '</div>'
                 + '<div class="log-box" id="log-box"></div>'
-                + '<div class="action-bar" style="border-top:none;padding-top:4px">'
-                +   '<span class="hint">☝ Selecione um funcionário para filtrar o log</span>'
-                + '</div>'
                 : '')
             + '</div>'
             + '</div>'
             // ── scripts ──
             + '<script>'
+            // dark/light toggle — inicia em light
+            + '(function(){'
+            + 'var html=document.documentElement;'
+            + 'var btn=document.getElementById("btn-theme");'
+            + 'html.setAttribute("data-theme","light");'
+            + 'btn.addEventListener("click",function(){'
+            +   'var t=html.getAttribute("data-theme")==="dark"?"light":"dark";'
+            +   'html.setAttribute("data-theme",t);'
+            +   'btn.textContent=t==="dark"?"🌙":"☀️";'
+            + '});'
+            + '})();'
+            // copiar relatório TSV
             + 'var _tsv=' + tsvEsc + ';'
             + 'var _grupos=' + gruposJson + ';'
             + 'var _logCompleto=' + logCompletoJson + ';'
-
-            // copiar relatório TSV
             + 'document.getElementById("btn-tsv").onclick=function(){'
             +   'navigator.clipboard.writeText(_tsv).then(function(){'
             +     'var b=document.getElementById("btn-tsv");'
@@ -472,14 +503,12 @@
             +     'setTimeout(function(){b.classList.remove("ok");b.innerHTML="📋 Copiar Relatório";},2500);'
             +   '}).catch(function(){alert("Erro ao copiar.");});'
             + '};'
-
-            // renderizar log
+            // log
             + (hasLog
                 ? 'function renderLog(grupos,filtro){'
                 +   'var box=document.getElementById("log-box");'
                 +   'if(!box)return;'
                 +   'box.innerHTML="";'
-                +   'var linhas=[];'
                 +   'if(filtro==="__todos__"){'
                 +     'for(var gi=0;gi<grupos.length;gi++){'
                 +       'var sep=document.createElement("div");'
@@ -504,7 +533,6 @@
                 + '}'
                 + 'document.getElementById("log-sel").onchange=function(){renderLog(_grupos,this.value);};'
                 + 'renderLog(_grupos,"__todos__");'
-                // copiar log
                 + 'document.getElementById("btn-log-copy").onclick=function(){'
                 +   'var sel=document.getElementById("log-sel").value;'
                 +   'var txt="";'
@@ -518,8 +546,7 @@
                 +   '}).catch(function(){alert("Erro ao copiar.");});'
                 + '};'
                 : '')
-
-            // navegação por clique na linha — fix: opener.top.frames[0]
+            // navegação por clique na linha
             + 'document.querySelectorAll(".fpw-row").forEach(function(tr){'
             +   'tr.addEventListener("click",function(){'
             +     'document.querySelectorAll(".fpw-row").forEach(function(r){r.classList.remove("active-row");});'

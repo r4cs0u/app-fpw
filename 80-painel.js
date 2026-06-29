@@ -55,6 +55,44 @@
         var antigo = docC.getElementById('painel-simples');
         if (antigo) antigo.parentNode.removeChild(antigo);
 
+        var antigoSide = docC.getElementById('fpw-sidepanel');
+        if (antigoSide) antigoSide.parentNode.removeChild(antigoSide);
+
+        // ── Sidepanel de instruções ───────────────────────────────────
+        var side = docC.createElement('div');
+        side.id = 'fpw-sidepanel';
+        side.style.cssText = [
+            'position:fixed', 'top:4px', 'right:412px', 'z-index:999998',
+            'background:#111827', 'color:#f9fafb', 'border-radius:8px',
+            'box-shadow:0 4px 16px rgba(0,0,0,.5)',
+            'font-family:Arial,sans-serif', 'font-size:11px',
+            'width:400px', 'height:200px',
+            'border:1px solid #374151', 'overflow:hidden',
+            'display:none', 'flex-direction:column', 'user-select:none'
+        ].join(';');
+
+        side.innerHTML =
+            '<div style="background:#1f2937;padding:5px 10px;font-weight:bold;font-size:11px;' +
+            'border-bottom:1px solid #374151;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;">'
+            + '<span>📖 Instruções de uso — FolhaFácil</span>'
+            + '<span id="btn-fechar-side" style="cursor:pointer;color:#9ca3af;font-size:14px;line-height:1;">✕</span>'
+            + '</div>'
+            + '<div style="flex:1;overflow-y:auto;padding:8px 12px;line-height:1.6;color:#d1d5db;font-size:11px;">'
+            + '<ol style="margin:0;padding-left:16px;">'
+            + '<li style="margin-bottom:4px;">Analise <strong>todas</strong> as folhas de ponto.</li>'
+            + '<li style="margin-bottom:4px;">Gere o relatório e atue <strong>manualmente</strong> nas irregularidades encontradas.</li>'
+            + '<li style="margin-bottom:4px;">Após os ajustes manuais, clique em <strong>Ajustar</strong> e deixe o aplicativo mover e corrigir as folgas automaticamente.</li>'
+            + '<li style="margin-bottom:4px;">Gere o relatório novamente e navegue pelas folhas que ainda merecem atenção.</li>'
+            + '<li style="margin-bottom:4px;">A <strong>aprovação final</strong> de cada folha é manual.</li>'
+            + '</ol>'
+            + '<div style="margin-top:6px;padding-top:6px;border-top:1px solid #374151;color:#9ca3af;font-size:10px;">'
+            + '* Use o botão <strong style="color:#f87171;">Parar</strong> para interromper qualquer execução em andamento.'
+            + '</div>'
+            + '</div>';
+
+        docC.body.appendChild(side);
+
+        // ── Painel principal ──────────────────────────────────────────
         var painel = docC.createElement('div');
         painel.id = 'painel-simples';
         painel.style.cssText = [
@@ -75,9 +113,16 @@
         ].join(';');
 
         painel.innerHTML =
-            // Título
-            '<div style="background:#1f2937;padding:5px 10px;font-weight:bold;font-size:11px;' +
-            'border-bottom:1px solid #374151;text-align:center;flex-shrink:0;">Folha de Ponto — Automação</div>' +
+            // Título + botão instruções
+            '<div style="background:#1f2937;padding:5px 10px;font-weight:bold;font-size:13px;' +
+            'border-bottom:1px solid #374151;text-align:center;flex-shrink:0;' +
+            'display:flex;align-items:center;justify-content:space-between;">'
+            + '<span style="flex:1;text-align:center;">FolhaFácil</span>'
+            + '<button id="btn-instrucoes" title="Instruções de uso" style="'
+            + 'background:transparent;border:1px solid #374151;border-radius:5px;'
+            + 'color:#9ca3af;cursor:pointer;font-size:11px;padding:2px 7px;'
+            + 'font-family:Arial,sans-serif;line-height:1.4;flex-shrink:0;">📖</button>'
+            + '</div>' +
 
             // Botões
             '<div style="display:flex;gap:6px;padding:10px 10px;background:#0f172a;flex-shrink:0;">' +
@@ -92,14 +137,14 @@
 
             // Barra de status
             '<div style="display:flex;align-items:center;gap:6px;padding:5px 10px;' +
-            'background:#0d1117;border-top:1px solid #1f2937;font-size:10px;flex-shrink:0;">' +
+            'background:#0d1117;border-top:1px solid #1f2937;font-size:13px;flex-shrink:0;">' +
             '<span id="fpw-status-dot" style="width:7px;height:7px;border-radius:50%;background:#374151;flex-shrink:0;"></span>' +
             '<span id="fpw-status-text" style="color:#4b5563;">Aguardando...</span>' +
             '</div>';
 
         docC.body.appendChild(painel);
 
-        // hover
+        // hover botões principais
         ['btn-analisar','btn-executar','btn-copiar'].forEach(function (id) {
             var b = docC.getElementById(id);
             if (!b) return;
@@ -107,9 +152,24 @@
             b.addEventListener('mouseleave', function () { this.style.filter = ''; });
         });
 
+        // toggle sidepanel
+        docC.getElementById('btn-instrucoes').addEventListener('click', function () {
+            var s = docC.getElementById('fpw-sidepanel');
+            if (!s) return;
+            var visible = s.style.display === 'flex';
+            s.style.display = visible ? 'none' : 'flex';
+            this.style.color = visible ? '#9ca3af' : '#60a5fa';
+            this.style.borderColor = visible ? '#374151' : '#3b82f6';
+        });
+
+        docC.getElementById('btn-fechar-side').addEventListener('click', function () {
+            var s = docC.getElementById('fpw-sidepanel');
+            if (s) s.style.display = 'none';
+            var btnI = docC.getElementById('btn-instrucoes');
+            if (btnI) { btnI.style.color = '#9ca3af'; btnI.style.borderColor = '#374151'; }
+        });
+
         // ── Sobrescreve habilitarCopiar: ativa botão + compõe status ──
-        // Chamado por gerarAnalise e gerarFolgas (60-relatorios.js) ao terminar,
-        // independente de ter sido cancelado ou não.
         AF.relatorios.habilitarCopiar = function (titulo) {
             try {
                 setBtnCopiar(docC, true);
@@ -150,8 +210,6 @@
             sessionStorage.removeItem('autodatasCandidatasPopup');
             sessionStorage.removeItem('autopopupSemSucesso');
             AF.sons.tocar('parada');
-            // Status intermediário — será sobrescrito por habilitarCopiar
-            // quando o relatório parcial for gerado (assíncrono)
             setStatus(docC, 'Parando...', '#f87171');
             setBtnAtivo(docC, false);
         };
