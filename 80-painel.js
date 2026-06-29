@@ -20,8 +20,8 @@
         var b = docC.getElementById('btn-copiar');
         if (!b) return;
         b.disabled = !ativo;
-        b.style.opacity  = ativo ? '1'            : '.35';
-        b.style.cursor   = ativo ? 'pointer'      : 'not-allowed';
+        b.style.opacity  = ativo ? '1'       : '.35';
+        b.style.cursor   = ativo ? 'pointer' : 'not-allowed';
     }
 
     function setBtnAtivo(docC, rodando) {
@@ -41,27 +41,10 @@
     }
 
     // Sobrescreve AF.core.setBotoes — chamado por analisarTodas e processarTodas.
-    // Quando rodando=false (fim/parada): atualiza status, ativa btn-copiar se houver relatório.
     AF.core.setBotoes = function (rodando) {
         try {
             var docC = AF.core.getDocC();
             setBtnAtivo(docC, rodando);
-
-            if (!rodando && !AF.estado.cancelado) {
-                // Fim normal
-                var temRelatorio = !!(AF.estado.relatorioLista && AF.estado.relatorioLista.length);
-                if (temRelatorio) {
-                    setStatus(docC, 'Concluído — relatório pronto', '#4ade80');
-                    setBtnCopiar(docC, true);
-                } else {
-                    setStatus(docC, 'Concluído', '#4ade80');
-                }
-            } else if (!rodando && AF.estado.cancelado) {
-                // Parada pelo usuário — btn-copiar só ativa se já há algo
-                var temRel = !!(AF.estado.relatorioLista && AF.estado.relatorioLista.length);
-                if (temRel) setBtnCopiar(docC, true);
-            }
-            // quando rodando=true não mexe no status (já definido pelo onclick)
         } catch (e) {}
     };
 
@@ -124,6 +107,22 @@
             b.addEventListener('mouseleave', function () { this.style.filter = ''; });
         });
 
+        // ── Sobrescreve habilitarCopiar: ativa botão + compõe status ──
+        // Chamado por gerarAnalise e gerarFolgas (60-relatorios.js) ao terminar,
+        // independente de ter sido cancelado ou não.
+        AF.relatorios.habilitarCopiar = function (titulo) {
+            try {
+                setBtnCopiar(docC, true);
+                var label    = titulo || 'Relatório';
+                var cancelou = !!(AF.estado && AF.estado.cancelado);
+                if (cancelou) {
+                    setStatus(docC, 'Parado — ' + label + ' pronto', '#f97316');
+                } else {
+                    setStatus(docC, 'Concluído — ' + label + ' pronto', '#4ade80');
+                }
+            } catch (e) {}
+        };
+
         // ── Eventos dos botões ─────────────────────────────────────────
 
         docC.getElementById('btn-analisar').onclick = async function () {
@@ -151,11 +150,10 @@
             sessionStorage.removeItem('autodatasCandidatasPopup');
             sessionStorage.removeItem('autopopupSemSucesso');
             AF.sons.tocar('parada');
-            setStatus(docC, 'Parado pelo usuário', '#f87171');
+            // Status intermediário — será sobrescrito por habilitarCopiar
+            // quando o relatório parcial for gerado (assíncrono)
+            setStatus(docC, 'Parando...', '#f87171');
             setBtnAtivo(docC, false);
-            // ativa relatório se já houver dados parciais
-            var temRel = !!(AF.estado.relatorioLista && AF.estado.relatorioLista.length);
-            setBtnCopiar(docC, temRel);
         };
 
         docC.getElementById('btn-copiar').onclick = function () {
