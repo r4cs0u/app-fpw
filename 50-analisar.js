@@ -15,8 +15,6 @@
         for (var i = 0; i < chaves.length; i++) {
             var semana = mapa.semanas[chaves[i]];
 
-            // Verifica se a semana pertence ao mes alvo ou é a semana do ultimo mes
-            // que tem sobreposição com o mes alvo (primeira semana do mes alvo)
             var semanaValida = false;
             var todasFolgas = (semana.folgas || [])
                 .concat(semana.folgasVisiveis || [])
@@ -29,7 +27,6 @@
                     break;
                 }
             }
-            // Também verifica ausencias e feriados da semana
             if (!semanaValida) {
                 var todasDatas = (semana.ausencias || [])
                     .concat(semana.ausenciasMes || [])
@@ -130,8 +127,6 @@
     };
 
     // ── Soma HE (cod 2) e HEF (cod 27) ───────────────────────────────
-    // Filtra por mes alvo antes de somar
-    // Aceita formatos HH:MM e HH:MM:SS (segundos ignorados)
 
     AF.analisar.somarHorasExtras = function () {
         try {
@@ -149,7 +144,6 @@
 
                 var n = sel.id.replace('lstNome', '');
 
-                // Filtrar por data do mes alvo
                 var inpData = doc1.querySelector('input[name="Data' + n + '"]') ||
                               doc1.querySelector('input[id="Data' + n + '"]');
                 if (inpData) {
@@ -177,9 +171,7 @@
         }
     };
 
-    // ── Lê saldo de compensação (frame 2, txtSaldo) ───────────────────
-    // Saldo global — não há data para filtrar, mantido como está
-    // Aceita formatos HH:MM e HH:MM:SS (segundos ignorados)
+    // ── Lê saldo de compensação ───────────────────────────────────────
 
     AF.analisar.lerSaldoHEC = function () {
         try {
@@ -260,6 +252,13 @@
             return;
         }
 
+        // ── Snapshot de TODOS os nomes antes de iniciar o loop ──
+        var todosNomes = [];
+        for (var ti = 0; ti < sel.options.length; ti++) {
+            var optTxt = (sel.options[ti].text || '').trim();
+            if (optTxt) todosNomes.push(optTxt);
+        }
+
         var nomeInicial = AF.core.nomeAtual();
         var inicioExec  = Date.now();
         var total       = 0;
@@ -283,7 +282,6 @@
                 stats.HEmin          += r.HEmin;
                 stats.HEFmin         += r.HEFmin;
 
-                // log de progresso por folha (mantido aqui intencionalmente)
                 var temAlgo = r.folgas || r.irregs || r.interj || r.cod47 ||
                               r.HE !== '00:00' || r.HEF !== '00:00';
                 if (temAlgo) {
@@ -302,6 +300,7 @@
 
                 lista.push({
                     nome:   nome,
+                    lido:   true,
                     folgas: r.folgas,
                     irregs: r.irregs,
                     interj: r.interj,
@@ -318,6 +317,27 @@
             if (AF.estado.cancelado) break;
             if (res === 'fim') { AF.core.log('Fim da lista.', '#a3e635'); break; }
             if (AF.core.nomeAtual() === nomeInicial) { AF.core.log('Concluido.', '#a3e635'); break; }
+        }
+
+        // ── Completar lista com nomes não visitados ──
+        var nomesLidos = {};
+        for (var ni = 0; ni < lista.length; ni++) {
+            nomesLidos[lista[ni].nome] = true;
+        }
+        for (var tn = 0; tn < todosNomes.length; tn++) {
+            if (!nomesLidos[todosNomes[tn]]) {
+                lista.push({
+                    nome:   todosNomes[tn],
+                    lido:   false,
+                    folgas: null,
+                    irregs: null,
+                    interj: null,
+                    cod47:  null,
+                    HE:     null,
+                    HEF:    null,
+                    HEC:    null
+                });
+            }
         }
 
         var tempoMs = Date.now() - inicioExec;

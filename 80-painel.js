@@ -71,25 +71,46 @@
             'display:none', 'flex-direction:column', 'user-select:none'
         ].join(';');
 
-        side.innerHTML =
-            '<div style="background:#1f2937;padding:5px 10px;font-weight:bold;font-size:11px;' +
-            'border-bottom:1px solid #374151;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;">'
-            + '<span>📖 Instruções de uso — FolhaFácil</span>'
-            + '<span id="btn-fechar-side" style="cursor:pointer;color:#9ca3af;font-size:14px;line-height:1;">✕</span>'
-            + '</div>'
-            + '<div style="flex:1;overflow-y:auto;padding:8px 12px;line-height:1.6;color:#d1d5db;font-size:11px;">'
-            + '<ol style="margin:0;padding-left:16px;">'
-            + '<li style="margin-bottom:4px;">Analise <strong>todas</strong> as folhas de ponto.</li>'
-            + '<li style="margin-bottom:4px;">Gere o relatório e atue <strong>manualmente</strong> nas irregularidades encontradas.</li>'
-            + '<li style="margin-bottom:4px;">Após os ajustes manuais, clique em <strong>Ajustar</strong> e deixe o aplicativo mover e corrigir as folgas automaticamente.</li>'
-            + '<li style="margin-bottom:4px;">Gere o relatório novamente e navegue pelas folhas que ainda merecem atenção.</li>'
-            + '<li style="margin-bottom:4px;">A <strong>aprovação final</strong> de cada folha é manual.</li>'
-            + '</ol>'
-            + '<div style="margin-top:6px;padding-top:6px;border-top:1px solid #374151;color:#9ca3af;font-size:10px;">'
-            + '* Use o botão <strong style="color:#f87171;">Parar</strong> para interromper qualquer execução em andamento.'
-            + '</div>'
-            + '</div>';
+        var sideHdr = docC.createElement('div');
+        sideHdr.style.cssText = 'background:#1f2937;padding:5px 10px;font-weight:bold;font-size:11px;border-bottom:1px solid #374151;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;';
+        var sideHdrTitle = docC.createElement('span');
+        sideHdrTitle.textContent = '\uD83D\uDCD6 Instru\u00E7\u00F5es de uso \u2014 FolhaF\u00E1cil';
+        var sideHdrClose = docC.createElement('span');
+        sideHdrClose.id = 'btn-fechar-side';
+        sideHdrClose.style.cssText = 'cursor:pointer;color:#9ca3af;font-size:14px;line-height:1;';
+        sideHdrClose.textContent = '\u2715';
+        sideHdr.appendChild(sideHdrTitle);
+        sideHdr.appendChild(sideHdrClose);
 
+        var sideBody = docC.createElement('div');
+        sideBody.style.cssText = 'flex:1;overflow-y:auto;padding:8px 12px;line-height:1.6;color:#d1d5db;font-size:11px;';
+
+        var ol = docC.createElement('ol');
+        ol.style.cssText = 'margin:0;padding-left:18px;';
+
+        var itens = [
+            'Analise <strong>todas</strong> as folhas de ponto.',
+            'Gere o relat\u00F3rio e atue <strong>manualmente</strong> nas irregularidades encontradas.',
+            'Ap\u00F3s os ajustes manuais, clique em <strong>Ajustar</strong> e deixe o aplicativo mover e corrigir as folgas automaticamente.',
+            'Gere o relat\u00F3rio novamente e navegue pelas folhas que ainda merecem aten\u00E7\u00E3o.',
+            'A <strong>aprova\u00E7\u00E3o final</strong> de cada folha \u00E9 manual.'
+        ];
+
+        for (var ii = 0; ii < itens.length; ii++) {
+            var li = docC.createElement('li');
+            li.style.cssText = 'margin-bottom:4px;';
+            li.innerHTML = itens[ii];
+            ol.appendChild(li);
+        }
+
+        var nota = docC.createElement('div');
+        nota.style.cssText = 'margin-top:6px;padding-top:6px;border-top:1px solid #374151;color:#9ca3af;font-size:10px;';
+        nota.innerHTML = '* Use o bot\u00E3o <strong style="color:#f87171;">Parar</strong> para interromper qualquer execu\u00E7\u00E3o em andamento.';
+
+        sideBody.appendChild(ol);
+        sideBody.appendChild(nota);
+        side.appendChild(sideHdr);
+        side.appendChild(sideBody);
         docC.body.appendChild(side);
 
         // ── Painel principal ──────────────────────────────────────────
@@ -117,19 +138,19 @@
             '<div style="background:#1f2937;padding:5px 10px;font-weight:bold;font-size:13px;' +
             'border-bottom:1px solid #374151;text-align:center;flex-shrink:0;' +
             'display:flex;align-items:center;justify-content:space-between;">'
-            + '<span style="flex:1;text-align:center;">FolhaFácil</span>'
-            + '<button id="btn-instrucoes" title="Instruções de uso" style="'
+            + '<span style="flex:1;text-align:center;">FolhaF\u00E1cil</span>'
+            + '<button id="btn-instrucoes" title="Instru\u00E7\u00F5es de uso" style="'
             + 'background:transparent;border:1px solid #374151;border-radius:5px;'
             + 'color:#9ca3af;cursor:pointer;font-size:11px;padding:2px 7px;'
-            + 'font-family:Arial,sans-serif;line-height:1.4;flex-shrink:0;">📖</button>'
+            + 'font-family:Arial,sans-serif;line-height:1.4;flex-shrink:0;">\uD83D\uDCD6</button>'
             + '</div>' +
 
             // Botões
             '<div style="display:flex;gap:6px;padding:10px 10px;background:#0f172a;flex-shrink:0;">' +
-            '<button id="btn-analisar" title="Analisar mês alvo" style="' + btnStyle + ';background:#2563eb;">&#128269; Analisar</button>' +
-            '<button id="btn-executar" title="Ajustar folgas e cód 47" style="' + btnStyle + ';background:#7c3aed;">&#9881;&#65039; Ajustar</button>' +
-            '<button id="btn-copiar" title="Ver relatório" disabled style="' + btnStyle + ';background:#16a34a;opacity:.35;cursor:not-allowed;">&#128202; Relatório</button>' +
-            '<button id="btn-parar" title="Parar execução" disabled style="' + btnStyle + ';background:transparent;border:1px solid #dc2626;opacity:.35;cursor:not-allowed;">&#9209; Parar</button>' +
+            '<button id="btn-analisar" title="Analisar m\u00EAs alvo" style="' + btnStyle + ';background:#2563eb;">&#128269; Analisar</button>' +
+            '<button id="btn-executar" title="Ajustar folgas e c\u00F3d 47" style="' + btnStyle + ';background:#7c3aed;">&#9881;&#65039; Ajustar</button>' +
+            '<button id="btn-copiar" title="Ver relat\u00F3rio" disabled style="' + btnStyle + ';background:#16a34a;opacity:.35;cursor:not-allowed;">&#128202; Relat\u00F3rio</button>' +
+            '<button id="btn-parar" title="Parar execu\u00E7\u00E3o" disabled style="' + btnStyle + ';background:transparent;border:1px solid #dc2626;opacity:.35;cursor:not-allowed;">&#9209; Parar</button>' +
             '</div>' +
 
             // log-box oculto — mantido para compatibilidade com 50-analisar.js e 40-fases.js
@@ -173,12 +194,12 @@
         AF.relatorios.habilitarCopiar = function (titulo) {
             try {
                 setBtnCopiar(docC, true);
-                var label    = titulo || 'Relatório';
+                var label    = titulo || 'Relat\u00F3rio';
                 var cancelou = !!(AF.estado && AF.estado.cancelado);
                 if (cancelou) {
-                    setStatus(docC, 'Parado — ' + label + ' pronto', '#f97316');
+                    setStatus(docC, 'Parado \u2014 ' + label + ' pronto', '#f97316');
                 } else {
-                    setStatus(docC, 'Concluído — ' + label + ' pronto', '#4ade80');
+                    setStatus(docC, 'Conclu\u00EDdo \u2014 ' + label + ' pronto', '#4ade80');
                 }
             } catch (e) {}
         };
@@ -216,7 +237,7 @@
 
         docC.getElementById('btn-copiar').onclick = function () {
             if (!AF.estado.relatorioLista || !AF.estado.relatorioLista.length) {
-                setStatus(docC, 'Nenhum relatório disponível', '#f87171');
+                setStatus(docC, 'Nenhum relat\u00F3rio dispon\u00EDvel', '#f87171');
                 return;
             }
             AF.relatorios.abrirJanela();
