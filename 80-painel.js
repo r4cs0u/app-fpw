@@ -4,10 +4,10 @@
     var AF = window.AutomacaoFolha;
     AF.painel = AF.painel || {};
 
-    // ── Helpers de estado visual ───────────────────────────────────────
+    // ── Helpers internos ─────────────────────────────────────────────
 
     function setStatus(docC, texto, cor) {
-        var el = docC.getElementById('fpw-status-text');
+        var el  = docC.getElementById('fpw-status-text');
         var dot = docC.getElementById('fpw-status-dot');
         if (!el || !dot) return;
         cor = cor || '#4b5563';
@@ -16,38 +16,59 @@
         el.textContent = texto;
     }
 
-    function setBtnAtivo(docC, rodando) {
-        var btnA = docC.getElementById('btn-analisar');
-        var btnE = docC.getElementById('btn-executar');
-        var btnC = docC.getElementById('btn-copiar');
-        var btnP = docC.getElementById('btn-parar');
-        [btnA, btnE].forEach(function (b) {
-            if (!b) return;
-            b.disabled = rodando;
-            b.style.opacity = rodando ? '.35' : '1';
-            b.style.cursor = rodando ? 'not-allowed' : 'pointer';
-        });
-        if (btnP) {
-            btnP.disabled = !rodando;
-            btnP.style.opacity = !rodando ? '.35' : '1';
-            btnP.style.cursor = !rodando ? 'not-allowed' : 'pointer';
-        }
-        // btn-copiar: nunca desabilitar junto — só ativa quando há relatório
+    function setBtnCopiar(docC, ativo) {
+        var b = docC.getElementById('btn-copiar');
+        if (!b) return;
+        b.disabled = !ativo;
+        b.style.opacity  = ativo ? '1'            : '.35';
+        b.style.cursor   = ativo ? 'pointer'      : 'not-allowed';
     }
 
-    // Sobrescreve AF.core.setBotoes para usar o novo helper
+    function setBtnAtivo(docC, rodando) {
+        ['btn-analisar', 'btn-executar'].forEach(function (id) {
+            var b = docC.getElementById(id);
+            if (!b) return;
+            b.disabled      = rodando;
+            b.style.opacity = rodando ? '.35' : '1';
+            b.style.cursor  = rodando ? 'not-allowed' : 'pointer';
+        });
+        var btnP = docC.getElementById('btn-parar');
+        if (btnP) {
+            btnP.disabled      = !rodando;
+            btnP.style.opacity = !rodando ? '.35' : '1';
+            btnP.style.cursor  = !rodando ? 'not-allowed' : 'pointer';
+        }
+    }
+
+    // Sobrescreve AF.core.setBotoes — chamado por analisarTodas e processarTodas.
+    // Quando rodando=false (fim/parada): atualiza status, ativa btn-copiar se houver relatório.
     AF.core.setBotoes = function (rodando) {
         try {
             var docC = AF.core.getDocC();
             setBtnAtivo(docC, rodando);
+
+            if (!rodando && !AF.estado.cancelado) {
+                // Fim normal
+                var temRelatorio = !!(AF.estado.relatorioLista && AF.estado.relatorioLista.length);
+                if (temRelatorio) {
+                    setStatus(docC, 'Concluído — relatório pronto', '#4ade80');
+                    setBtnCopiar(docC, true);
+                } else {
+                    setStatus(docC, 'Concluído', '#4ade80');
+                }
+            } else if (!rodando && AF.estado.cancelado) {
+                // Parada pelo usuário — btn-copiar só ativa se já há algo
+                var temRel = !!(AF.estado.relatorioLista && AF.estado.relatorioLista.length);
+                if (temRel) setBtnCopiar(docC, true);
+            }
+            // quando rodando=true não mexe no status (já definido pelo onclick)
         } catch (e) {}
     };
 
-    // ── Inicializar painel ─────────────────────────────────────────────
+    // ── Inicializar painel ────────────────────────────────────────────
 
     AF.painel.iniciar = function (docC) {
 
-        // Remove painel anterior se existir (hot-reload)
         var antigo = docC.getElementById('painel-simples');
         if (antigo) antigo.parentNode.removeChild(antigo);
 
@@ -56,80 +77,71 @@
         painel.style.cssText = [
             'position:fixed', 'top:4px', 'right:6px', 'z-index:999999',
             'background:#111827', 'color:#f9fafb', 'border-radius:8px',
-            'box-shadow:0 4px 16px rgba(0,0,0,.5)', 'font-family:Arial,sans-serif',
-            'font-size:11px', 'width:360px',
-            'border:1px solid #374151', 'overflow:hidden', 'display:flex',
-            'flex-direction:column', 'user-select:none'
+            'box-shadow:0 4px 16px rgba(0,0,0,.5)',
+            'font-family:Arial,sans-serif', 'font-size:11px',
+            'width:400px', 'max-height:200px',
+            'border:1px solid #374151', 'overflow:hidden',
+            'display:flex', 'flex-direction:column', 'user-select:none'
         ].join(';');
 
         var btnStyle = [
-            'flex:1', 'padding:6px 4px', 'border:0', 'border-radius:6px',
+            'flex:1', 'padding:7px 4px', 'border:0', 'border-radius:6px',
             'color:white', 'cursor:pointer', 'font-size:13px',
             'display:flex', 'align-items:center', 'justify-content:center',
-            'line-height:1', 'gap:4px', 'font-family:Arial,sans-serif'
+            'gap:4px', 'font-family:Arial,sans-serif', 'line-height:1'
         ].join(';');
 
         painel.innerHTML =
             // Título
-            '<div style="background:#1f2937;padding:4px 8px;font-weight:bold;font-size:11px;border-bottom:1px solid #374151;text-align:center;flex-shrink:0;">Folha de Ponto — Automação</div>' +
+            '<div style="background:#1f2937;padding:5px 10px;font-weight:bold;font-size:11px;' +
+            'border-bottom:1px solid #374151;text-align:center;flex-shrink:0;">Folha de Ponto — Automação</div>' +
 
-            // Linha de botões
-            '<div style="display:flex;gap:6px;padding:8px 10px;background:#0f172a;">' +
-
-            '<button id="btn-analisar" title="Analisar mes alvo"' +
-            ' style="' + btnStyle + ';background:#2563eb;">&#128269; Analisar</button>' +
-
-            '<button id="btn-executar" title="Folgas + Gravar"' +
-            ' style="' + btnStyle + ';background:#7c3aed;">&#9881;&#65039; Ajustar</button>' +
-
-            '<button id="btn-copiar" title="Relatório" disabled' +
-            ' style="' + btnStyle + ';background:#16a34a;opacity:.35;cursor:not-allowed;">&#128202; Relatório</button>' +
-
-            '<button id="btn-parar" title="Parar execucao" disabled' +
-            ' style="' + btnStyle + ';background:transparent;border:1px solid #dc2626;color:white;opacity:.35;cursor:not-allowed;">&#128721; Parar</button>' +
-
+            // Botões
+            '<div style="display:flex;gap:6px;padding:10px 10px;background:#0f172a;flex-shrink:0;">' +
+            '<button id="btn-analisar" title="Analisar mês alvo" style="' + btnStyle + ';background:#2563eb;">&#128269; Analisar</button>' +
+            '<button id="btn-executar" title="Ajustar folgas e cód 47" style="' + btnStyle + ';background:#7c3aed;">&#9881;&#65039; Ajustar</button>' +
+            '<button id="btn-copiar" title="Ver relatório" disabled style="' + btnStyle + ';background:#16a34a;opacity:.35;cursor:not-allowed;">&#128202; Relatório</button>' +
+            '<button id="btn-parar" title="Parar execução" disabled style="' + btnStyle + ';background:transparent;border:1px solid #dc2626;opacity:.35;cursor:not-allowed;">&#9209; Parar</button>' +
             '</div>' +
 
-            // Log box (mantido para compatibilidade com 50-analisar e 40-fases)
-            '<div id="log-box" style="flex:1;padding:5px 7px;overflow-y:auto;line-height:1.5;font-size:11px;color:#9ca3af;background:#0b1220;max-height:130px;">Aguardando...</div>' +
+            // log-box oculto — mantido para compatibilidade com 50-analisar.js e 40-fases.js
+            '<div id="log-box" style="display:none;"></div>' +
 
             // Barra de status
-            '<div style="display:flex;align-items:center;gap:6px;padding:4px 10px;background:#0d1117;border-top:1px solid #1f2937;font-size:10px;letter-spacing:.02em;">' +
-            '<span id="fpw-status-dot" style="width:6px;height:6px;border-radius:50%;background:#374151;flex-shrink:0;display:inline-block;"></span>' +
+            '<div style="display:flex;align-items:center;gap:6px;padding:5px 10px;' +
+            'background:#0d1117;border-top:1px solid #1f2937;font-size:10px;flex-shrink:0;">' +
+            '<span id="fpw-status-dot" style="width:7px;height:7px;border-radius:50%;background:#374151;flex-shrink:0;"></span>' +
             '<span id="fpw-status-text" style="color:#4b5563;">Aguardando...</span>' +
             '</div>';
 
         docC.body.appendChild(painel);
 
-        // ── Hover nos botões ──────────────────────────────────────────
-        ['btn-analisar','btn-executar'].forEach(function(id) {
-            var btn = docC.getElementById(id);
-            if (!btn) return;
-            var bgOriginal = btn.style.background;
-            btn.addEventListener('mouseenter', function() {
-                if (!this.disabled) this.style.filter = 'brightness(1.15)';
-            });
-            btn.addEventListener('mouseleave', function() {
-                this.style.filter = '';
-            });
+        // hover
+        ['btn-analisar','btn-executar','btn-copiar'].forEach(function (id) {
+            var b = docC.getElementById(id);
+            if (!b) return;
+            b.addEventListener('mouseenter', function () { if (!this.disabled) this.style.filter = 'brightness(1.18)'; });
+            b.addEventListener('mouseleave', function () { this.style.filter = ''; });
         });
 
-        // ── Eventos ───────────────────────────────────────────────────
+        // ── Eventos dos botões ─────────────────────────────────────────
 
         docC.getElementById('btn-analisar').onclick = async function () {
             AF.estado.cancelado = false;
+            AF.estado.relatorioLista = null;
             AF.core.limparLogBuffer();
-            docC.getElementById('log-box').innerHTML = '';
+            setBtnCopiar(docC, false);
             setStatus(docC, 'Analisando...', '#60a5fa');
             await AF.analisar.analisarTodas();
         };
 
         docC.getElementById('btn-executar').onclick = async function () {
             AF.estado.cancelado = false;
+            AF.estado.relatorioLista = null;
             AF.core.limparLogBuffer();
-            docC.getElementById('log-box').innerHTML = '';
+            setBtnCopiar(docC, false);
             setStatus(docC, 'Ajustando...', '#a78bfa');
-            await AF.fases.processarTodas(docC);
+            await AF.fases.processarTodas();
         };
 
         docC.getElementById('btn-parar').onclick = function () {
@@ -141,6 +153,9 @@
             AF.sons.tocar('parada');
             setStatus(docC, 'Parado pelo usuário', '#f87171');
             setBtnAtivo(docC, false);
+            // ativa relatório se já houver dados parciais
+            var temRel = !!(AF.estado.relatorioLista && AF.estado.relatorioLista.length);
+            setBtnCopiar(docC, temRel);
         };
 
         docC.getElementById('btn-copiar').onclick = function () {
@@ -152,17 +167,11 @@
             AF.sons.tocar('copia');
         };
 
-        // Expor setStatus e setBtnAtivo para outros módulos
-        AF.painel.setStatus = function (texto, cor) { setStatus(docC, texto, cor); };
-        AF.painel.setBtnCopiar = function (ativo) {
-            var b = docC.getElementById('btn-copiar');
-            if (!b) return;
-            b.disabled = !ativo;
-            b.style.opacity = ativo ? '1' : '.35';
-            b.style.cursor = ativo ? 'pointer' : 'not-allowed';
-        };
+        // API pública para outros módulos
+        AF.painel.setStatus    = function (t, c) { setStatus(docC, t, c); };
+        AF.painel.setBtnCopiar = function (a)    { setBtnCopiar(docC, a); };
 
-        AF.core.log('Pronto para executar.', '#a3e635');
+        setStatus(docC, 'Aguardando...', '#4b5563');
         setBtnAtivo(docC, false);
     };
 
