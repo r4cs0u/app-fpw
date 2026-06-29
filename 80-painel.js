@@ -4,64 +4,35 @@
     var AF = window.AutomacaoFolha;
     AF.painel = AF.painel || {};
 
-    // ── Estilos inline reutilizáveis ─────────────────────────────
-
-    var S = {
-        painel: [
-            'position:fixed', 'top:6px', 'right:8px', 'z-index:999999',
-            'background:#111827', 'color:#f9fafb',
-            'border-radius:10px', 'box-shadow:0 4px 20px rgba(0,0,0,.6)',
-            'font-family:Arial,sans-serif', 'font-size:12px',
-            'width:210px', 'border:1px solid #1f2937',
-            'overflow:hidden', 'display:flex', 'flex-direction:column',
-            'user-select:none'
-        ].join(';'),
-
-        titulo: [
-            'background:#1a2233', 'padding:7px 12px',
-            'font-weight:bold', 'font-size:11px', 'letter-spacing:.04em',
-            'text-align:center', 'color:#93c5fd',
-            'border-bottom:1px solid #1f2937', 'flex-shrink:0'
-        ].join(';'),
-
-        btnBase: [
-            'display:flex', 'align-items:center', 'gap:9px',
-            'width:100%', 'padding:9px 14px',
-            'border:none', 'border-radius:0',
-            'background:transparent', 'color:#e2e8f0',
-            'font-family:Arial,sans-serif', 'font-size:12px',
-            'cursor:pointer', 'text-align:left',
-            'transition:background .15s'
-        ].join(';'),
-
-        divisor: 'height:1px;background:#1f2937;margin:0 12px;',
-
-        status: [
-            'padding:7px 14px', 'font-size:10px',
-            'color:#4b5563', 'border-top:1px solid #1f2937',
-            'background:#0d1117', 'letter-spacing:.02em',
-            'flex-shrink:0', 'min-height:28px',
-            'display:flex', 'align-items:center', 'gap:6px'
-        ].join(';')
-    };
-
-    // ── Helpers de estado visual ──────────────────────────────
+    // ── Helpers de estado visual ───────────────────────────────────────
 
     function setStatus(docC, texto, cor) {
-        var el = docC.getElementById('fpw-status');
-        if (!el) return;
+        var el = docC.getElementById('fpw-status-text');
+        var dot = docC.getElementById('fpw-status-dot');
+        if (!el || !dot) return;
         cor = cor || '#4b5563';
-        el.innerHTML = '<span style="width:6px;height:6px;border-radius:50%;background:' + cor + ';display:inline-block;flex-shrink:0"></span>'
-                     + '<span style="color:' + cor + '">' + texto + '</span>';
+        dot.style.background = cor;
+        el.style.color = cor;
+        el.textContent = texto;
     }
 
     function setBtnAtivo(docC, rodando) {
         var btnA = docC.getElementById('btn-analisar');
         var btnE = docC.getElementById('btn-executar');
+        var btnC = docC.getElementById('btn-copiar');
         var btnP = docC.getElementById('btn-parar');
-        if (btnA) { btnA.disabled = rodando; btnA.style.opacity = rodando ? '.35' : '1'; btnA.style.cursor = rodando ? 'not-allowed' : 'pointer'; }
-        if (btnE) { btnE.disabled = rodando; btnE.style.opacity = rodando ? '.35' : '1'; btnE.style.cursor = rodando ? 'not-allowed' : 'pointer'; }
-        if (btnP) { btnP.disabled = !rodando; btnP.style.opacity = !rodando ? '.35' : '1'; btnP.style.cursor = !rodando ? 'not-allowed' : 'pointer'; }
+        [btnA, btnE].forEach(function (b) {
+            if (!b) return;
+            b.disabled = rodando;
+            b.style.opacity = rodando ? '.35' : '1';
+            b.style.cursor = rodando ? 'not-allowed' : 'pointer';
+        });
+        if (btnP) {
+            btnP.disabled = !rodando;
+            btnP.style.opacity = !rodando ? '.35' : '1';
+            btnP.style.cursor = !rodando ? 'not-allowed' : 'pointer';
+        }
+        // btn-copiar: nunca desabilitar junto — só ativa quando há relatório
     }
 
     // Sobrescreve AF.core.setBotoes para usar o novo helper
@@ -72,18 +43,7 @@
         } catch (e) {}
     };
 
-    // ── Montar HTML do painel ────────────────────────────────
-
-    function montarBotao(id, icone, label, corIcone, disabled) {
-        return '<button id="' + id + '"'
-            + (disabled ? ' disabled' : '')
-            + ' style="' + S.btnBase + (disabled ? ';opacity:.35;cursor:not-allowed' : '') + '">'
-            + '<span style="font-size:16px;line-height:1;color:' + corIcone + ';flex-shrink:0">' + icone + '</span>'
-            + '<span>' + label + '</span>'
-            + '</button>';
-    }
-
-    // ── Inicializar painel ───────────────────────────────────
+    // ── Inicializar painel ─────────────────────────────────────────────
 
     AF.painel.iniciar = function (docC) {
 
@@ -93,59 +53,82 @@
 
         var painel = docC.createElement('div');
         painel.id = 'painel-simples';
-        painel.style.cssText = S.painel;
+        painel.style.cssText = [
+            'position:fixed', 'top:4px', 'right:6px', 'z-index:999999',
+            'background:#111827', 'color:#f9fafb', 'border-radius:8px',
+            'box-shadow:0 4px 16px rgba(0,0,0,.5)', 'font-family:Arial,sans-serif',
+            'font-size:11px', 'width:360px',
+            'border:1px solid #374151', 'overflow:hidden', 'display:flex',
+            'flex-direction:column', 'user-select:none'
+        ].join(';');
+
+        var btnStyle = [
+            'flex:1', 'padding:6px 4px', 'border:0', 'border-radius:6px',
+            'color:white', 'cursor:pointer', 'font-size:13px',
+            'display:flex', 'align-items:center', 'justify-content:center',
+            'line-height:1', 'gap:4px', 'font-family:Arial,sans-serif'
+        ].join(';');
 
         painel.innerHTML =
             // Título
-            '<div style="' + S.titulo + '">📄 Folha de Ponto — Automação</div>' +
+            '<div style="background:#1f2937;padding:4px 8px;font-weight:bold;font-size:11px;border-bottom:1px solid #374151;text-align:center;flex-shrink:0;">Folha de Ponto — Automação</div>' +
 
-            // Botões
-            '<div style="display:flex;flex-direction:column;padding:4px 0;">' +
-                montarBotao('btn-analisar', '🔍', 'Analisar folhas',   '#60a5fa', false) +
-                '<div style="' + S.divisor + '"></div>' +
-                montarBotao('btn-executar', '⚙️',  'Ajustar folhas',   '#a78bfa', false) +
-                '<div style="' + S.divisor + '"></div>' +
-                montarBotao('btn-copiar',   '📊', 'Abrir Relatório',  '#34d399', true)  +
-                '<div style="' + S.divisor + '"></div>' +
-                montarBotao('btn-parar',    '⏹️',  'Parar',            '#f87171', true)  +
+            // Linha de botões
+            '<div style="display:flex;gap:6px;padding:8px 10px;background:#0f172a;">' +
+
+            '<button id="btn-analisar" title="Analisar mes alvo"' +
+            ' style="' + btnStyle + ';background:#2563eb;">&#128269; Analisar</button>' +
+
+            '<button id="btn-executar" title="Folgas + Gravar"' +
+            ' style="' + btnStyle + ';background:#7c3aed;">&#9881;&#65039; Ajustar</button>' +
+
+            '<button id="btn-copiar" title="Relatório" disabled' +
+            ' style="' + btnStyle + ';background:#16a34a;opacity:.35;cursor:not-allowed;">&#128202; Relatório</button>' +
+
+            '<button id="btn-parar" title="Parar execucao" disabled' +
+            ' style="' + btnStyle + ';background:transparent;border:1px solid #dc2626;color:white;opacity:.35;cursor:not-allowed;">&#128721; Parar</button>' +
+
             '</div>' +
 
-            // Status
-            '<div id="fpw-status" style="' + S.status + '">' +
-                '<span style="width:6px;height:6px;border-radius:50%;background:#374151;display:inline-block"></span>' +
-                '<span style="color:#374151">Aguardando...</span>' +
+            // Log box (mantido para compatibilidade com 50-analisar e 40-fases)
+            '<div id="log-box" style="flex:1;padding:5px 7px;overflow-y:auto;line-height:1.5;font-size:11px;color:#9ca3af;background:#0b1220;max-height:130px;">Aguardando...</div>' +
+
+            // Barra de status
+            '<div style="display:flex;align-items:center;gap:6px;padding:4px 10px;background:#0d1117;border-top:1px solid #1f2937;font-size:10px;letter-spacing:.02em;">' +
+            '<span id="fpw-status-dot" style="width:6px;height:6px;border-radius:50%;background:#374151;flex-shrink:0;display:inline-block;"></span>' +
+            '<span id="fpw-status-text" style="color:#4b5563;">Aguardando...</span>' +
             '</div>';
 
         docC.body.appendChild(painel);
 
-        // ── Hover nos botões ──────────────────────────────────
-
-        ['btn-analisar','btn-executar','btn-copiar','btn-parar'].forEach(function(id) {
+        // ── Hover nos botões ──────────────────────────────────────────
+        ['btn-analisar','btn-executar'].forEach(function(id) {
             var btn = docC.getElementById(id);
             if (!btn) return;
+            var bgOriginal = btn.style.background;
             btn.addEventListener('mouseenter', function() {
-                if (!this.disabled) this.style.background = 'rgba(255,255,255,.06)';
+                if (!this.disabled) this.style.filter = 'brightness(1.15)';
             });
             btn.addEventListener('mouseleave', function() {
-                this.style.background = 'transparent';
+                this.style.filter = '';
             });
         });
 
-        // ── Eventos ─────────────────────────────────────────
+        // ── Eventos ───────────────────────────────────────────────────
 
         docC.getElementById('btn-analisar').onclick = async function () {
             AF.estado.cancelado = false;
             AF.core.limparLogBuffer();
+            docC.getElementById('log-box').innerHTML = '';
             setStatus(docC, 'Analisando...', '#60a5fa');
-            setBtnAtivo(docC, true);
             await AF.analisar.analisarTodas();
         };
 
         docC.getElementById('btn-executar').onclick = async function () {
             AF.estado.cancelado = false;
             AF.core.limparLogBuffer();
+            docC.getElementById('log-box').innerHTML = '';
             setStatus(docC, 'Ajustando...', '#a78bfa');
-            setBtnAtivo(docC, true);
             await AF.fases.processarTodas(docC);
         };
 
@@ -169,12 +152,17 @@
             AF.sons.tocar('copia');
         };
 
-        // Expor setStatus globalmente para outros módulos atualizarem o status
-        AF.painel.setStatus = function (texto, cor) {
-            setStatus(docC, texto, cor);
+        // Expor setStatus e setBtnAtivo para outros módulos
+        AF.painel.setStatus = function (texto, cor) { setStatus(docC, texto, cor); };
+        AF.painel.setBtnCopiar = function (ativo) {
+            var b = docC.getElementById('btn-copiar');
+            if (!b) return;
+            b.disabled = !ativo;
+            b.style.opacity = ativo ? '1' : '.35';
+            b.style.cursor = ativo ? 'pointer' : 'not-allowed';
         };
 
-        setStatus(docC, 'Pronto', '#374151');
+        AF.core.log('Pronto para executar.', '#a3e635');
         setBtnAtivo(docC, false);
     };
 
