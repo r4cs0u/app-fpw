@@ -6,7 +6,8 @@ window.AutomacaoFolha = window.AutomacaoFolha || {
         ultimoPopup: null,
         relatorio: '',
         textoCopiavel: '',
-        winOpenOriginal: null
+        winOpenOriginal: null,
+        logBuffer: []
     },
     core: {},
     utils: {},
@@ -44,6 +45,10 @@ window.AutomacaoFolha = window.AutomacaoFolha || {
     };
 
     AF.core.log = function (msg, cor) {
+        // Acumula no buffer para uso na janela de relatório
+        AF.estado.logBuffer = AF.estado.logBuffer || [];
+        AF.estado.logBuffer.push({ msg: msg, cor: cor || '#f9fafb' });
+
         try {
             var docC = AF.core.getDocC();
             var b = docC.getElementById('log-box');
@@ -55,6 +60,10 @@ window.AutomacaoFolha = window.AutomacaoFolha || {
             b.appendChild(d);
             b.scrollTop = b.scrollHeight;
         } catch (e) {}
+    };
+
+    AF.core.limparLogBuffer = function () {
+        AF.estado.logBuffer = [];
     };
 
     AF.core.setBotoes = function (rodando) {
