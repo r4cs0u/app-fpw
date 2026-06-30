@@ -251,5 +251,5 @@
         setStatus(docC, 'Aguardando...', '#4b5563');
         setBtnAtivo(docC, false);
     };
-
+    console.log('[FPW] 80-painel carregado.versão 1.2 - Log loading message for 80-painel version 1.2');
 })();
