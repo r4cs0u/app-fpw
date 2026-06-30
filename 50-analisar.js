@@ -348,5 +348,5 @@
         AF.core.setBotoes(false);
         AF.estado.rodando = false;
     };
-
+    console.log('[FPW] 50-analisar carregado.versão 1.2 - Log loading message for 50-analisar version 1.2');
 })();
