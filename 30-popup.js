@@ -285,5 +285,5 @@
 
         return { ok: true, semAlteracao: false };
     };
-    console.log('[FPW] 30-popup carregado | v1.2');
+    console.log('[FPW] 30-popup carregado. v1.3 - fix(log): atualizar cores do log - azul #0043ff, amarelo #ffb000');
 })();
