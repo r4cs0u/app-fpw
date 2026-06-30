@@ -251,7 +251,5 @@ window.AutomacaoFolha = window.AutomacaoFolha || {
             AF.estado.keepAliveTimer = null;
         }
     };
-})
     console.log('[FPW] 00-core carregado. versão 1.2 - Update log message to include version number.');
-    
-    ();
+})();
