@@ -621,5 +621,5 @@
             win.document.close();
         };
     };
-
+    console.log('[FPW] 60-relatorios carregado.versão 1.2 - Log loading message for 60-relatorios version 1.2');
 })();
