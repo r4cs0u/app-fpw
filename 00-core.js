@@ -251,4 +251,7 @@ window.AutomacaoFolha = window.AutomacaoFolha || {
             AF.estado.keepAliveTimer = null;
         }
     };
-})();
+})
+    console.log('[FPW] 00-core carregado. frames[0]/[1], esperar, log, keepAlive, interceptorPopup.');
+    
+    ();
