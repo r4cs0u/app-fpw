@@ -139,13 +139,13 @@
 
         AF.relatorios.habilitarCopiar('Relatório de Ajuste');
 
-        AF.core.log('\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500', '#374151');
+        AF.core.log('──────────────────', '#374151');
         AF.core.log('RELATORIO DE AJUSTE', '#f9fafb');
-        AF.core.log('Tempo: ' + minutos + 'min ' + segundos + 's', '#89b4fa');
-        AF.core.log('Folgas Mov.: ' + relStats.folgasAlteradas + ' | Cod 47 Ajust.: ' + relStats.linhas47 + ' | Presas: ' + relStats.folgasNaoAlteradas, '#89b4fa');
-        AF.core.log('Irregularidades: ' + relStats.irregsRestantes + ' | Interjornada: ' + relStats.interjRestantes, '#89b4fa');
-        AF.core.log('\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500', '#374151');
-        AF.core.log('Relatorio pronto.', '#a3e635');
+        AF.core.log('Tempo: ' + minutos + 'min ' + segundos + 's', '#0043ff');
+        AF.core.log('Folgas Mov.: ' + relStats.folgasAlteradas + ' | Cod 47 Ajust.: ' + relStats.linhas47 + ' | Presas: ' + relStats.folgasNaoAlteradas, '#0043ff');
+        AF.core.log('Irregularidades: ' + relStats.irregsRestantes + ' | Interjornada: ' + relStats.interjRestantes, '#0043ff');
+        AF.core.log('──────────────────', '#374151');
+        AF.core.log('Relatorio pronto.', '#02ab19');
     };
 
     // ── Relatório do Analisar (50-analisar) — TSV ───────────────────
@@ -228,13 +228,13 @@
 
         AF.relatorios.habilitarCopiar('Relatório de Análise');
 
-        AF.core.log('\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500', '#374151');
+        AF.core.log('──────────────────', '#374151');
         AF.core.log('ANALISE CONCLUIDA', '#f9fafb');
-        AF.core.log('Tempo: ' + min + 'min ' + seg + 's', '#89b4fa');
-        AF.core.log('Folgas p/ Mov.: ' + stats.folgasMoviveis + ' | Cod 47 p/ Ajustar: ' + stats.cod47 + ' | Irregularidades: ' + stats.irregs + ' | Interjornada: ' + stats.interj, '#89b4fa');
-        AF.core.log('HE100%: ' + totalHEstr + ' | HEF100%: ' + totalHEFstr, '#89b4fa');
-        AF.core.log('\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500', '#374151');
-        AF.core.log('Relatorio pronto.', '#a3e635');
+        AF.core.log('Tempo: ' + min + 'min ' + seg + 's', '#0043ff');
+        AF.core.log('Folgas p/ Mov.: ' + stats.folgasMoviveis + ' | Cod 47 p/ Ajustar: ' + stats.cod47 + ' | Irregularidades: ' + stats.irregs + ' | Interjornada: ' + stats.interj, '#0043ff');
+        AF.core.log('HE100%: ' + totalHEstr + ' | HEF100%: ' + totalHEFstr, '#0043ff');
+        AF.core.log('──────────────────', '#374151');
+        AF.core.log('Relatorio pronto.', '#02ab19');
     };
 
     // ── Parser do logBuffer → grupos por funcionário ───────────────
@@ -621,5 +621,6 @@
             win.document.close();
         };
     };
-    console.log('[FPW] 60-relatorios carregado.versão 1.2 - Log loading message for 60-relatorios version 1.2');
+
+    console.log('[FPW] 60-relatorios carregado | v1.2');
 })();
