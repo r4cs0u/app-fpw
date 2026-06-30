@@ -137,7 +137,7 @@
         return feriados;
     };
 
-    console.log('[FPW] 10-utils carregado. versão 1.2 - feat: adiciona calcularFeriadosRJ com móveis e fixos nacionais+RJ');
+    console.log('[FPW] 10-utils carregado. versão 1.2 - Update log message for 10-utils.js loading');
     
 })();
 
