@@ -4,7 +4,7 @@
     var AF = window.AutomacaoFolha;
     AF.analisar = AF.analisar || {};
 
-    // ── Conta folgas a movimentar ──────────────────────────────────────
+    // ── Conta folgas a movimentar ──────────────────────────────────────────
 
     AF.analisar.contarFolgas = function () {
         var mapa = AF.mapa.mapearFolhaAtual();
@@ -89,7 +89,7 @@
         return { marc: marc, he: he, smES: smES, total: marc + he + smES };
     };
 
-    // ── Conta interjornadas ───────────────────────────────────────────
+    // ── Conta interjornadas ───────────────────────────────────────────────
 
     AF.analisar.contarInterj = function () {
         var alvo = AF.utils.mesAlvoDaTabela();
@@ -108,7 +108,7 @@
         return interj;
     };
 
-    // ── Conta códigos 47 ──────────────────────────────────────────────
+    // ── Conta códigos 47 ─────────────────────────────────────────────────────────
 
     AF.analisar.contarCod47 = function () {
         var alvo = AF.utils.mesAlvoDaTabela();
@@ -126,7 +126,7 @@
         return count;
     };
 
-    // ── Soma HE (cod 2) e HEF (cod 27) ───────────────────────────────
+    // ── Soma HE (cod 2) e HEF (cod 27) ─────────────────────────────────────
 
     AF.analisar.somarHorasExtras = function () {
         try {
@@ -171,7 +171,7 @@
         }
     };
 
-    // ── Lê saldo de compensação ───────────────────────────────────────
+    // ── Lê saldo de compensação ───────────────────────────────────────────────
 
     AF.analisar.lerSaldoHEC = function () {
         try {
@@ -190,7 +190,7 @@
         }
     };
 
-    // ── Análise completa de uma folha ─────────────────────────────────
+    // ── Análise completa de uma folha ───────────────────────────────────────
 
     AF.analisar.analisarFolhaAtual = function () {
         if (AF.core.paginaVaziaAgora()) {
@@ -215,7 +215,7 @@
         };
     };
 
-    // ── Loop principal de análise ─────────────────────────────────────
+    // ── Loop principal de análise ───────────────────────────────────────────
 
     AF.analisar.analisarTodas = async function () {
         AF.estado.cancelado = false;
@@ -231,7 +231,7 @@
             : new Date();
 
         var nomeMesStr = AF.utils.nomeMes[alvo.getMonth()] + ' ' + alvo.getFullYear();
-        AF.core.log('Analisando ' + nomeMesStr + '...', '#89b4fa');
+        AF.core.log('Analisando ' + nomeMesStr + '...', '#0043ff');
 
         var stats = {
             totalFolhas: 0,
@@ -272,7 +272,7 @@
 
             if (r.vazia) {
                 stats.vazias++;
-                AF.core.log('- ' + nome, '#4b5563');
+                AF.core.log('- ' + nome, '#000000');
             } else {
                 stats.totalFolhas++;
                 stats.folgasMoviveis += r.folgas;
@@ -315,8 +315,8 @@
 
             var res = await AF.core.avancarFuncionario();
             if (AF.estado.cancelado) break;
-            if (res === 'fim') { AF.core.log('Fim da lista.', '#a3e635'); break; }
-            if (AF.core.nomeAtual() === nomeInicial) { AF.core.log('Concluido.', '#a3e635'); break; }
+            if (res === 'fim') { AF.core.log('Fim da lista.', '#02ab19'); break; }
+            if (AF.core.nomeAtual() === nomeInicial) { AF.core.log('Concluido.', '#02ab19'); break; }
         }
 
         // ── Completar lista com nomes não visitados ──
@@ -348,5 +348,5 @@
         AF.core.setBotoes(false);
         AF.estado.rodando = false;
     };
-    console.log('[FPW] 50-analisar carregado.versão 1.2 - Log loading message for 50-analisar version 1.2');
+    console.log('[FPW] 50-analisar carregado. versão 1.3 - atualizar cores do log');
 })();
