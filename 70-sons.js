@@ -105,5 +105,5 @@
             if (catalogo[tipo]) catalogo[tipo]();
         } catch (e) {}
     };
-
+    console.log('[FPW] 70-sons carregado.versão 1.2 - Log loading message for 70-sons version 1.2');
 })();
