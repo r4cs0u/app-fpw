@@ -173,4 +173,6 @@
             lista: lista
         };
     };
+
+    console.log('[FPW] 20-mapa carregado.versão 1.2 - Log loading message for 20-mapa version 1.2');
 })();
