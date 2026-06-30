@@ -561,5 +561,5 @@
         AF.core.setBotoes(false);
 		AF.estado.rodando = false;
     };
-
+	console.log('[FPW] 40-fases carregado.versão 1.2 - Log loading message for 40-fases version 1.2');
 })();
