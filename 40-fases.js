@@ -95,7 +95,7 @@
         for (var i = 0; i < plano.acoes.length; i++) {
             if (AF.estado.cancelado) break;
             var acao = plano.acoes[i];
-            AF.core.log('Fase 1: ausencia ' + acao.dataAusencia + ' <- folga ' + acao.dataOrigem, '#89b4fa');
+            AF.core.log('Fase 1: ausencia ' + acao.dataAusencia + ' <- folga ' + acao.dataOrigem, '#0043ff');
             var r = await AF.popup.executarAcaoFolga(acao);
             if (r.ok) movidas++;
             if (r.semAlteracao) presas.push({ fase: 1, semanaId: acao.semanaId, dataFolga: acao.dataOrigem, numFolga: acao.numAbrirPopup });
@@ -177,7 +177,7 @@
             datasUsadasFase2.add(acao.dataAusencia);
             datasUsadasFase2.add(acao.dataOrigem);
 
-            AF.core.log('Fase 2: ausencia ' + acao.dataAusencia + (rodada.tipo === 'visivel' ? ' <- folga ' : ' <- folga oculta ') + acao.dataOrigem, '#89b4fa');
+            AF.core.log('Fase 2: ausencia ' + acao.dataAusencia + (rodada.tipo === 'visivel' ? ' <- folga ' : ' <- folga oculta ') + acao.dataOrigem, '#0043ff');
 
             var r = await AF.popup.executarAcaoFolga(acao);
             if (r.ok) { movidas++; continue; }
@@ -279,7 +279,7 @@
 
 			var sel = tr.querySelector('select[name="lstNome' + num + '"]');
 			if (!sel) {
-				AF.core.log('Fase 4: select nao achado para ' + (dataStr || num), '#f9e2af');
+				AF.core.log('Fase 4: select nao achado para ' + (dataStr || num), '#ffb000');
 				continue;
 			}
 
@@ -287,7 +287,7 @@
 				return o.value === '48';
 			});
 			if (!opt48) {
-				AF.core.log('Fase 4: opcao 48 nao existe para ' + (dataStr || num), '#f9e2af');
+				AF.core.log('Fase 4: opcao 48 nao existe para ' + (dataStr || num), '#ffb000');
 				continue;
 			}
 
@@ -317,7 +317,7 @@
 			nsMarcados.push(num);
 
 			var cod = doc1.querySelector('[name="CodJust' + num + '"]');
-			AF.core.log('Fase 4: ' + dataStr + ' | 47 → 48 | CodJust: ' + (cod ? cod.value : '-'), '#f9e2af');
+			AF.core.log('Fase 4: ' + dataStr + ' | 47 → 48 | CodJust: ' + (cod ? cod.value : '-'), '#ffb000');
 		}
 
 		return nsMarcados;
@@ -381,7 +381,7 @@
         var entry = relListaMap[nome] || relListaMap[nome.trim()];
 
         if (AF.core.paginaVaziaAgora()) {
-            AF.core.log('Sem marcacoes, pulando.', '#4b5563');
+            AF.core.log('Sem marcacoes, pulando.', '#000000');
             relStats.semMarcacoes++;
             if (entry) {
                 entry.lido = true;
@@ -393,7 +393,7 @@
             return;
         }
 
-        AF.core.log('Processando folgas...', '#89b4fa');
+        AF.core.log('Processando folgas...', '#0043ff');
         var r1 = await AF.fases.processarFase1();
         if (AF.estado.cancelado) return;
 
@@ -409,7 +409,7 @@
         for (var i = 0; i < plano3.acoes.length; i++) {
             if (AF.estado.cancelado) break;
             var acao = plano3.acoes[i];
-            AF.core.log('Fase 3 [' + acao.tipo + ']: ausencia ' + acao.dataAusencia + ' <- feriado ' + acao.dataOrigem, '#89b4fa');
+            AF.core.log('Fase 3 [' + acao.tipo + ']: ausencia ' + acao.dataAusencia + ' <- feriado ' + acao.dataOrigem, '#0043ff');
             var r3 = await AF.popup.executarAcaoFolga(acao);
             if (r3.ok) totalMovidas++;
             else presasFinais.push({ fase: 3, semanaId: acao.semanaId, dataFolga: acao.dataFolgaOriginal || acao.dataOrigem });
@@ -421,10 +421,10 @@
         var linhas47 = nsMarcados.length;
 
 		if (linhas47 > 0) {
-		    AF.core.log('Gravando Fase 4...', '#89b4fa');
+		    AF.core.log('Gravando Fase 4...', '#0043ff');
 		    await AF.fases.gravar(nsMarcados);
 		} else {
-		    AF.core.log('Fase 4: nada a alterar.', '#4b5563');
+		    AF.core.log('Fase 4: nada a alterar.', '#000000');
 		}
 		
 		if (AF.estado.cancelado) return;
@@ -515,7 +515,7 @@
             try { cabec.AjustaCodEmpresaEmpregado(docC.yourform.lstNome, docC.yourform.CodEmpresaEmpregado); } catch (e) {}
             try { cabec.AtualizaFuncionario(); } catch (e) { sel.dispatchEvent(new Event('change', { bubbles: true })); }
 
-            AF.core.log('Iniciando pelo primeiro: ' + AF.core.nomeAtual(), '#89b4fa');
+            AF.core.log('Iniciando pelo primeiro: ' + AF.core.nomeAtual(), '#0043ff');
             await AF.core.esperar(6000);
 
             await new Promise(function (resolve) {
@@ -531,7 +531,7 @@
                 }, 500);
             });
         } else {
-            AF.core.log('Continuando de: ' + AF.core.nomeAtual(), '#89b4fa');
+            AF.core.log('Continuando de: ' + AF.core.nomeAtual(), '#0043ff');
         }
 
         var nomeInicial = AF.core.nomeAtual();
@@ -549,8 +549,8 @@
             var res = await AF.core.avancarFuncionario();
             if (AF.estado.cancelado) break;
 
-            if (res === 'fim') { AF.core.log('Fim da lista.', '#a3e635'); break; }
-            if (AF.core.nomeAtual() === nomeInicial) { AF.core.log('Concluido.', '#a3e635'); break; }
+            if (res === 'fim') { AF.core.log('Fim da lista.', '#02ab19'); break; }
+            if (AF.core.nomeAtual() === nomeInicial) { AF.core.log('Concluido.', '#02ab19'); break; }
         }
 
         var tempoMs = Date.now() - inicioExec;
@@ -561,5 +561,5 @@
         AF.core.setBotoes(false);
 		AF.estado.rodando = false;
     };
-	console.log('[FPW] 40-fases carregado.versão 1.2 - Log loading message for 40-fases version 1.2');
+	console.log('[FPW] 40-fases carregado. versão 1.3 - atualizar cores do log');
 })();
