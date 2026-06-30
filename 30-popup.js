@@ -117,7 +117,7 @@
             } catch (e) {}
             setTimeout(function () {
                 try { popup.close(); } catch (e) {}
-            }, 800); // era 300 → agora 800
+            }, 800);
             return;
         }
 
@@ -170,7 +170,7 @@
             return;
         }
 
-        setTimeout(function () {  // era 900 → agora 1400
+        setTimeout(function () {
             if (!popupAindaAberto()) return;
 
             var btnG = popup.document.querySelector('input[name="btnGravar"]');
@@ -195,7 +195,7 @@
                         clearInterval(ivMsg);
                         btnOk.click();
 
-                        setTimeout(function () { // era 1200 → agora 1700
+                        setTimeout(function () {
                             if (!popupAindaAberto()) return;
                             AF.popup.tentarIndiceDatas(popup, datasCandidatas, idx + 1);
                         }, 1700);
@@ -237,7 +237,7 @@
 
         AF.core.log(
             'Popup aberto: ausencia ' + acao.dataAusencia + ' <- origem ' + acao.dataOrigem,
-            '#89b4fa'
+            '#0043ff'
         );
 
         await AF.popup.aguardarPopupPronto();
@@ -275,15 +275,15 @@
         var semSucesso = sessionStorage.getItem('autopopupSemSucesso') === '1';
         if (semSucesso) {
             sessionStorage.removeItem('autopopupSemSucesso');
-            AF.core.log('Sem alteracao para ausencia ' + acao.dataAusencia + '.', '#f9e2af');
+            AF.core.log('Sem alteracao para ausencia ' + acao.dataAusencia + '.', '#ffb000');
             await AF.core.esperar(400);
             return { ok: false, semAlteracao: true };
         }
 
-        AF.core.log('Aguardando recarregar pagina principal...', '#89b4fa');
+        AF.core.log('Aguardando recarregar pagina principal...', '#0043ff');
         await AF.popup.aguardarReloadPrincipal();
 
         return { ok: true, semAlteracao: false };
     };
-    console.log('[FPW] 30-popup carregado.versão 1.2 - Log loading message for 30-popup version 1.2');
+    console.log('[FPW] 30-popup carregado | v1.2');
 })();
