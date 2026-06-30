@@ -252,6 +252,6 @@ window.AutomacaoFolha = window.AutomacaoFolha || {
         }
     };
 })
-    console.log('[FPW] 00-core carregado. frames[0]/[1], esperar, log, keepAlive, interceptorPopup.');
+    console.log('[FPW] 00-core carregado. versão 1.2 - Update log message to include version number.');
     
     ();
