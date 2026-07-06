@@ -210,7 +210,7 @@
                 lido: foiLido
             });
         }
-        // ordenação alfabética (sem acentos)
+        // ordenação alfabética inicial (sem acentos)
         listaJanela.sort(function (a, b) {
             return normSort(a.nome) < normSort(b.nome) ? -1 : normSort(a.nome) > normSort(b.nome) ? 1 : 0;
         });
@@ -273,22 +273,7 @@
             if (temPressa && (lista[i].presas || 0) > maxPressa) maxPressa = lista[i].presas;
         }
 
-        var chipRed = function (val, mx) {
-            if (val === null || val === undefined) return '<span class="cell-dash">-</span>';
-            if (!val) return '<span class="cell-zero">0</span>';
-            var r = val / mx;
-            var bg = r <= 0.2 ? 'rgba(239,68,68,.10)' : r <= 0.4 ? 'rgba(239,68,68,.20)' : r <= 0.6 ? 'rgba(239,68,68,.32)' : r <= 0.8 ? 'rgba(239,68,68,.48)' : 'rgba(239,68,68,.68)';
-            var fg = r <= 0.8 ? '#fca5a5' : '#fff';
-            return '<span style="background:' + bg + ';color:' + fg + ';padding:1px 6px;border-radius:4px;font-weight:600">' + val + '</span>';
-        };
-        var chipOra = function (val, mx) {
-            if (val === null || val === undefined) return '<span class="cell-dash">-</span>';
-            if (!val) return '<span class="cell-zero">0</span>';
-            var r = val / mx;
-            var bg = r <= 0.2 ? 'rgba(249,115,22,.10)' : r <= 0.4 ? 'rgba(249,115,22,.20)' : r <= 0.6 ? 'rgba(249,115,22,.32)' : r <= 0.8 ? 'rgba(249,115,22,.48)' : 'rgba(249,115,22,.68)';
-            var fg = r <= 0.8 ? '#fdba74' : '#fff';
-            return '<span style="background:' + bg + ';color:' + fg + ';padding:1px 6px;border-radius:4px;font-weight:600">' + val + '</span>';
-        };
+        // ── totais (apenas lidos) ──
         var heToMin = function (str) {
             if (str === null || str === undefined) return null;
             var s = String(str || '00:00').trim().replace(/^'/, '');
@@ -302,16 +287,7 @@
             var neg = m < 0, abs = Math.abs(m);
             return (neg ? '-' : '') + String(Math.floor(abs / 60)).padStart(2, '0') + ':' + String(abs % 60).padStart(2, '0');
         };
-        var cellHe = function (val) {
-            if (val === null || val === undefined) return '<span class="cell-dash">-</span>';
-            var s = String(val || '00:00').replace(/^'/, '');
-            var m = heToMin(s);
-            if (m > 0) return '<span style="color:#22c55e;font-weight:600">' + s + '</span>';
-            if (m < 0) return '<span style="color:#ef4444;font-weight:600">' + s + '</span>';
-            return '<span class="cell-zero">00:00</span>';
-        };
 
-        // ── totais (apenas lidos) ──
         var tF = 0, tC = 0, tP = 0, tI = 0, tJ = 0, tHE = 0, tHEF = 0, tHECpos = 0, tHECneg = 0;
         for (var ti = 0; ti < lista.length; ti++) {
             var d = lista[ti];
@@ -326,54 +302,37 @@
             var hecMin = heToMin(d.hec) || 0;
             if (hecMin >= 0) tHECpos += hecMin; else tHECneg += hecMin;
         }
-        var hecTotalHtml = '<span style="color:#22c55e;font-weight:700">+' + minToHe(tHECpos) + '</span>'
-                         + '<span style="color:var(--text-faint);margin:0 3px">/</span>'
-                         + '<span style="color:#ef4444;font-weight:700">' + minToHe(tHECneg) + '</span>';
 
-        // ── linhas da tabela (TODOS os nomes, já ordenados) ──
-        var rows = '';
-        for (var ri = 0; ri < lista.length; ri++) {
-            var d = lista[ri];
-            var naoLido = d.lido === false;
-            var pressaCell = temPressa
-                ? '<td style="text-align:right;padding:5px 10px">' + chipOra(d.presas, maxPressa) + '</td>'
-                : '';
-            rows += '<tr class="fpw-row' + (naoLido ? ' row-unread' : '') + '" data-nome="' + d.nome + '">'
-                + '<td class="col-nome" title="' + d.nome + '">' + abrevNome(d.nome) + '</td>'
-                + '<td style="text-align:right;padding:5px 10px">' + chipOra(d.folgas, maxFolgas) + '</td>'
-                + '<td style="text-align:right;padding:5px 10px">' + chipOra(d.cod47, maxCod47) + '</td>'
-                + pressaCell
-                + '<td style="text-align:right;padding:5px 10px">' + chipRed(d.irregs, maxIrregs) + '</td>'
-                + '<td style="text-align:right;padding:5px 10px">' + chipRed(d.interj, maxInterj) + '</td>'
-                + '<td style="text-align:right;padding:5px 10px">' + cellHe(d.he) + '</td>'
-                + '<td style="text-align:right;padding:5px 10px">' + cellHe(d.hef) + '</td>'
-                + '<td style="text-align:right;padding:5px 10px">' + cellHe(d.hec) + '</td>'
-                + '</tr>';
-        }
-
-        var pressaTh  = temPressa ? '<th style="text-align:right">Presas</th>' : '';
-        var pressaTot = temPressa ? '<td style="text-align:right;padding:8px 10px">' + tP + '</td>' : '';
+        var pressaTh  = temPressa ? '<th data-col=\"presas\" style=\"text-align:right;cursor:pointer\">Presas <span class=\"sort-arrow\" data-col=\"presas\"></span></th>' : '';
+        var pressaTot = temPressa ? '<td style=\"text-align:right;padding:8px 10px\">' + tP + '</td>' : '';
 
         var statusColor  = meta.status === 'CONCLUÍDO' ? '#22c55e' : '#f97316';
-        var badgeStatus  = '<span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:99px;background:rgba(34,197,94,.12);color:' + statusColor + ';border:1px solid rgba(34,197,94,.2);text-transform:uppercase;letter-spacing:.04em">' + meta.status + '</span>';
+        var badgeStatus  = '<span style=\"font-size:10px;font-weight:600;padding:2px 8px;border-radius:99px;background:rgba(34,197,94,.12);color:' + statusColor + ';border:1px solid rgba(34,197,94,.2);text-transform:uppercase;letter-spacing:.04em\">' + meta.status + '</span>';
 
         var grupos = parsearLogPorFuncionario(logBuffer || []);
 
-        var opcoesSelect = '<option value="__todos__">Todos os funcionários</option>';
+        var opcoesSelect = '<option value=\"__todos__\">Todos os funcionários</option>';
         for (var gi = 0; gi < grupos.length; gi++) {
-            opcoesSelect += '<option value="' + gi + '">' + abrevNome(grupos[gi].nome) + '</option>';
+            opcoesSelect += '<option value=\"' + gi + '\">' + abrevNome(grupos[gi].nome) + '</option>';
         }
 
         var gruposJson      = JSON.stringify(grupos.map(function(g) { return { nome: g.nome, linhas: g.linhas }; }));
         var logCompletoJson = JSON.stringify(logBuffer || []);
-        var tsvEsc = JSON.stringify(tsv);
-        var hasLog = grupos.length > 0;
+        var tsvEsc          = JSON.stringify(tsv);
+        var listaJson       = JSON.stringify(lista);
+        var maxJson         = JSON.stringify({ maxIrregs: maxIrregs, maxInterj: maxInterj, maxFolgas: maxFolgas, maxCod47: maxCod47, maxPressa: maxPressa });
+        var hasLog          = grupos.length > 0;
+        var temPressaJs     = temPressa ? 'true' : 'false';
 
-        return '<!DOCTYPE html><html lang="pt-BR" data-theme="dark"><head><meta charset="UTF-8">'
+        var hecTotalHtml = '<span style=\"color:#22c55e;font-weight:700\">+' + minToHe(tHECpos) + '</span>'
+                         + '<span style=\"color:var(--text-faint);margin:0 3px\">/</span>'
+                         + '<span style=\"color:#ef4444;font-weight:700\">' + minToHe(tHECneg) + '</span>';
+
+        return '<!DOCTYPE html><html lang=\"pt-BR\" data-theme=\"dark\"><head><meta charset=\"UTF-8\">'
             + '<title>FPW — ' + meta.titulo + '</title>'
-            + '<link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,600,700&display=swap" rel="stylesheet">'
+            + '<link href=\"https://api.fontshare.com/v2/css?f[]=satoshi@400,500,600,700&display=swap\" rel=\"stylesheet\">'
             + '<style>'
-            + ':root,[data-theme="light"]{'
+            + ':root,[data-theme=\"light\"]{'
             + '--bg:#f8fafc;--surface:#ffffff;--surface2:#f1f5f9;'
             + '--border:rgba(0,0,0,.09);'
             + '--text:#0f172a;--text-muted:#334155;--text-faint:#64748b;'
@@ -388,8 +347,9 @@
             + '--scroll-thumb:rgba(0,0,0,.12);'
             + '--cell-dash:#475569;--cell-zero:#475569;'
             + '--row-name:#0f172a;'
+            + '--th-sort-active:rgba(59,130,246,.15);'
             + '}'
-            + '[data-theme="dark"]{'
+            + '[data-theme=\"dark\"]{'
             + '--bg:#0f1117;--surface:#161b22;--surface2:#0d1117;'
             + '--border:rgba(255,255,255,.08);'
             + '--text:#e2e8f0;--text-muted:#94a3b8;--text-faint:#64748b;'
@@ -404,9 +364,10 @@
             + '--scroll-thumb:rgba(255,255,255,.12);'
             + '--cell-dash:#94a3b8;--cell-zero:#94a3b8;'
             + '--row-name:#e2e8f0;'
+            + '--th-sort-active:rgba(59,130,246,.18);'
             + '}'
             + '*{box-sizing:border-box;margin:0;padding:0}'
-            + 'html,body{background:var(--bg);color:var(--text);font-family:"Satoshi","Inter",sans-serif;font-size:12px;height:100%;overflow:hidden;transition:background .2s,color .2s}'
+            + 'html,body{background:var(--bg);color:var(--text);font-family:\"Satoshi\",\"Inter\",sans-serif;font-size:12px;height:100%;overflow:hidden;transition:background .2s,color .2s}'
             + '.frame{display:flex;flex-direction:column;height:100vh;border:1px solid var(--border);border-radius:10px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.15)}'
             + '.hdr{background:var(--hdr-bg);border-bottom:1px solid var(--hdr-border);padding:10px 16px;flex-shrink:0}'
             + '.hdr-row1{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px}'
@@ -420,8 +381,12 @@
             + '.tbl-wrap{overflow-x:auto}'
             + '.tbl-wrap::-webkit-scrollbar{height:4px}.tbl-wrap::-webkit-scrollbar-thumb{background:var(--scroll-thumb);border-radius:99px}'
             + 'table{width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed}'
-            + 'thead th{background:var(--tbl-head);color:var(--tbl-head-txt);font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.05em;padding:6px 10px;border-bottom:1px solid var(--border);white-space:nowrap;text-align:right;position:sticky;top:0;z-index:5}'
+            + 'thead th{background:var(--tbl-head);color:var(--tbl-head-txt);font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.05em;padding:6px 10px;border-bottom:1px solid var(--border);white-space:nowrap;text-align:right;position:sticky;top:0;z-index:5;user-select:none}'
+            + 'thead th[data-col]{cursor:pointer;transition:background .15s}'
+            + 'thead th[data-col]:hover{background:var(--th-sort-active)}'
+            + 'thead th.sort-active{background:var(--th-sort-active);color:#3b82f6}'
             + 'thead th:first-child{text-align:left;width:180px}'
+            + '.sort-arrow{font-size:9px;margin-left:3px;opacity:.6}'
             + 'tbody tr:hover{background:var(--tbl-row-hover)}'
             + 'tbody tr.active-row{background:var(--tbl-row-active)!important;outline:1px solid var(--tbl-row-active-outline)}'
             + '.row-unread{opacity:.5}'
@@ -445,53 +410,57 @@
             + '.btn-blue{background:#3b82f6;color:#fff}.btn-blue:hover{filter:brightness(1.15)}.btn-blue.ok{background:#22c55e}'
             + '.btn-gray{background:rgba(128,128,128,.12);color:var(--text-muted);border:1px solid var(--border)}.btn-gray:hover{background:rgba(128,128,128,.2)}'
             + '</style></head><body>'
-            + '<div class="frame">'
-            + '<div class="hdr">'
-            +   '<div class="hdr-row1">'
-            +     '<div class="hdr-title">📋 ' + meta.titulo + ' ' + badgeStatus + '</div>'
+            + '<div class=\"frame\">'
+            + '<div class=\"hdr\">'
+            +   '<div class=\"hdr-row1\">'
+            +     '<div class=\"hdr-title\">📋 ' + meta.titulo + ' ' + badgeStatus + '</div>'
             +   '</div>'
-            +   '<div class="hdr-meta">'
-            +     '<span class="meta-lbl">Folhas:&nbsp;</span><span class="meta-hi">' + meta.folhas + '</span>'
-            +     '<span class="meta-lbl">Duração:&nbsp;</span><span class="meta-hi">' + meta.tempo + '</span>'
-            +     '<span class="meta-lbl">Gerado em:&nbsp;</span><span class="meta-val">' + meta.gerado + '</span>'
+            +   '<div class=\"hdr-meta\">'
+            +     '<span class=\"meta-lbl\">Folhas:&nbsp;</span><span class=\"meta-hi\">' + meta.folhas + '</span>'
+            +     '<span class=\"meta-lbl\">Duração:&nbsp;</span><span class=\"meta-hi\">' + meta.tempo + '</span>'
+            +     '<span class=\"meta-lbl\">Gerado em:&nbsp;</span><span class=\"meta-val\">' + meta.gerado + '</span>'
             +   '</div>'
             + '</div>'
-            + '<div class="body-scroll">'
-            + '<div class="sec">'
-            + '<div class="sec-label">📊 Tabela de resultados</div>'
-            + '<div class="tbl-wrap"><table>'
+            + '<div class=\"body-scroll\">'
+            + '<div class=\"sec\">'
+            + '<div class=\"sec-label\">📊 Tabela de resultados</div>'
+            + '<div class=\"tbl-wrap\"><table id=\"fpw-table\">'
             +   '<thead><tr>'
-            +     '<th style="text-align:left">Nome</th>'
-            +     '<th>Folgas Mov.</th><th>Cód 47</th>'
+            +     '<th data-col=\"nome\" style=\"text-align:left;cursor:pointer\">Nome <span class=\"sort-arrow\" id=\"arr-nome\"></span></th>'
+            +     '<th data-col=\"folgas\">Folgas Mov. <span class=\"sort-arrow\" id=\"arr-folgas\"></span></th>'
+            +     '<th data-col=\"cod47\">Cód 47 <span class=\"sort-arrow\" id=\"arr-cod47\"></span></th>'
             +     pressaTh
-            +     '<th>Irregularidades</th><th>Interjornada</th>'
-            +     '<th>HE100%</th><th>HEF100%</th><th>HEC70%</th>'
+            +     '<th data-col=\"irregs\">Irregularidades <span class=\"sort-arrow\" id=\"arr-irregs\"></span></th>'
+            +     '<th data-col=\"interj\">Interjornada <span class=\"sort-arrow\" id=\"arr-interj\"></span></th>'
+            +     '<th data-col=\"he\">HE100% <span class=\"sort-arrow\" id=\"arr-he\"></span></th>'
+            +     '<th data-col=\"hef\">HEF100% <span class=\"sort-arrow\" id=\"arr-hef\"></span></th>'
+            +     '<th data-col=\"hec\">HEC70% <span class=\"sort-arrow\" id=\"arr-hec\"></span></th>'
             +   '</tr></thead>'
-            +   '<tbody>' + rows + '</tbody>'
-            +   '<tfoot><tr class="row-total">'
+            +   '<tbody id=\"fpw-tbody\"></tbody>'
+            +   '<tfoot><tr class=\"row-total\">'
             +     '<td>▸ TOTAIS</td>'
-            +     '<td style="text-align:right;padding:7px 10px">' + tF + '</td>'
-            +     '<td style="text-align:right;padding:7px 10px">' + tC + '</td>'
+            +     '<td style=\"text-align:right;padding:7px 10px\">' + tF + '</td>'
+            +     '<td style=\"text-align:right;padding:7px 10px\">' + tC + '</td>'
             +     pressaTot
-            +     '<td style="text-align:right;padding:7px 10px">' + tI + '</td>'
-            +     '<td style="text-align:right;padding:7px 10px">' + tJ + '</td>'
-            +     '<td style="text-align:right;padding:7px 10px">' + cellHe(minToHe(tHE)) + '</td>'
-            +     '<td style="text-align:right;padding:7px 10px">' + cellHe(minToHe(tHEF)) + '</td>'
-            +     '<td style="text-align:right;padding:7px 10px">' + hecTotalHtml + '</td>'
+            +     '<td style=\"text-align:right;padding:7px 10px\">' + tI + '</td>'
+            +     '<td style=\"text-align:right;padding:7px 10px\">' + tJ + '</td>'
+            +     '<td style=\"text-align:right;padding:7px 10px\">' + cellHeStr(minToHe(tHE)) + '</td>'
+            +     '<td style=\"text-align:right;padding:7px 10px\">' + cellHeStr(minToHe(tHEF)) + '</td>'
+            +     '<td style=\"text-align:right;padding:7px 10px\">' + hecTotalHtml + '</td>'
             +   '</tr></tfoot>'
             + '</table></div>'
             + '</div>'
-            + '<div class="action-bar">'
-            +   '<span class="hint">👆 Clique em uma linha para navegar até o funcionário</span>'
-            +   '<button class="btn btn-blue" id="btn-tsv">📋 Copiar Relatório</button>'
+            + '<div class=\"action-bar\">'
+            +   '<span class=\"hint\">👆 Clique em uma linha para navegar • Clique no cabeçalho para ordenar</span>'
+            +   '<button class=\"btn btn-blue\" id=\"btn-tsv\">📋 Copiar Relatório</button>'
             + '</div>'
             + (hasLog
-                ? '<div class="log-header">'
-                +   '<span class="log-title">📄 Log</span>'
-                +   '<select class="log-sel" id="log-sel">' + opcoesSelect + '</select>'
-                +   '<button class="btn btn-gray" id="btn-log-copy">📋 Copiar Log</button>'
+                ? '<div class=\"log-header\">'
+                +   '<span class=\"log-title\">📄 Log</span>'
+                +   '<select class=\"log-sel\" id=\"log-sel\">' + opcoesSelect + '</select>'
+                +   '<button class=\"btn btn-gray\" id=\"btn-log-copy\">📋 Copiar Log</button>'
                 + '</div>'
-                + '<div class="log-box" id="log-box"></div>'
+                + '<div class=\"log-box\" id=\"log-box\"></div>'
                 : '')
             + '</div>'
             + '</div>'
@@ -499,6 +468,166 @@
             + 'var _tsv=' + tsvEsc + ';'
             + 'var _grupos=' + gruposJson + ';'
             + 'var _logCompleto=' + logCompletoJson + ';'
+            + 'var _lista=' + listaJson + ';'
+            + 'var _max=' + maxJson + ';'
+            + 'var _temPressa=' + temPressaJs + ';'
+            + 'var _sortCol=null,_sortDir=1;'
+
+            // ── helpers de renderização client-side ──
+            + 'function _normSort(s){return(s||"").normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").toLowerCase();}'
+            + 'function _abrev(nome){'
+            +   'var c=nome.replace(/\\s+\\d+$/,""),p=c.split(" ");'
+            +   'if(p.length<=2)return p.join(" ");'
+            +   'var sk=["DE","DA","DO","DOS","DAS","E"],f=p[0],u=p[p.length-1];'
+            +   'var m=p.slice(1,-1).map(function(x){return sk.indexOf(x)>=0?x:x.charAt(0)+".";}).join(" ");'
+            +   'return f+" "+m+" "+u;'
+            + '}'
+            + 'function _heToMin(str){'
+            +   'if(str===null||str===undefined)return null;'
+            +   'var s=String(str||"00:00").trim().replace(/^\'/,"");'
+            +   'var neg=s.charAt(0)==="-",b=neg?s.slice(1):s,p=b.split(":");'
+            +   'var m=parseInt(p[0]||0)*60+parseInt(p[1]||0);'
+            +   'return neg?-m:m;'
+            + '}'
+            + 'function _minToHe(m){'
+            +   'var neg=m<0,abs=Math.abs(m);'
+            +   'return(neg?"-":"")+String(Math.floor(abs/60)).padStart(2,"0")+":"+String(abs%60).padStart(2,"0");'
+            + '}'
+            + 'function _chipRed(val,mx){'
+            +   'if(val===null||val===undefined)return\'<span class="cell-dash">-</span>\';'
+            +   'if(!val)return\'<span class="cell-zero">0</span>\';'
+            +   'var r=val/mx;'
+            +   'var bg=r<=.2?"rgba(239,68,68,.10)":r<=.4?"rgba(239,68,68,.20)":r<=.6?"rgba(239,68,68,.32)":r<=.8?"rgba(239,68,68,.48)":"rgba(239,68,68,.68)";'
+            +   'var fg=r<=.8?"#fca5a5":"#fff";'
+            +   'return\'<span style="background:\'+bg+\';color:\'+fg+\';padding:1px 6px;border-radius:4px;font-weight:600">\'+val+\'</span>\';'
+            + '}'
+            + 'function _chipOra(val,mx){'
+            +   'if(val===null||val===undefined)return\'<span class="cell-dash">-</span>\';'
+            +   'if(!val)return\'<span class="cell-zero">0</span>\';'
+            +   'var r=val/mx;'
+            +   'var bg=r<=.2?"rgba(249,115,22,.10)":r<=.4?"rgba(249,115,22,.20)":r<=.6?"rgba(249,115,22,.32)":r<=.8?"rgba(249,115,22,.48)":"rgba(249,115,22,.68)";'
+            +   'var fg=r<=.8?"#fdba74":"#fff";'
+            +   'return\'<span style="background:\'+bg+\';color:\'+fg+\';padding:1px 6px;border-radius:4px;font-weight:600">\'+val+\'</span>\';'
+            + '}'
+            + 'function _cellHe(val){'
+            +   'if(val===null||val===undefined)return\'<span class="cell-dash">-</span>\';'
+            +   'var s=String(val||"00:00").replace(/^\'/,""),m=_heToMin(s);'
+            +   'if(m>0)return\'<span style="color:#22c55e;font-weight:600">\'+s+\'</span>\';'
+            +   'if(m<0)return\'<span style="color:#ef4444;font-weight:600">\'+s+\'</span>\';'
+            +   'return\'<span class="cell-zero">00:00</span>\';'
+            + '}'
+
+            // ── renderizar tbody ──
+            + 'function _renderRows(arr){'
+            +   'var tb=document.getElementById("fpw-tbody");'
+            +   'if(!tb)return;'
+            +   'var html="";'
+            +   'for(var i=0;i<arr.length;i++){'
+            +     'var d=arr[i],nr=d.lido===false;'
+            +     'var pc=_temPressa?\'<td style="text-align:right;padding:5px 10px">\'+_chipOra(d.presas,_max.maxPressa)+"</td>":"";'
+            +     'html+=\'<tr class="fpw-row\'+(nr?\' row-unread\':\'\')+ \'" data-nome="\'+d.nome+\'">\''
+            +       '+\'<td class="col-nome" title="\'+d.nome+\'">\'+_abrev(d.nome)+\'</td>\''
+            +       '+\'<td style="text-align:right;padding:5px 10px">\'+_chipOra(d.folgas,_max.maxFolgas)+\'</td>\''
+            +       '+\'<td style="text-align:right;padding:5px 10px">\'+_chipOra(d.cod47,_max.maxCod47)+\'</td>\''
+            +       '+pc'
+            +       '+\'<td style="text-align:right;padding:5px 10px">\'+_chipRed(d.irregs,_max.maxIrregs)+\'</td>\''
+            +       '+\'<td style="text-align:right;padding:5px 10px">\'+_chipRed(d.interj,_max.maxInterj)+\'</td>\''
+            +       '+\'<td style="text-align:right;padding:5px 10px">\'+_cellHe(d.he)+\'</td>\''
+            +       '+\'<td style="text-align:right;padding:5px 10px">\'+_cellHe(d.hef)+\'</td>\''
+            +       '+\'<td style="text-align:right;padding:5px 10px">\'+_cellHe(d.hec)+\'</td>\''
+            +       '+\'</tr>\';'
+            +   '}'
+            +   'tb.innerHTML=html;'
+            +   '_bindRows();'
+            + '}'
+
+            // ── lógica de ordenação ──
+            + 'function _sortLista(col,dir){'
+            +   'var arr=_lista.slice();'
+            +   'arr.sort(function(a,b){'
+            +     'var va,vb;'
+            +     'if(col==="nome"){'
+            +       'va=_normSort(a.nome);vb=_normSort(b.nome);'
+            +       'return va<vb?-dir:va>vb?dir:0;'
+            +     '}'
+            +     'if(col==="hec"){'
+            // HEC70%: ordena apenas pelos positivos (negativos e null ficam no fim)
+            +       'va=_heToMin(a.hec);vb=_heToMin(b.hec);'
+            +       'var aPos=va!==null&&va>=0,bPos=vb!==null&&vb>=0;'
+            +       'if(aPos&&bPos)return(vb-va)*dir;'
+            +       'if(aPos)return-1;'
+            +       'if(bPos)return 1;'
+            +       'return 0;'
+            +     '}'
+            +     'if(col==="he"||col==="hef"){'
+            +       'va=_heToMin(a[col]);vb=_heToMin(b[col]);'
+            +       'if(va===null&&vb===null)return 0;'
+            +       'if(va===null)return 1;if(vb===null)return-1;'
+            +       'return(vb-va)*dir;'
+            +     '}'
+            // numéricos
+            +     'va=a[col]!=null?a[col]:-Infinity;vb=b[col]!=null?b[col]:-Infinity;'
+            +     'return(vb-va)*dir;'
+            +   '});'
+            +   'return arr;'
+            + '}'
+
+            // ── atualizar setas ──
+            + 'function _updateArrows(col,dir){'
+            +   'var cols=["nome","folgas","cod47","presas","irregs","interj","he","hef","hec"];'
+            +   'for(var i=0;i<cols.length;i++){'
+            +     'var el=document.getElementById("arr-"+cols[i]);'
+            +     'var th=document.querySelector(\'th[data-col="\'+cols[i]+\'"]\');'
+            +     'if(el)el.textContent="";'
+            +     'if(th)th.classList.remove("sort-active");'
+            +   '}'
+            +   'var active=document.getElementById("arr-"+col);'
+            +   'var activeTh=document.querySelector(\'th[data-col="\'+col+\'"]\');'
+            +   'if(active)active.textContent=dir===1?"↑":"↓";'
+            +   'if(activeTh)activeTh.classList.add("sort-active");'
+            + '}'
+
+            // ── click nos th ──
+            + 'document.querySelectorAll("thead th[data-col]").forEach(function(th){'
+            +   'th.addEventListener("click",function(){'
+            +     'var col=this.getAttribute("data-col");'
+            +     'if(_sortCol===col){_sortDir*=-1;}else{_sortCol=col;_sortDir=col==="nome"?1:-1;}'
+            +     '_updateArrows(_sortCol,_sortDir);'
+            +     '_renderRows(_sortLista(_sortCol,_sortDir));'
+            +   '});'
+            + '});'
+
+            // ── render inicial ──
+            + '_renderRows(_lista);'
+
+            // ── bind clique nas linhas (navegar funcionário) ──
+            + 'function _bindRows(){'
+            +   'document.querySelectorAll(".fpw-row").forEach(function(tr){'
+            +     'tr.addEventListener("click",function(){'
+            +       'document.querySelectorAll(".fpw-row").forEach(function(r){r.classList.remove("active-row");});'
+            +       'this.classList.add("active-row");'
+            +       'var nome=this.getAttribute("data-nome");'
+            +       'try{'
+            +         'var f0=window.opener.top.frames[0];'
+            +         'var docC=f0.document;'
+            +         'var sel=docC.getElementById("lstNome")||docC.querySelector("select[name=lstNome]");'
+            +         'if(!sel)return;'
+            +         'var norm=function(s){return(s||"").normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").toLowerCase().trim();};'
+            +         'var nn=norm(nome.replace(/\\s+\\d+$/,""));'
+            +         'for(var i=0;i<sel.options.length;i++){'
+            +           'if(norm(sel.options[i].text.replace(/\\s+\\d+$/,""))===nn){'
+            +             'sel.selectedIndex=i;'
+            +             'try{f0.AjustaCodEmpresaEmpregado(docC.yourform.lstNome,docC.yourform.CodEmpresaEmpregado);}catch(e){}'
+            +             'try{f0.AtualizaFuncionario();}catch(e){}'
+            +             'break;'
+            +           '}'
+            +         '}'
+            +       '}catch(e){}'
+            +     '});'
+            +   '});'
+            + '}'
+
+            // ── copiar TSV ──
             + 'document.getElementById("btn-tsv").onclick=function(){'
             +   'navigator.clipboard.writeText(_tsv).then(function(){'
             +     'var b=document.getElementById("btn-tsv");'
@@ -506,6 +635,7 @@
             +     'setTimeout(function(){b.classList.remove("ok");b.innerHTML="📋 Copiar Relatório";},2500);'
             +   '}).catch(function(){alert("Erro ao copiar.");});'
             + '};'
+
             + (hasLog
                 ? 'function renderLog(grupos,filtro){'
                 +   'var box=document.getElementById("log-box");'
@@ -548,31 +678,22 @@
                 +   '}).catch(function(){alert("Erro ao copiar.");});'
                 + '};'
                 : '')
-            + 'document.querySelectorAll(".fpw-row").forEach(function(tr){'
-            +   'tr.addEventListener("click",function(){'
-            +     'document.querySelectorAll(".fpw-row").forEach(function(r){r.classList.remove("active-row");});'
-            +     'this.classList.add("active-row");'
-            +     'var nome=this.getAttribute("data-nome");'
-            +     'try{'
-            +       'var f0=window.opener.top.frames[0];'
-            +       'var docC=f0.document;'
-            +       'var sel=docC.getElementById("lstNome")||docC.querySelector("select[name=lstNome]");'
-            +       'if(!sel)return;'
-            +       'var norm=function(s){return(s||"").normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").toLowerCase().trim();};'
-            +       'var nn=norm(nome.replace(/\\s+\\d+$/,""));'
-            +       'for(var i=0;i<sel.options.length;i++){'
-            +         'if(norm(sel.options[i].text.replace(/\\s+\\d+$/,""))===nn){'
-            +           'sel.selectedIndex=i;'
-            +           'try{f0.AjustaCodEmpresaEmpregado(docC.yourform.lstNome,docC.yourform.CodEmpresaEmpregado);}catch(e){}'
-            +           'try{f0.AtualizaFuncionario();}catch(e){}'
-            +           'break;'
-            +         '}'
-            +       '}'
-            +     '}catch(e){}'
-            +   '});'
-            + '});'
             + '<\/script>'
             + '</body></html>';
+    }
+
+    // ── helper estático para totais no tfoot (server-side) ────────
+    function cellHeStr(val) {
+        if (val === null || val === undefined) return '<span class="cell-dash">-</span>';
+        var s = String(val || '00:00').replace(/^'/, '');
+        var neg = s.charAt(0) === '-';
+        var b = neg ? s.slice(1) : s;
+        var p = b.split(':');
+        var m = parseInt(p[0] || 0) * 60 + parseInt(p[1] || 0);
+        var total = neg ? -m : m;
+        if (total > 0) return '<span style="color:#22c55e;font-weight:600">' + s + '</span>';
+        if (total < 0) return '<span style="color:#ef4444;font-weight:600">' + s + '</span>';
+        return '<span class="cell-zero">00:00</span>';
     }
 
     // ── Abrir / atualizar janela popup ─────────────────────────────
@@ -609,5 +730,5 @@
         };
     };
 
-    console.log('[FPW] 60-relatorios carregado | v1.2');
+    console.log('[FPW] 60-relatorios carregado | v1.3');
 })();
