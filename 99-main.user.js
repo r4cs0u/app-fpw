@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Automacao Folha de Ponto
 // @namespace    http://tampermonkey.net/
-// @version      9.2
+// @version      9.3
 // @match        https://myway.g.globo/WebPonto/just_user/justuser.asp*
 // @grant        GM_xmlhttpRequest
 // @connect      raw.githubusercontent.com
@@ -66,10 +66,24 @@
         }, 500);
     }
 
+    function vigiarPainel(docC) {
+        var AF = window.AutomacaoFolha;
+        setInterval(function () {
+            try {
+                if (!AF || !AF.painel) return;
+                var painel = docC.getElementById('painel-simples');
+                if (!painel) {
+                    AF.painel.iniciar(docC);
+                }
+            } catch (e) {}
+        }, 2000);
+    }
+
     carregarTodos().then(function () {
         var AF = window.AutomacaoFolha;
         esperarCabecalho(function (docC) {
             AF.painel.iniciar(docC);
+            vigiarPainel(docC);
         });
     }).catch(function (erro) {
         console.error('[FPW] Falha ao carregar modulos:', erro);
