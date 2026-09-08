@@ -52,53 +52,81 @@
     };
 
     // ── Fase 1 ─────────────────────────────────────────────────────────
+    // Re-mapeia a folha a cada rodada para refletir mudanças após cada popup.
 
-    AF.fases.planejarFase1 = function (mapa) {
-        var acoes = [];
-        var presas = [];
+    AF.fases.planejarFase1Rodada = function (mapa, datasUsadas) {
         var chaves = Object.keys(mapa.semanas);
-
         for (var i = 0; i < chaves.length; i++) {
             var semKey = chaves[i];
             var semana = mapa.semanas[semKey];
             if (!semana.folgas.length) continue;
 
-			var datasFolgaVistas = {};
-	        for (var j = 0; j < semana.folgas.length; j++) {
-	            var folga = semana.folgas[j];
-	            if (datasFolgaVistas[folga.dataStr]) continue;
-	            datasFolgaVistas[folga.dataStr] = true;
-	            if (semana.ausencias.length > 0) {
-	                var aus = escolherAusenciaDestino(semana.ausencias, null);
-	                acoes.push({
-	                    fase: 1, tipo: 'folga_mes',
-	                    semanaId: semKey,
-	                    numAbrirPopup: aus.num,
-	                    dataAusencia: aus.dataStr,
-	                    dataOrigem: folga.dataStr,
-	                    candidatos: [folga.dataStr]
-	                });
-	            } else {
-	                presas.push({ fase: 1, semanaId: semKey, dataFolga: folga.dataStr, numFolga: folga.num });
-	            }
-	        }
+            var datasFolgaVistas = {};
+            for (var j = 0; j < semana.folgas.length; j++) {
+                var folga = semana.folgas[j];
+                if (datasFolgaVistas[folga.dataStr]) continue;
+                datasFolgaVistas[folga.dataStr] = true;
+                if (datasUsadas.has(folga.dataStr)) continue;
+
+                if (semana.ausencias.length > 0) {
+                    var aus = escolherAusenciaDestino(semana.ausencias, datasUsadas);
+                    if (!aus) continue;
+                    return {
+                        acabou: false,
+                        presa: null,
+                        acao: {
+                            fase: 1, tipo: 'folga_mes',
+                            semanaId: semKey,
+                            numAbrirPopup: aus.num,
+                            dataAusencia: aus.dataStr,
+                            dataOrigem: folga.dataStr,
+                            candidatos: [folga.dataStr]
+                        }
+                    };
+                } else {
+                    return {
+                        acabou: false,
+                        presa: { fase: 1, semanaId: semKey, dataFolga: folga.dataStr, numFolga: folga.num },
+                        acao: null
+                    };
+                }
+            }
         }
-        return { acoes: acoes, presas: presas };
+        return { acabou: true };
     };
 
     AF.fases.processarFase1 = async function () {
-        var mapa = AF.mapa.mapearFolhaAtual();
-        var plano = AF.fases.planejarFase1(mapa);
         var movidas = 0;
-        var presas = plano.presas.slice();
+        var presas = [];
+        var datasUsadas = new Set();
+        var seguranca = 0;
 
-        for (var i = 0; i < plano.acoes.length; i++) {
-            if (AF.estado.cancelado) break;
-            var acao = plano.acoes[i];
+        while (!AF.estado.cancelado) {
+            seguranca++;
+            if (seguranca > 30) { AF.core.log('Fase 1 interrompida por seguranca.', '#f87171'); break; }
+
+            var mapa = AF.mapa.mapearFolhaAtual();
+            var rodada = AF.fases.planejarFase1Rodada(mapa, datasUsadas);
+
+            if (rodada.acabou) break;
+
+            if (rodada.presa) {
+                presas.push(rodada.presa);
+                datasUsadas.add(rodada.presa.dataFolga);
+                continue;
+            }
+
+            var acao = rodada.acao;
+            datasUsadas.add(acao.dataOrigem);
+            datasUsadas.add(acao.dataAusencia);
+
             AF.core.log('Fase 1: ausencia ' + acao.dataAusencia + ' <- folga ' + acao.dataOrigem, '#0043ff');
             var r = await AF.popup.executarAcaoFolga(acao);
-            if (r.ok) movidas++;
-            if (r.semAlteracao) presas.push({ fase: 1, semanaId: acao.semanaId, dataFolga: acao.dataOrigem, numFolga: acao.numAbrirPopup });
+            if (r.ok) {
+                movidas++;
+            } else if (r.semAlteracao) {
+                presas.push({ fase: 1, semanaId: acao.semanaId, dataFolga: acao.dataOrigem, numFolga: acao.numAbrirPopup });
+            }
         }
 
         return { movidas: movidas, presas: presas };
@@ -561,5 +589,5 @@
         AF.core.setBotoes(false);
 		AF.estado.rodando = false;
     };
-	console.log('[FPW] 40-fases carregado. versão 1.3 - atualizar cores do log');
+	console.log('[FPW] 40-fases carregado. versão 1.4 - fix(fase1): re-mapear folha a cada rodada');
 })();
