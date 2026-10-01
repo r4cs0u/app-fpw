@@ -68,12 +68,15 @@
 
     function vigiarPainel(docC) {
         var AF = window.AutomacaoFolha;
+        var docVigiado = docC;
         setInterval(function () {
             try {
                 if (!AF || !AF.painel) return;
-                var painel = docC.getElementById('painel-simples');
-                if (!painel) {
-                    AF.painel.iniciar(docC);
+                var docAtual = window.top.frames[0].document;
+                var painel = docAtual.getElementById('painel-simples');
+                if (docAtual !== docVigiado || !painel) {
+                    docVigiado = docAtual;
+                    AF.painel.iniciar(docAtual);
                 }
             } catch (e) {}
         }, 2000);
