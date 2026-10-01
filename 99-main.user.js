@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Automacao Folha de Ponto
 // @namespace    http://tampermonkey.net/
-// @version      9.3
+// @version      9.4
 // @match        https://myway.g.globo/WebPonto/just_user/justuser.asp*
 // @grant        GM_xmlhttpRequest
 // @connect      raw.githubusercontent.com
@@ -69,16 +69,31 @@
     function vigiarPainel(docC) {
         var AF = window.AutomacaoFolha;
         var docVigiado = docC;
-        setInterval(function () {
+        var frameCabecalho = window.top.document.querySelector('frame[name="topFrame"]');
+
+        function garantirPainel() {
             try {
                 if (!AF || !AF.painel) return;
-                var docAtual = window.top.frames[0].document;
+                var docAtual = frameCabecalho ? frameCabecalho.contentDocument : window.top.frames[0].document;
+                if (!docAtual || !docAtual.body || !docAtual.querySelector('select[name="lstNome"]')) return;
                 var painel = docAtual.getElementById('painel-simples');
                 if (docAtual !== docVigiado || !painel) {
                     docVigiado = docAtual;
                     AF.painel.iniciar(docAtual);
                 }
-            } catch (e) {}
+            } catch (e) {
+                console.warn('[FPW] Falha ao restaurar painel:', e);
+            }
+        }
+
+        if (frameCabecalho) {
+            frameCabecalho.addEventListener('load', function () {
+                setTimeout(garantirPainel, 0);
+            });
+        }
+
+        setInterval(function () {
+            garantirPainel();
         }, 2000);
     }
 
