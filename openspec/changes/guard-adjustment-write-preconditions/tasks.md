@@ -13,4 +13,4 @@
 ## 3. Validate the experimental runtime
 
 - [x] 3.1 Run syntax checks for every changed JavaScript module and the complete `node --test` suite; verify valid-context behavior remains covered and invalid-context tests are synthetic, then review `git diff --check`.
-- [ ] 3.2 Publish the completed change to `test`, follow the Tampermonkey confirmation protocol in `AGENT.md`, and after the user's “ok” verify only that the test runtime initializes on the supported Justificativas page; do not invoke **Ajustar**, save, or approval during the smoke test.
+- [x] 3.2 Publish the completed change to `test`, follow the Tampermonkey confirmation protocol in `AGENT.md`, and after the user's “ok” verify only that the test runtime initializes on the supported Justificativas page; do not invoke **Ajustar**, save, or approval during the smoke test.
