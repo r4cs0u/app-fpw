@@ -82,3 +82,22 @@ The `SelecionadoN` checkboxes in `mainFrame` are internal dirty flags, not row s
 ## Inspection outcome
 
 On 2026-10-01, the menu routes for all five auxiliary actions above loaded. For `Marcações`, an ordinary marked row produced a no-option message; selecting a row with an absent/asterisk mark opened the edit form. The `Incluir`, `Intervalo`, planned-schedule, and recovery forms were inspected structurally only. No save/approval/confirmation action was submitted. At the end, the temporary row radio was cleared, all dirty flags were clear, and the header's selected-mark context fields were empty.
+
+## Structural preconditions and stop behavior
+
+The automation verifies structural contracts before starting adjustments and before write-sensitive actions:
+
+1. **Required base structure (startup and employee loop)**:
+   - Top-level entry page path: ends with `/WebPonto/just_user/justuser.asp`.
+   - Frame 0 (`topFrame`): path ends with `/WebPonto/just_user/justuser_cabec.asp`, `readyState === 'complete'`, body class `Painel`, form `yourform` (POST, action `justuser_corpo.asp`, target `mainFrame`), employee selector `select#lstNome[name="lstNome"]`.
+   - Frame 1 (`mainFrame`): path ends with `/WebPonto/just_user/justuser_corpo.asp`, `readyState === 'complete'`, body class `Tudo`, form `myForm` (POST, action `justuser_corpo.asp`).
+   - Frame 2 (`bottomFrame`): path ends with `/WebPonto/just_user/justuser_rodape.asp`, `readyState === 'complete'`, body class `Painel`, action control `btnGravar`.
+
+2. **Required popup structure (Ajuste Jornada Plan. edits and saves)**:
+   - Path ends with `/WebPontoDotNet/Justificativa/TrocarHorario.aspx`, `readyState === 'complete'`.
+   - Form `form#form1`, date selector `#rpnPeriodo_ddlDatas`, and save button `input[name="btnGravar"]`.
+
+3. **Stop behavior**:
+   - If any required frame, form, or control is absent or fails the contract, the batch stops immediately (`AF.estado.falhaPrecondicao = true`, `AF.estado.cancelado = true`).
+   - A visible diagnostic error is logged and reflected in the panel status.
+   - The batch does not advance automatically to the next employee.

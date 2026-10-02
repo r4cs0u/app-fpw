@@ -119,6 +119,12 @@
     // ── Fase 4: Alterar 47 → 48 ────────────────────────────────────────
 
 	AF.fases.processarFase4 = function () {
+		if (AF.core && typeof AF.core.exigirEstrutura === 'function') {
+			if (!AF.core.exigirEstrutura('fase 4 - alteracao de campos')) {
+				return [];
+			}
+		}
+
 		var doc1   = AF.core.getDoc1();
 		var alvo   = AF.utils.mesAlvoDaTabela();
 		var ultimoDia = new Date(alvo.getFullYear(), alvo.getMonth() + 1, 0);
@@ -192,6 +198,12 @@
 
 	AF.fases.gravar = async function (nsMarcados) {
 	    try {
+	        if (AF.core && typeof AF.core.exigirEstrutura === 'function') {
+	            if (!AF.core.exigirEstrutura('gravacao no rodape')) {
+	                return;
+	            }
+	        }
+
 	        var doc2 = window.top.frames[2].document;
 	        var btn = doc2.getElementById('btnGravar');
 	        if (!btn) { AF.core.log('ERRO: btnGravar nao encontrado em frames[2].', '#f87171'); return; }
@@ -325,10 +337,17 @@
 
     AF.fases.processarTodas = async function () {
         AF.estado.cancelado = false;
+        AF.estado.falhaPrecondicao = false;
 		AF.estado.rodando = true;
         AF.core.setBotoes(true);
         AF.core.getDocC().getElementById('log-box').innerHTML = '';
         AF.sons.tocar('inicio');
+
+        if (!AF.core.exigirEstrutura('inicio do ajuste')) {
+            AF.core.setBotoes(false);
+            AF.estado.rodando = false;
+            return;
+        }
 
         AF.core.instalarInterceptorPopup();
 
@@ -405,6 +424,10 @@
 
         while (true) {
             if (AF.estado.cancelado) break;
+
+            if (!AF.core.exigirEstrutura('processamento da folha')) {
+                break;
+            }
 
             await AF.fases.processarFolhaAtual(relStats, relLista, relListaMap);
             total++;

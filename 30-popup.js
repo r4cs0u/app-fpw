@@ -155,6 +155,12 @@
             return;
         }
 
+        if (AF.core && typeof AF.core.exigirEstrutura === 'function') {
+            if (!AF.core.exigirEstrutura('edicao no popup', popup)) {
+                return;
+            }
+        }
+
         try {
             for (var oo = 0; oo < sAtual.options.length; oo++) {
                 sAtual.options[oo].selected = false;
@@ -172,6 +178,12 @@
 
         setTimeout(function () {
             if (!popupAindaAberto()) return;
+
+            if (AF.core && typeof AF.core.exigirEstrutura === 'function') {
+                if (!AF.core.exigirEstrutura('gravacao no popup', popup)) {
+                    return;
+                }
+            }
 
             var btnG = popup.document.querySelector('input[name="btnGravar"]');
             if (!btnG) return;

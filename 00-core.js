@@ -1,10 +1,10 @@
 window.AutomacaoFolha = window.AutomacaoFolha || {
     ambiente: 'test',
-    versao: '9.6-test',
+    versao: '9.7-test',
     meta: {
         nome: 'app-fpw',
         ambiente: 'test',
-        versao: '9.6-test'
+        versao: '9.7-test'
     },
     estado: {
         cancelado: false,
@@ -14,6 +14,7 @@ window.AutomacaoFolha = window.AutomacaoFolha || {
         relatorio: '',
         textoCopiavel: '',
         winOpenOriginal: null,
+        falhaPrecondicao: false,
         logBuffer: []
     },
     core: {},
@@ -39,6 +40,179 @@ window.AutomacaoFolha = window.AutomacaoFolha || {
 
     AF.core.getCabec = function () {
         return window.top.frames[0];
+    };
+
+    AF.core.validarEstrutura = function (estrutura, incluirPopup) {
+        var erros = [];
+
+        function exigir(condicao, mensagem) {
+            if (!condicao) erros.push(mensagem);
+        }
+
+        function caminhoTerminaEm(caminho, trecho) {
+            return typeof caminho === 'string' &&
+                caminho.toLowerCase().replace(/\/+$/, '').endsWith(trecho.toLowerCase());
+        }
+
+        var frames = estrutura && estrutura.frames;
+        var cabec = frames && frames[0];
+        var corpo = frames && frames[1];
+        var rodape = frames && frames[2];
+
+        exigir(caminhoTerminaEm(estrutura && estrutura.entryPath, '/WebPonto/just_user/justuser.asp'),
+            'a pagina principal nao e justuser.asp');
+        exigir(!!cabec, 'frame topFrame indisponivel');
+        exigir(!!corpo, 'frame mainFrame indisponivel');
+        exigir(!!rodape, 'frame bottomFrame indisponivel');
+
+        if (cabec) {
+            exigir(cabec.name === 'topFrame', 'frame 0 nao corresponde a topFrame');
+            exigir(caminhoTerminaEm(cabec.path, '/WebPonto/just_user/justuser_cabec.asp'),
+                'caminho do topFrame inesperado');
+            exigir(cabec.readyState === 'complete', 'documento topFrame ainda nao carregou');
+            exigir(cabec.bodyClass === 'Painel', 'estrutura do body de topFrame inesperada');
+            exigir(!!cabec.form && cabec.form.name === 'yourform', 'form yourform ausente no topFrame');
+            exigir(!!cabec.form && cabec.form.method === 'post', 'metodo do form yourform nao e POST');
+            exigir(!!cabec.form && caminhoTerminaEm(cabec.form.action, 'justuser_corpo.asp'),
+                'acao do form yourform inesperada');
+            exigir(!!cabec.form && cabec.form.target === 'mainFrame', 'destino do form yourform inesperado');
+            exigir(!!cabec.employeeSelector, 'seletor de funcionario ausente no topFrame');
+        }
+
+        if (corpo) {
+            exigir(corpo.name === 'mainFrame', 'frame 1 nao corresponde a mainFrame');
+            exigir(caminhoTerminaEm(corpo.path, '/WebPonto/just_user/justuser_corpo.asp'),
+                'caminho do mainFrame inesperado');
+            exigir(corpo.readyState === 'complete', 'documento mainFrame ainda nao carregou');
+            exigir(corpo.bodyClass === 'Tudo', 'estrutura do body de mainFrame inesperada');
+            exigir(!!corpo.form && corpo.form.name === 'myForm', 'form myForm ausente no mainFrame');
+            exigir(!!corpo.form && corpo.form.method === 'post', 'metodo do form myForm nao e POST');
+            exigir(!!corpo.form && caminhoTerminaEm(corpo.form.action, 'justuser_corpo.asp'),
+                'acao do form myForm inesperada');
+        }
+
+        if (rodape) {
+            exigir(rodape.name === 'bottomFrame', 'frame 2 nao corresponde a bottomFrame');
+            exigir(caminhoTerminaEm(rodape.path, '/WebPonto/just_user/justuser_rodape.asp'),
+                'caminho do bottomFrame inesperado');
+            exigir(rodape.readyState === 'complete', 'documento bottomFrame ainda nao carregou');
+            exigir(rodape.bodyClass === 'Painel', 'estrutura do body de bottomFrame inesperada');
+            exigir(!!rodape.saveControl, 'controle btnGravar ausente no bottomFrame');
+        }
+
+        if (incluirPopup) {
+            var popup = estrutura && estrutura.popup;
+            exigir(!!popup, 'popup de Ajuste Jornada Plan indisponivel');
+            if (popup) {
+                exigir(caminhoTerminaEm(popup.path,
+                    '/WebPontoDotNet/Justificativa/TrocarHorario.aspx'),
+                    'caminho do popup de Ajuste Jornada Plan inesperado');
+                exigir(popup.readyState === 'complete', 'documento do popup ainda nao carregou');
+                exigir(!!popup.form, 'form form1 ausente no popup');
+                exigir(!!popup.dateSelector, 'seletor de periodo ausente no popup');
+                exigir(!!popup.saveControl, 'controle btnGravar ausente no popup');
+            }
+        }
+
+        return { ok: erros.length === 0, erros: erros };
+    };
+
+    AF.core.coletarEstrutura = function (popupWindow) {
+        var topWindow = window.top;
+        var estrutura = { entryPath: '', frames: [] };
+
+        try {
+            estrutura.entryPath = topWindow.location.pathname;
+        } catch (e) {
+            estrutura.entryPath = '';
+        }
+
+        function descreverFrame(indice) {
+            try {
+                var frame = topWindow.frames[indice];
+                var doc = frame && frame.document;
+                if (!frame || !doc) return null;
+
+                var descricao = {
+                    name: frame.name,
+                    path: frame.location.pathname,
+                    readyState: doc.readyState,
+                    bodyClass: doc.body ? doc.body.className : '',
+                    form: null,
+                    employeeSelector: false,
+                    saveControl: false
+                };
+
+                if (indice === 0) {
+                    var formCabec = doc.querySelector('form[name="yourform"]');
+                    if (formCabec) {
+                        descricao.form = {
+                            name: formCabec.name,
+                            method: (formCabec.method || '').toLowerCase(),
+                            action: formCabec.getAttribute('action') || '',
+                            target: formCabec.target
+                        };
+                    }
+                    descricao.employeeSelector = !!doc.querySelector('select#lstNome[name="lstNome"]');
+                } else if (indice === 1) {
+                    var formCorpo = doc.querySelector('form[name="myForm"]');
+                    if (formCorpo) {
+                        descricao.form = {
+                            name: formCorpo.name,
+                            method: (formCorpo.method || '').toLowerCase(),
+                            action: formCorpo.getAttribute('action') || ''
+                        };
+                    }
+                } else if (indice === 2) {
+                    descricao.saveControl = !!doc.getElementById('btnGravar');
+                }
+                return descricao;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        for (var i = 0; i < 3; i++) estrutura.frames.push(descreverFrame(i));
+
+        if (popupWindow) {
+            try {
+                var popupDoc = popupWindow.document;
+                estrutura.popup = {
+                    path: popupWindow.location.pathname,
+                    readyState: popupDoc.readyState,
+                    form: !!popupDoc.querySelector('form#form1'),
+                    dateSelector: !!popupDoc.getElementById('rpnPeriodo_ddlDatas'),
+                    saveControl: !!popupDoc.querySelector('input[name="btnGravar"]')
+                };
+            } catch (e) {
+                estrutura.popup = null;
+            }
+        }
+
+        return estrutura;
+    };
+
+    AF.core.exigirEstrutura = function (etapa, popupWindow) {
+        var resultado;
+        try {
+            resultado = AF.core.validarEstrutura(
+                AF.core.coletarEstrutura(popupWindow),
+                !!popupWindow
+            );
+        } catch (e) {
+            resultado = { ok: false, erros: ['nao foi possivel inspecionar a estrutura atual'] };
+        }
+
+        if (resultado.ok) return true;
+
+        AF.estado.falhaPrecondicao = true;
+        AF.estado.cancelado = true;
+        var diagnostico = resultado.erros.join('; ');
+        AF.core.log('AJUSTE INTERROMPIDO (' + etapa + '): ' + diagnostico, '#f87171');
+        if (AF.painel && typeof AF.painel.setStatus === 'function') {
+            AF.painel.setStatus('Interrompido: ' + diagnostico, '#f87171');
+        }
+        return false;
     };
 
     AF.core.esperar = function (ms) {
