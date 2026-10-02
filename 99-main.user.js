@@ -17,6 +17,7 @@
     var MODULOS = [
         '00-core.js',
         '10-utils.js',
+        '35-planejamento.js',
         '20-mapa.js',
         '30-popup.js',
         '40-fases.js',
