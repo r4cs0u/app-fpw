@@ -38,9 +38,10 @@ Qualquer uma dessas condições deve levar a uma pausa e a uma revisão do fluxo
 Quando houver alteração em `99-main.user.js` e for necessário atualizar a instalação de teste:
 
 1. Confirmar que a alteração foi commitada e publicada na branch `test`.
-2. Abrir no Chrome a URL raw da entrada de teste: `https://raw.githubusercontent.com/r4cs0u/app-fpw/test/99-main.user.js`.
-3. Na página do Tampermonkey, clicar em **Instalar** para aplicar a versão publicada. Não basta atualizar o MyWay antes desta etapa.
-4. Depois da instalação, atualizar a página do MyWay/Justificativas e confirmar a versão de teste no runtime.
+2. Abrir no Chrome a URL da entrada de teste: `https://github.com/r4cs0u/app-fpw/raw/refs/heads/test/99-main.user.js`.
+3. Aguardar a página de confirmação do Tampermonkey, normalmente uma URL `chrome-extension://.../ask.html?...`. O endereço e o parâmetro `aid` variam entre atualizações.
+4. Conferir que a confirmação se refere ao `app-fpw` da branch `test` e clicar no botão apresentado: **Atualizar**, **Instalar** ou **Reinstalar**. Essa ação aplica a alteração de `99-main.user.js`; apenas atualizar o MyWay não instala a versão nova.
+5. Depois da confirmação no Tampermonkey, atualizar a página do MyWay/Justificativas e confirmar a versão `9.6-test` no runtime.
 
 Manter a instalação `main` separada; não instalar a URL da branch `main` durante a atualização experimental.
 

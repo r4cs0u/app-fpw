@@ -11,7 +11,7 @@ This document records the current runtime design and significant implementation 
 - The target is the legacy MyWay/WebPonto frameset. See [PAGE_STRUCTURE.md](PAGE_STRUCTURE.md) for its page/frame contract and [AGENT.md](AGENT.md) for operating guardrails.
 - `85-ambiente.js` identifies the experimental runtime. The heartbeat work targets `9.6-test`; the stable `main` line is unchanged.
 
-For the repeatable Tampermonkey update and Oracle/MyWay session-recovery procedures, follow [AGENT.md](AGENT.md).
+For the repeatable Tampermonkey update and Oracle/MyWay session-recovery procedures, follow [AGENT.md](AGENT.md). The test update uses `https://github.com/r4cs0u/app-fpw/raw/refs/heads/test/99-main.user.js`, then requires clicking the Tampermonkey confirmation action (**Atualizar**, **Instalar**, or **Reinstalar**) before refreshing MyWay.
 
 ## Session-liveness design
 
@@ -37,7 +37,7 @@ Recorded 2026-10-02:
 - Node syntax checks passed for the changed modules; a full root-module syntax check also completed before OpenSpec validation.
 - A same-origin GET to the authenticated MyWay Justificativas URL returned HTTP `200` without redirect. This verifies endpoint connectivity only, not preservation beyond the inactivity timeout.
 - The published raw entrypoint, core, and environment files all returned HTTP `200`; the entrypoint and environment report `9.6-test` and the core contains the observable fetch-based heartbeat.
-- The Chrome MCP opened the Tampermonkey intermediate installation page, but only its generic website notice was available; no install confirmation was exposed. Native Tampermonkey installation is therefore not confirmed in this browser context.
+- The Chrome MCP showed the Tampermonkey intermediate page with the GitHub raw URL in its hash, but did not expose the `chrome-extension://.../ask.html` confirmation page or its action button. The `ask.html` address contains a variable `aid`; identify it by the Tampermonkey prompt and script/version, not by a fixed URL. Native Tampermonkey installation is therefore not confirmed in this browser context.
 - The published code was loaded in-memory into the authenticated MyWay page using a temporary `GM_xmlhttpRequest` shim. Runtime reported `AF.test` version `9.6-test`, an active timer, a visible five-action panel, and a real heartbeat response of HTTP `200` without redirect. This is a code/runtime check, not proof that Tampermonkey itself installed the update.
 - Failure-path probes returned diagnostics for HTTP `500`, redirect, network error, and automation-running skip. The real heartbeat left the page and all three frame URLs unchanged.
 - An unattended 145-second observation captured the scheduled two-minute heartbeat: HTTP `200`, no redirect, no expiry screen, and no change to the page or any of the three frame URLs. This proves one periodic cycle only, not preservation beyond the configured inactivity timeout.
