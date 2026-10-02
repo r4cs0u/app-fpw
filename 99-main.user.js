@@ -1,19 +1,17 @@
 // ==UserScript==
-// @name         app-fpw
+// @name         Automacao Folha de Ponto
 // @namespace    http://tampermonkey.net/
-// @version      9.6-test
+// @version      9.4
 // @match        https://myway.g.globo/WebPonto/just_user/justuser.asp*
 // @grant        GM_xmlhttpRequest
 // @connect      raw.githubusercontent.com
-// @downloadURL https://raw.githubusercontent.com/r4cs0u/app-fpw/test/99-main.user.js
-// @updateURL   https://raw.githubusercontent.com/r4cs0u/app-fpw/test/99-main.user.js
 // @run-at       document-idle
 // ==/UserScript==
 
 (function () {
     'use strict';
 
-    var BASE = 'https://raw.githubusercontent.com/r4cs0u/app-fpw/test/';
+    var BASE = 'https://raw.githubusercontent.com/r4cs0u/app-fpw/main/';
     var MODULOS = [
         '00-core.js',
         '10-utils.js',
@@ -23,8 +21,7 @@
         '50-analisar.js',
         '60-relatorios.js',
         '70-sons.js',
-        '80-painel.js',
-        '85-ambiente.js'
+        '80-painel.js'
     ];
 
     function carregarModulo(arquivo) {
@@ -50,22 +47,6 @@
         for (var i = 0; i < MODULOS.length; i++) {
             await carregarModulo(MODULOS[i]);
         }
-    }
-
-    function configurarAmbienteTeste() {
-        var AF = window.AutomacaoFolha || {};
-        if (AF.test && typeof AF.test.configurar === 'function') {
-            AF.test.configurar();
-            console.info('[FPW][test] ambiente experimental carregado');
-            return;
-        }
-        AF.ambiente = 'test';
-        AF.versao = '9.6-test';
-        AF.meta = AF.meta || {};
-        AF.meta.nome = 'app-fpw';
-        AF.meta.ambiente = 'test';
-        AF.meta.versao = '9.6-test';
-        console.info('[FPW][test] ambiente experimental carregado');
     }
 
     function esperarCabecalho(callback) {
@@ -117,11 +98,7 @@
     }
 
     carregarTodos().then(function () {
-        configurarAmbienteTeste();
         var AF = window.AutomacaoFolha;
-        if (AF && AF.core && typeof AF.core.iniciarKeepAlive === 'function') {
-            AF.core.iniciarKeepAlive(2);
-        }
         esperarCabecalho(function (docC) {
             AF.painel.iniciar(docC);
             vigiarPainel(docC);
