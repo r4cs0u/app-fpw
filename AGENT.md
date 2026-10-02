@@ -32,3 +32,25 @@ Este repositório contém a base funcional do userscript para automação da fol
 - a automação não consegue garantir que está no contexto correto.
 
 Qualquer uma dessas condições deve levar a uma pausa e a uma revisão do fluxo antes de continuar.
+
+## Atualização da versão de teste no Tampermonkey
+
+Quando houver alteração em `99-main.user.js` e for necessário atualizar a instalação de teste:
+
+1. Confirmar que a alteração foi commitada e publicada na branch `test`.
+2. Abrir no Chrome a URL raw da entrada de teste: `https://raw.githubusercontent.com/r4cs0u/app-fpw/test/99-main.user.js`.
+3. Na página do Tampermonkey, clicar em **Instalar** para aplicar a versão publicada. Não basta atualizar o MyWay antes desta etapa.
+4. Depois da instalação, atualizar a página do MyWay/Justificativas e confirmar a versão de teste no runtime.
+
+Manter a instalação `main` separada; não instalar a URL da branch `main` durante a atualização experimental.
+
+## Recuperação após expiração do MyWay
+
+Se o MyWay apresentar a mensagem de sessão expirada:
+
+1. Fechar a página/aba expirada. O MCP pode não conseguir dispensar a mensagem, então não insistir em interagir com a tela bloqueada.
+2. Abrir a página do Oracle Fusion e clicar em **Ponto FPW**.
+3. Na página FPW recém-aberta, navegar pelo menu **Lançamentos** > **Justificativas**.
+4. Aguardar a página terminar de carregar e só então validar o runtime do userscript e o painel.
+
+Não tentar reautenticar por requisições do userscript nem retomar automações sobre uma página expirada.

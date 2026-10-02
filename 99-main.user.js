@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         app-fpw
 // @namespace    http://tampermonkey.net/
-// @version      9.5-test
+// @version      9.6-test
 // @match        https://myway.g.globo/WebPonto/just_user/justuser.asp*
 // @grant        GM_xmlhttpRequest
 // @connect      raw.githubusercontent.com
@@ -60,11 +60,11 @@
             return;
         }
         AF.ambiente = 'test';
-        AF.versao = '9.5-test';
+        AF.versao = '9.6-test';
         AF.meta = AF.meta || {};
         AF.meta.nome = 'app-fpw';
         AF.meta.ambiente = 'test';
-        AF.meta.versao = '9.5-test';
+        AF.meta.versao = '9.6-test';
         console.info('[FPW][test] ambiente experimental carregado');
     }
 
@@ -119,6 +119,9 @@
     carregarTodos().then(function () {
         configurarAmbienteTeste();
         var AF = window.AutomacaoFolha;
+        if (AF && AF.core && typeof AF.core.iniciarKeepAlive === 'function') {
+            AF.core.iniciarKeepAlive(2);
+        }
         esperarCabecalho(function (docC) {
             AF.painel.iniciar(docC);
             vigiarPainel(docC);

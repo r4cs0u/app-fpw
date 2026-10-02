@@ -1,10 +1,10 @@
 window.AutomacaoFolha = window.AutomacaoFolha || {
     ambiente: 'test',
-    versao: '9.5-test',
+    versao: '9.6-test',
     meta: {
         nome: 'app-fpw',
         ambiente: 'test',
-        versao: '9.5-test'
+        versao: '9.6-test'
     },
     estado: {
         cancelado: false,
@@ -240,15 +240,41 @@ window.AutomacaoFolha = window.AutomacaoFolha || {
             AF.estado.winOpenOriginal = window.top.frames[0].window.open;
         }
     };
-    // keep-alive — fora da função acima
+    // keep-alive — mantém a sessão viva sem recarregar o frame principal
+    AF.core.manterSessaoViva = function () {
+        if (AF.estado.rodando) return Promise.resolve({ skipped: 'automation-running' });
+        if (typeof fetch !== 'function') return Promise.resolve({ ok: false, error: 'fetch-unavailable' });
+
+        var target = window.location.href;
+        AF.estado.keepAliveUltimaTentativa = new Date().toISOString();
+
+        return fetch(target, {
+            method: 'GET',
+            cache: 'no-store',
+            credentials: 'same-origin'
+        }).then(function (response) {
+            var result = {
+                ok: response.ok && !response.redirected,
+                status: response.status,
+                redirected: response.redirected,
+                url: response.url,
+                timestamp: new Date().toISOString()
+            };
+            AF.estado.keepAliveUltimoResultado = result;
+            return result;
+        }).catch(function (error) {
+            var result = { ok: false, error: String(error), timestamp: new Date().toISOString() };
+            AF.estado.keepAliveUltimoResultado = result;
+            return result;
+        });
+    };
+
     AF.core.iniciarKeepAlive = function (minutos) {
         minutos = minutos || 2;
         AF.core.pararKeepAlive();
+        AF.core.manterSessaoViva();
         AF.estado.keepAliveTimer = setInterval(function () {
-            if (AF.estado.rodando) return;
-            try {
-                window.top.frames[1].location.reload();
-            } catch (e) {}
+            AF.core.manterSessaoViva();
         }, minutos * 60 * 1000);
     };
 

@@ -11,11 +11,11 @@
     };
 
     AF.ambiente = AF.ambiente || 'test';
-    AF.versao = AF.versao || '9.5-test';
+    AF.versao = AF.versao || '9.6-test';
     AF.meta = AF.meta || {};
     AF.meta.nome = AF.meta.nome || 'app-fpw';
     AF.meta.ambiente = AF.meta.ambiente || 'test';
-    AF.meta.versao = AF.meta.versao || '9.5-test';
+    AF.meta.versao = AF.meta.versao || '9.6-test';
 
     AF.test = AF.test || {};
     AF.test.meta = AF.meta;
@@ -25,10 +25,10 @@
 
     AF.test.configurar = function () {
         AF.ambiente = 'test';
-        AF.versao = '9.5-test';
+        AF.versao = '9.6-test';
         AF.meta.nome = 'app-fpw';
         AF.meta.ambiente = 'test';
-        AF.meta.versao = '9.5-test';
+        AF.meta.versao = '9.6-test';
         AF.test.branch = 'test';
         AF.test.repo = 'r4cs0u/app-fpw';
         AF.test.baseUrl = 'https://raw.githubusercontent.com/r4cs0u/app-fpw/test/';
