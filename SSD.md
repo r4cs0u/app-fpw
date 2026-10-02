@@ -36,5 +36,9 @@ Recorded 2026-10-02:
 
 - Node syntax checks passed for the changed modules; a full root-module syntax check also completed before OpenSpec validation.
 - A same-origin GET to the authenticated MyWay Justificativas URL returned HTTP `200` without redirect. This verifies endpoint connectivity only, not preservation beyond the inactivity timeout.
-- The reopened Justificativas page exposes frames `justuser_cabec.asp`, `blank.htm`, and `justuser_rodape.asp`, but the current browser runtime has no `window.AutomacaoFolha`. Therefore the installed test script has not yet been verified active in this page.
-- Publication, Tampermonkey update, heartbeat timer/result inspection, and observation beyond the actual inactivity timeout remain pending.
+- The published raw entrypoint, core, and environment files all returned HTTP `200`; the entrypoint and environment report `9.6-test` and the core contains the observable fetch-based heartbeat.
+- The Chrome MCP opened the Tampermonkey intermediate installation page, but only its generic website notice was available; no install confirmation was exposed. Native Tampermonkey installation is therefore not confirmed in this browser context.
+- The published code was loaded in-memory into the authenticated MyWay page using a temporary `GM_xmlhttpRequest` shim. Runtime reported `AF.test` version `9.6-test`, an active timer, a visible five-action panel, and a real heartbeat response of HTTP `200` without redirect. This is a code/runtime check, not proof that Tampermonkey itself installed the update.
+- Failure-path probes returned diagnostics for HTTP `500`, redirect, network error, and automation-running skip. The real heartbeat left the page and all three frame URLs unchanged.
+- One selected employee's sheet was loaded through the legacy **Exibir** query and analyzed read-only. The selection, frame URLs, and fingerprint of all 872 input/select/textarea values were unchanged after analysis. No **Ajustar** action was invoked.
+- The observed period has not exceeded the actual MyWay inactivity timeout. Server-side session preservation remains unproven; native Tampermonkey installation and long-duration observation are pending.
