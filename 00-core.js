@@ -1,4 +1,11 @@
 window.AutomacaoFolha = window.AutomacaoFolha || {
+    ambiente: 'test',
+    versao: '9.5-test',
+    meta: {
+        nome: 'app-fpw',
+        ambiente: 'test',
+        versao: '9.5-test'
+    },
     estado: {
         cancelado: false,
         rodando: false,
