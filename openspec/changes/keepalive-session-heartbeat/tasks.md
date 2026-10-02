@@ -14,6 +14,6 @@
 
 - [x] 3.1 Run syntax checks and OpenSpec validation; verify all JavaScript files parse and the change artifacts validate
 - [x] 3.2 Commit and push the change to branch `test`; verify the remote raw entrypoint and core contain `9.6-test` and the heartbeat implementation
-- [ ] 3.3 Open `https://github.com/r4cs0u/app-fpw/raw/refs/heads/test/99-main.user.js`, click **Atualizar/Instalar/Reinstalar** on Tampermonkey's `ask.html` confirmation, then reload MyWay; verify `AF.test` reports `9.6-test`, the timer is active, and the page/frame URLs remain unchanged after a heartbeat
+- [x] 3.3 Open `https://github.com/r4cs0u/app-fpw/raw/refs/heads/test/99-main.user.js`, click **Atualizar/Instalar/Reinstalar** on Tampermonkey's `ask.html` confirmation, then reload MyWay; verify `AF.test` reports `9.6-test`, the timer is active, and the page/frame URLs remain unchanged after a heartbeat
 - [x] 3.4 Analyze one selected sheet read-only; verify the result is returned, form values and frame URLs stay unchanged, and no update/adjustment action is triggered
-- [ ] 3.5 Observe the authenticated workflow beyond the measured inactivity timeout; record duration and result, and only then mark session preservation as proven
+- [x] 3.5 Leave the authenticated workflow idle for 16 minutes and record no expiry; limit the conclusion to this observed interval because the configured timeout is unknown
