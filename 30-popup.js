@@ -49,12 +49,16 @@
                 if (popup.closed) throw new Error('Popup fechado antes de ficar pronto.');
 
                 var doc = popup.document;
-                var caminho = popup.location.pathname.toLowerCase();
-                if (!caminho.replace(/\/+$/, '').endsWith('/webpontodotnet/justificativa/trocarhorario.aspx')) {
-                    throw new Error('Caminho do popup de Ajuste Jornada Plan inesperado.');
+                var caminho = String(popup.location.pathname || '').toLowerCase().replace(/\/+$/, '');
+                if (!caminho || caminho.endsWith('/redirecionamentoaspx.asp')) {
+                    return { ready: false, reason: 'Popup aguardando redirecionamento para Ajuste Jornada Plan.' };
                 }
+
                 if (doc.readyState !== 'complete') {
                     return { ready: false, reason: 'Documento do popup ainda carregando.' };
+                }
+                if (!caminho.endsWith('/webpontodotnet/justificativa/trocarhorario.aspx')) {
+                    throw new Error('Caminho do popup de Ajuste Jornada Plan inesperado: ' + caminho);
                 }
 
                 var form = doc.querySelector('form#form1');

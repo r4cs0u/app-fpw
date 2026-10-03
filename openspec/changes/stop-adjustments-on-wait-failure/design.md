@@ -58,7 +58,7 @@ Use named safety deadlines based on current stage budgets rather than unbounded 
 
 | Stage | Required observation |
 | --- | --- |
-| Popup readiness | Current run's open popup, supported `TrocarHorario.aspx` path, complete document, expected form and usable date selector/save control. A popup closed before submission is failure. |
+| Popup readiness | Current run's open popup, final supported `TrocarHorario.aspx` path, complete document, expected form and usable date selector/save control. A blank popup or the observed `/RedirecionamentoAspx.asp` route is transient while the link redirects; continue waiting within the same deadline. A popup closed before readiness is failure. |
 | Popup completion | Save submission recorded for that attempt, popup closure without a supported rejection outcome, and a supported post-submission body reload. Observe closure and reload concurrently; either can finish first. Closure alone is insufficient. |
 | Body reload after save | A transition after the action, followed by the documented body path, complete document, and `myForm`; do not use counts of irregularity or text inputs as readiness evidence. |
 | Employee readiness | A post-selection body transition followed by the supported loaded body/form before adjustment processing. |
@@ -78,6 +78,8 @@ Use precise messages such as observed UI completion or unconfirmed save. No avai
 At adjustment startup, allow the complete `/WebPonto/blank.htm` body only when the header selector is on its empty placeholder, the header/footer structures are supported, and no `Selecionado` row flags are checked. Arm the normal body-transition observer before selecting the first non-empty option through the existing header functions. The supported header form does not route to the body through static `action`/`target` attributes; preserve `AjustaCodEmpresaEmpregado` and `AtualizaFuncionario`, then use the observed frame transition as the routing evidence. Require the loaded `justuser_corpo.asp` body contract before processing. Keep all other startup and in-run body checks strict; a blank body with a non-empty employee selection remains a fatal precondition failure.
 
 Employee options are user-specific and can vary in content, count, and order. Enumerate the live selector options and determine the first non-empty option at runtime; do not hardcode employee names, IDs, counts, or ordering from another session.
+
+The supported `Ajuste Jornada Plan` link is a JavaScript redirect that can expose a blank window or `/RedirecionamentoAspx.asp` before its final popup route. Match the working `main` behavior by waiting for the popup's actual form/date selector instead of rejecting that intermediate URL immediately. Once the final document is complete, keep the existing route and structural checks strict before any popup edit.
 
 ### Scope asynchronous work to an adjustment run
 

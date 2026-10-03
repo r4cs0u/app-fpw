@@ -20,7 +20,7 @@ The header and footer use body class `Painel`; the body document uses body class
 
 ## Header (`topFrame`)
 
-- Form: `form[name="yourform"]`, method `POST`; the observed action is `justuser_cabec.asp` and the target attribute is absent/empty.
+- Form: `form[name="yourform"]`, method `POST`. Its action and target vary across observed page states; examples include `justuser_cabec.asp` with no target and `justuser_corpo.asp` targeting `mainFrame`. They are not routing invariants.
 - Employee selector: `select#lstNome[name="lstNome"]`.
 - Employee options vary by user and may differ in names, IDs, count, and order. Use the options in the current session; never hardcode an employee or assume another user's list.
 - Selector change runs `verificaAlteracao(...)`, then updates employee fields and calls `AtualizaFuncionario()`. Preserve this existing header behavior; do not infer the body destination from the form's static action or target. Confirm navigation from the observed `mainFrame` transition and its loaded structure.
@@ -72,7 +72,7 @@ These actions open separate windows. Their forms were inspected but never submit
 | `Marcações` | `/WebPonto/just_user/AcertarMarcacao.asp` | Requires a selected eligible row. `input[name="radConfirma"]` selects a row; its `submitPage(index)` handler copies row context into hidden fields in `topFrame.yourform` and does not submit the form. A row is eligible when a mark is absent or contains `*`; an ordinary marked row can open an informational no-option message. Popup form is `form[name="form1"]`; `#Horario1` and `#Data1` are read-only, `#Horario2`, `#Data2`, and `select[name="cmbMotivo"]` are editable; `#txtMotivo` is read-only. Actions: `btnGravar`, `Submit2` (cancel). |
 | `Incluir Marcações` | `/WebPonto/just_user/IncluirMarcacao.asp` | Popup form `form[name="form1"]`; `select[name="Data"]`, `#Horario1`, `#Horario2`, `select[name="cmbMotivo"]`, and read-only `#txtMotivo`; hidden `QtdMarc`. Actions: `button` (save) and `Submit2` (cancel). |
 | `Intervalo` | `/WebPontoDotNet/Justificativa/LancamentoIntervalo.aspx` | ASP.NET Web Forms `form#form1` with standard view-state hidden fields; `#txtData_I` is read-only; radio group `rblTipoLancamento`; submit action `btnGravar`. |
-| `Ajuste Jornada Plan.` | `/WebPontoDotNet/Justificativa/TrocarHorario.aspx` | ASP.NET Web Forms `form#form1`; period/date selector `#rpnPeriodo_ddlDatas`; submit actions `btnGravar` and `btnCancelar`. |
+| `Ajuste Jornada Plan.` | `/WebPontoDotNet/Justificativa/TrocarHorario.aspx` | The observed link uses a JavaScript redirect through `/RedirecionamentoAspx.asp`; a blank or redirector document is transient. Wait for the final supported route and ASP.NET Web Forms `form#form1`, period/date selector `#rpnPeriodo_ddlDatas`, and submit actions `btnGravar` / `btnCancelar` before editing. |
 | `Recup.Marcação` | `/WebPontoDotNet/Justificativa/RecuperaMarcacao.aspx` | ASP.NET Web Forms `form#form1`; date control `#dteDataJornada_I`, `btnExibir`, grid controls with `grdMarcacoes$ctlNN` names, and action controls `btnInserirMarcacao`, `btnConfirma`, `btnCancela`. Popup/editor control prefixes include `ppcNovaMarcacao`, `ppcDesconsideraMotivo`, and `ppcEditHora`. Treat grid/edit/confirm controls as potentially write-capable. |
 
 The `SelecionadoN` checkboxes in `mainFrame` are internal dirty flags, not row selectors; their click handler immediately unchecks them. Use the `radConfirma` radio to set the current row context for `Marcações`. Before changing employees, require all `SelecionadoN` flags to be clear.

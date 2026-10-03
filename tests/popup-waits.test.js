@@ -305,6 +305,41 @@ test('popup readiness returns explicit ready, timeout, early-close, and access-e
     assert.equal(inaccessible.reason, 'popup access denied');
 });
 
+test('popup readiness waits through the observed redirect before checking the final route', async () => {
+    const clock = new SyntheticClock();
+    const popup = makePopup(['01/10/2026']);
+    popup.location.pathname = '';
+    const env = createEnvironment(clock, popup);
+    const run = env.AF.core.iniciarExecucaoAjuste();
+    const wait = env.AF.popup.aguardarPopupPronto(run, { popup });
+
+    clock.setTimeout(() => { popup.location.pathname = '/RedirecionamentoAspx.asp'; }, 300);
+    clock.setTimeout(() => {
+        popup.location.pathname = '/WebPontoDotNet/Justificativa/TrocarHorario.aspx';
+    }, 900);
+
+    const outcome = await drive(clock, wait, 2000, 100);
+
+    assert.equal(outcome.status, 'ready');
+    assert.equal(outcome.value, popup);
+    assert.equal(clock.timers.size, 0);
+    run.cancel('test finished');
+});
+
+test('popup readiness rejects a completed unsupported route with its path in the diagnosis', async () => {
+    const clock = new SyntheticClock();
+    const popup = makePopup(['01/10/2026']);
+    popup.location.pathname = '/unexpected-popup.asp';
+    const env = createEnvironment(clock, popup);
+    const run = env.AF.core.iniciarExecucaoAjuste();
+
+    const outcome = await env.AF.popup.aguardarPopupPronto(run, { popup });
+
+    assert.equal(outcome.status, 'error');
+    assert.match(outcome.reason, /unexpected-popup\.asp/);
+    run.cancel('test finished');
+});
+
 test('body observer recognizes a fast reload before popup closure, including an empty sheet', async () => {
     const clock = new SyntheticClock();
     const popup = makePopup(['01/10/2026']);

@@ -47,6 +47,12 @@ The workflow SHALL determine completion from supported UI evidence under variabl
 - **THEN** the workflow SHALL use the non-empty options from the current session's selector
 - **AND** it SHALL NOT rely on a fixed employee name, ID, list size, or another user's option list
 
+#### Scenario: Adjustment popup is still redirecting
+- **WHEN** the popup opened by the supported `Ajuste Jornada Plan` link is blank or on the observed `/RedirecionamentoAspx.asp` redirect route
+- **THEN** the workflow SHALL continue waiting within the popup-readiness deadline rather than treating the transient route as a final path
+- **AND** it SHALL require the final supported popup path and complete form/date-selector/save-control structure before editing
+- **AND** it SHALL stop with the actual path in the diagnostic if a completed non-transient route is unsupported
+
 #### Scenario: Supported completion is observed
 - **WHEN** the popup reaches its supported ready structure, a save submission is followed by the expected popup completion and supported body reload, or a footer save is followed by the supported body reload
 - **THEN** the workflow SHALL retain the existing planning, candidate ordering, and save behavior for the completed action
