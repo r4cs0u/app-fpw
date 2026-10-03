@@ -38,15 +38,14 @@ Qualquer uma dessas condições deve levar a uma pausa e a uma revisão do fluxo
 
 Ao interromper um ajuste, preservar no diagnóstico a etapa e o motivo, identificar explicitamente qualquer gravação cujo resultado não foi confirmado e disponibilizar um relatório parcial. Somente folhas concluídas entram como processadas; alterações confirmadas antes da interrupção podem constar como parciais. A interface não comprova persistência no servidor e a interrupção não significa rollback.
 
-## Atualização da versão de teste no Tampermonkey
+## Atualização de teste e validação no MyWay
 
-Quando houver alteração em `99-main.user.js` e for necessário atualizar a instalação de teste:
+Antes de validar uma mudança, verificar se o diff commitado inclui `99-main.user.js`. Esse arquivo carrega os módulos diretamente da branch remota `test`; por isso, mudanças apenas nos módulos não exigem atualizar a instalação Tampermonkey, mas precisam estar publicadas na branch remota antes de recarregar o MyWay.
 
-1. Confirmar que a alteração foi commitada e publicada na branch `test`.
-2. Abrir no Chrome a URL da entrada de teste: `https://github.com/r4cs0u/app-fpw/raw/refs/heads/test/99-main.user.js`.
-3. Depois da confirmação do usuário, atualizar a página do MyWay/Justificativas e confirmar no runtime que a versão de teste está carregada e, quando aplicável, verificar o módulo novo no console. A atualização do MyWay só deve ocorrer depois do sinal explícito do usuário.
+- **Quando `99-main.user.js` mudou:** publicar a alteração na branch `test`, abrir no Chrome `https://github.com/r4cs0u/app-fpw/raw/refs/heads/test/99-main.user.js` para atualizar a instalação experimental e aguardar a confirmação explícita do usuário antes de recarregar o MyWay/Justificativas.
+- **Quando `99-main.user.js` não mudou:** não atualizar nem reinstalar o Tampermonkey. Publicar o commit na branch `test`, aguardar brevemente a propagação dos módulos remotos e então recarregar o MyWay/Justificativas para validar a versão atualizada.
 
-Manter a instalação `main` separada; não instalar a URL da branch `main` durante a atualização experimental.
+Em ambos os caminhos, confirmar no runtime a versão de teste, a disponibilidade dos módulos, a estrutura suportada da página e a inicialização do painel. Essa validação deve ser somente de leitura: não executar **Ajustar**, gravar nem aprovar. Manter a instalação `main` separada; não instalar a URL da branch `main` durante a validação experimental.
 
 ## Recuperação após expiração do MyWay
 
