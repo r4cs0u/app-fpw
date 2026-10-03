@@ -62,22 +62,25 @@
         return '';
     };
 
-    AF.mapa.mapearFolhaAtual = function () {
-        var dataAlvo = AF.utils.mesAlvoDaTabela();
+    AF.mapa.construirMapaFolha = function (dataAlvo, itens) {
+        dataAlvo = dataAlvo || new Date();
+        itens = itens || [];
+
         var ultimoDia = new Date(dataAlvo.getFullYear(), dataAlvo.getMonth() + 1, 0);
         var ultimaSemanaId = AF.utils.semanaIdBR(ultimoDia);
         var inicioUltimaSemana = AF.utils.inicioSemanaBR(ultimoDia);
 
         var semanas = {};
         var lista = [];
-        var inputs = Array.from(AF.core.getDoc1().querySelectorAll('input[name^="Irre"]'));
 
-        for (var i = 0; i < inputs.length; i++) {
-            var inp = inputs[i];
-            var dataStr = AF.mapa.obterDataDoInput(inp);
+        for (var i = 0; i < itens.length; i++) {
+            var rawItem = itens[i];
+            if (!rawItem) continue;
+
+            var dataStr = rawItem.dataStr;
             if (!dataStr) continue;
 
-            var dataObj = AF.utils.parseDataBR(dataStr);
+            var dataObj = rawItem.dataObj || AF.utils.parseDataBR(dataStr);
             if (!dataObj) continue;
 
             var ehMesAlvo = AF.utils.ehMesAlvo(dataObj, dataAlvo);
@@ -101,12 +104,12 @@
             }
 
             var item = {
-                inp: inp,
-                num: (inp.name || '').replace('Irre', ''),
+                inp: rawItem.inp,
+                num: String(rawItem.num != null ? rawItem.num : (rawItem.name || '').replace('Irre', '')),
                 dataStr: dataStr,
                 dataObj: dataObj,
-                valor: String(inp.value || '').trim(),
-                cabecalho: AF.mapa.obterCabecalhoDoDia(inp) || '',
+                valor: String(rawItem.valor != null ? rawItem.valor : (rawItem.value || '')).trim(),
+                cabecalho: String(rawItem.cabecalho || ''),
                 semanaId: semId,
                 foraDoMes: !ehMesAlvo
             };
@@ -172,6 +175,32 @@
             semanas: semanas,
             lista: lista
         };
+    };
+
+    AF.mapa.coletarItensFolha = function () {
+        var itens = [];
+        var inputs = Array.from(AF.core.getDoc1().querySelectorAll('input[name^="Irre"]'));
+
+        for (var i = 0; i < inputs.length; i++) {
+            var inp = inputs[i];
+            var dataStr = AF.mapa.obterDataDoInput(inp);
+            if (!dataStr) continue;
+
+            itens.push({
+                inp: inp,
+                num: (inp.name || '').replace('Irre', ''),
+                dataStr: dataStr,
+                valor: String(inp.value || '').trim(),
+                cabecalho: AF.mapa.obterCabecalhoDoDia(inp) || ''
+            });
+        }
+        return itens;
+    };
+
+    AF.mapa.mapearFolhaAtual = function () {
+        var dataAlvo = AF.utils.mesAlvoDaTabela();
+        var itens = AF.mapa.coletarItensFolha();
+        return AF.mapa.construirMapaFolha(dataAlvo, itens);
     };
 
     console.log('[FPW] 20-mapa carregado.versão 1.2 - Log loading message for 20-mapa version 1.2');

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         app-fpw
 // @namespace    http://tampermonkey.net/
-// @version      9.7-test
+// @version      9.8-test
 // @match        https://myway.g.globo/WebPonto/just_user/justuser.asp*
 // @grant        GM_xmlhttpRequest
 // @connect      raw.githubusercontent.com
@@ -61,11 +61,11 @@
             return;
         }
         AF.ambiente = 'test';
-        AF.versao = '9.7-test';
+        AF.versao = '9.8-test';
         AF.meta = AF.meta || {};
         AF.meta.nome = 'app-fpw';
         AF.meta.ambiente = 'test';
-        AF.meta.versao = '9.7-test';
+        AF.meta.versao = '9.8-test';
         console.info('[FPW][test] ambiente experimental carregado');
     }
 
