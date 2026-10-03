@@ -686,12 +686,12 @@ test('fatal orchestration failure cleans the run and publishes its diagnosis in 
     assert.equal(clock.timers.size, 0);
 });
 
-test('blank employee selection loads the first employee before strict sheet processing', async () => {
+async function runBlankStartupWithOptions(optionTexts) {
     const clock = new SyntheticClock();
     const env = createEnvironment(clock, null);
     const selector = {
         selectedIndex: 0,
-        options: [{ text: '' }, { text: 'Funcionario Sintetico' }]
+        options: optionTexts.map(text => ({ text }))
     };
     const structureChecks = [];
     let updates = 0;
@@ -734,19 +734,42 @@ test('blank employee selection loads the first employee before strict sheet proc
 
     await env.AF.fases.processarTodas();
 
-    assert.equal(structureChecks[0].stage, 'inicio do ajuste');
-    assert.equal(structureChecks[0].allowEmptyStart, true);
-    assert.equal(structureChecks[1].stage, 'processamento da folha');
-    assert.equal(structureChecks[1].allowEmptyStart, undefined);
-    assert.equal(selector.selectedIndex, 1);
-    assert.equal(updates, 1);
-    assert.equal(transitionArmed, 1);
-    assert.equal(transitionDisposed, 1);
-    assert.equal(readinessChecks, 1);
-    assert.equal(processedSheets, 1);
-    assert.equal(env.AF.estado.rodando, false);
-    assert.equal(env.footerButton.clicks, 0);
-    assert.equal(clock.timers.size, 0);
+    return {
+        clock,
+        env,
+        selector,
+        structureChecks,
+        updates,
+        transitionArmed,
+        transitionDisposed,
+        readinessChecks,
+        processedSheets
+    };
+}
+
+test('blank employee startup uses current options across different synthetic lists', async () => {
+    const lists = [
+        ['', 'Pessoa sintetica alfa'],
+        ['', 'Pessoa sintetica beta', 'Pessoa sintetica gama', 'Pessoa sintetica delta']
+    ];
+
+    for (const options of lists) {
+        const result = await runBlankStartupWithOptions(options);
+
+        assert.equal(result.structureChecks[0].stage, 'inicio do ajuste');
+        assert.equal(result.structureChecks[0].allowEmptyStart, true);
+        assert.equal(result.structureChecks[1].stage, 'processamento da folha');
+        assert.equal(result.structureChecks[1].allowEmptyStart, undefined);
+        assert.equal(result.selector.selectedIndex, options.findIndex(text => text.trim()));
+        assert.equal(result.updates, 1);
+        assert.equal(result.transitionArmed, 1);
+        assert.equal(result.transitionDisposed, 1);
+        assert.equal(result.readinessChecks, 1);
+        assert.equal(result.processedSheets, 1);
+        assert.equal(result.env.AF.estado.rodando, false);
+        assert.equal(result.env.footerButton.clicks, 0);
+        assert.equal(result.clock.timers.size, 0);
+    }
 });
 
 test('an interrupted sheet retains confirmed changes without marking the sheet complete', async () => {

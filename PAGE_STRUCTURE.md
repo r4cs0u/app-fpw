@@ -20,9 +20,10 @@ The header and footer use body class `Painel`; the body document uses body class
 
 ## Header (`topFrame`)
 
-- Form: `form[name="yourform"]`, method `POST`, action `justuser_corpo.asp`, target `mainFrame`.
+- Form: `form[name="yourform"]`, method `POST`; the observed action is `justuser_cabec.asp` and the target attribute is absent/empty.
 - Employee selector: `select#lstNome[name="lstNome"]`.
-- Selector change runs `verificaAlteracao(...)`, then updates employee fields and calls `AtualizaFuncionario()`; that function can submit `Exibir` to `mainFrame`.
+- Employee options vary by user and may differ in names, IDs, count, and order. Use the options in the current session; never hardcode an employee or assume another user's list.
+- Selector change runs `verificaAlteracao(...)`, then updates employee fields and calls `AtualizaFuncionario()`. Preserve this existing header behavior; do not infer the body destination from the form's static action or target. Confirm navigation from the observed `mainFrame` transition and its loaded structure.
 - The header also contains the filter controls, mark-display radio options, and links for adjustment workflows.
 - The FolhaFacil panel is injected into this frame by the userscript as `#painel-simples`.
 
@@ -42,10 +43,10 @@ The header and footer use body class `Painel`; the body document uses body class
 ## Navigation and wait strategy
 
 1. Resolve `window.top.frames[0]` and `window.top.frames[1]` at the moment of use.
-2. At adjustment startup, a blank employee selector may begin with `mainFrame` on a complete `/WebPonto/blank.htm` document. Permit only that exact empty-selection state, with the supported header/footer and no checked `input[name^="Selecionado"]` controls. Arm body-transition observation, select the first non-empty employee through the existing header functions, and require the loaded supported body before processing. A blank body after a non-empty employee is selected remains an error.
+2. At adjustment startup, a blank employee selector may begin with `mainFrame` on a complete `/WebPonto/blank.htm` document. Permit only that exact empty-selection state, with the supported header/footer and no checked `input[name^="Selecionado"]` controls. Arm body-transition observation, select the first non-empty employee through the existing header functions, and require the loaded supported body before processing. Do not require static `yourform.action` or `yourform.target` values to identify `mainFrame`; the observed transition and loaded body are the routing evidence. A blank body after a non-empty employee is selected remains an error.
 3. For adjustment saves and subsequent employee changes, capture the current body document/load generation and arm observation before the action. Completion requires evidence of a post-action frame load or a changed current document, followed by the supported body path, `document.readyState === "complete"`, body class `Tudo`, and `form[name="myForm"]` (POST to `justuser_corpo.asp`). Poll within a named safety deadline; the deadline is not an assumed FPW response time.
 4. A transient loading state can complete between polls. A new structurally ready document or recorded frame-load generation establishes the transition even if the loading state was not observed. The same old ready document and elapsed time alone do not establish completion. An empty sheet is supported when this body structure is ready; no row/input count is required.
-5. Changing `topFrame.document.querySelector('#lstNome')` reloads/updates the body through the form target `mainFrame`; the header normally remains in place.
+5. Employee changes use the existing header functions and can update/reload the body while the header remains in place. Do not assume a fixed employee option list or infer body routing from the form's static target; observe the `mainFrame` transition.
 6. Before changing the employee selector, require zero checked controls matching `input[name^="Selecionado"]`. The page can show a confirmation to abandon changes when records are selected. Never auto-accept that confirmation.
 7. Read only structural metadata for diagnostics. Do not inspect or persist field values from the body/footer.
 

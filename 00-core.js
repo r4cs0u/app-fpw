@@ -89,9 +89,6 @@ window.AutomacaoFolha = window.AutomacaoFolha || {
             exigir(cabec.bodyClass === 'Painel', 'estrutura do body de topFrame inesperada');
             exigir(!!cabec.form && cabec.form.name === 'yourform', 'form yourform ausente no topFrame');
             exigir(!!cabec.form && cabec.form.method === 'post', 'metodo do form yourform nao e POST');
-            exigir(!!cabec.form && caminhoTerminaEm(cabec.form.action, 'justuser_corpo.asp'),
-                'acao do form yourform inesperada');
-            exigir(!!cabec.form && cabec.form.target === 'mainFrame', 'destino do form yourform inesperado');
             exigir(!!cabec.employeeSelector, 'seletor de funcionario ausente no topFrame');
         }
 

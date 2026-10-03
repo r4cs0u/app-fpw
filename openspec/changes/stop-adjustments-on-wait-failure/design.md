@@ -75,7 +75,9 @@ Use precise messages such as observed UI completion or unconfirmed save. No avai
 
 ### Allow only the documented empty-selection bootstrap
 
-At adjustment startup, allow the complete `/WebPonto/blank.htm` body only when the header selector is on its empty placeholder, the header/footer structures are supported, and no `Selecionado` row flags are checked. Arm the normal body-transition observer before selecting the first non-empty option through the existing header functions. Require the loaded `justuser_corpo.asp` body contract before processing. Keep all other startup and in-run body checks strict; a blank body with a non-empty employee selection remains a fatal precondition failure.
+At adjustment startup, allow the complete `/WebPonto/blank.htm` body only when the header selector is on its empty placeholder, the header/footer structures are supported, and no `Selecionado` row flags are checked. Arm the normal body-transition observer before selecting the first non-empty option through the existing header functions. The supported header form does not route to the body through static `action`/`target` attributes; preserve `AjustaCodEmpresaEmpregado` and `AtualizaFuncionario`, then use the observed frame transition as the routing evidence. Require the loaded `justuser_corpo.asp` body contract before processing. Keep all other startup and in-run body checks strict; a blank body with a non-empty employee selection remains a fatal precondition failure.
+
+Employee options are user-specific and can vary in content, count, and order. Enumerate the live selector options and determine the first non-empty option at runtime; do not hardcode employee names, IDs, counts, or ordering from another session.
 
 ### Scope asynchronous work to an adjustment run
 

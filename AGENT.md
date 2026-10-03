@@ -9,6 +9,7 @@ Este repositório contém a base funcional do userscript para automação da fol
 - Manter a linha estável como referência de operação real.
 - Tratar a linha experimental como ambiente de validação e evolução controlada.
 - Nunca assumir que a estrutura do DOM é estável entre páginas ou períodos.
+- A lista de funcionários é específica do usuário e pode variar em nomes, IDs, quantidade e ordem. Nunca fixar ou presumir um funcionário, identificador, quantidade ou conteúdo de lista; usar somente as opções presentes no seletor da sessão atual.
 - Respeitar o contrato de página em `PAGE_STRUCTURE.md` antes de aplicar qualquer alteração.
 - Não gravar, aprovar, confirmar nem enviar ações de alteração sem supervisão humana explícita.
 - Quando um seletor falhar, interromper e documentar a condição antes de seguir adiante.
@@ -27,7 +28,7 @@ Este repositório contém a base funcional do userscript para automação da fol
 
 1. Resolver a estrutura da página a partir do `window.top` e dos frames em uso, em vez de reutilizar documentos antigos.
 2. Esperar o carregamento completo do frame relevante antes de tentar interagir com a interface.
-3. Não depender de contagens de linhas ou de elementos fixos como sinal de prontidão.
+3. Não depender de contagens de linhas, funcionários ou de elementos fixos como sinal de prontidão.
 4. Sempre respeitar campos de edição e ações de gravação como operações write-sensitive.
 5. Tratar a interface como sensível: o script pode operar em dados reais e deve priorizar segurança e previsibilidade.
 6. Tratar temporizadores de espera como limites de segurança e compatibilidade, não como previsão fixa da resposta do FPW; só evidência observada permite continuar.

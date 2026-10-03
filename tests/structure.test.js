@@ -28,8 +28,8 @@ function supportedStructure() {
                 form: {
                     name: 'yourform',
                     method: 'post',
-                    action: 'justuser_corpo.asp',
-                    target: 'mainFrame'
+                    action: 'justuser_cabec.asp',
+                    target: ''
                 },
                 employeeSelector: true,
                 employeeSelectionEmpty: false
@@ -102,8 +102,8 @@ test('structure collection records only empty-selector and selected-row flags fo
     const headerForm = {
         name: 'yourform',
         method: 'POST',
-        target: 'mainFrame',
-        getAttribute: () => 'justuser_corpo.asp'
+        target: '',
+        getAttribute: () => 'justuser_cabec.asp'
     };
     const bodyForm = {
         name: 'myForm',
