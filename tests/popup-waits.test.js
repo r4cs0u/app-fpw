@@ -686,6 +686,69 @@ test('fatal orchestration failure cleans the run and publishes its diagnosis in 
     assert.equal(clock.timers.size, 0);
 });
 
+test('blank employee selection loads the first employee before strict sheet processing', async () => {
+    const clock = new SyntheticClock();
+    const env = createEnvironment(clock, null);
+    const selector = {
+        selectedIndex: 0,
+        options: [{ text: '' }, { text: 'Funcionario Sintetico' }]
+    };
+    const structureChecks = [];
+    let updates = 0;
+    let transitionArmed = 0;
+    let transitionDisposed = 0;
+    let readinessChecks = 0;
+    let processedSheets = 0;
+    const logBox = { innerHTML: '' };
+    const headerDocument = {
+        yourform: { lstNome: selector, CodEmpresaEmpregado: {} },
+        getElementById: id => id === 'log-box' ? logBox : null
+    };
+
+    env.AF.core.getDocC = () => headerDocument;
+    env.AF.core.getSelNome = () => selector;
+    env.AF.core.getCabec = () => ({
+        AjustaCodEmpresaEmpregado() {},
+        AtualizaFuncionario() { updates++; }
+    });
+    env.AF.core.setBotoes = () => {};
+    env.AF.core.exigirEstrutura = (stage, popupWindow, allowEmptyStart) => {
+        structureChecks.push({ stage, popupWindow, allowEmptyStart });
+        return true;
+    };
+    env.AF.core.instalarInterceptorPopup = () => {};
+    env.AF.core.observarTransicaoCorpo = () => ({
+        armarTransicao() { transitionArmed++; },
+        dispose() { transitionDisposed++; }
+    });
+    env.AF.core.aguardarTransicaoCorpo = async () => {
+        readinessChecks++;
+        return { status: 'ready' };
+    };
+    env.AF.core.nomeAtual = () => (selector.options[selector.selectedIndex].text || '').trim();
+    env.AF.core.avancarFuncionario = async () => ({ status: 'ready', value: 'fim' });
+    env.AF.core.log = () => {};
+    env.AF.relatorios.gerarFolgas = () => {};
+    env.AF.sons = { tocar() {} };
+    env.AF.fases.processarFolhaAtual = async () => { processedSheets++; };
+
+    await env.AF.fases.processarTodas();
+
+    assert.equal(structureChecks[0].stage, 'inicio do ajuste');
+    assert.equal(structureChecks[0].allowEmptyStart, true);
+    assert.equal(structureChecks[1].stage, 'processamento da folha');
+    assert.equal(structureChecks[1].allowEmptyStart, undefined);
+    assert.equal(selector.selectedIndex, 1);
+    assert.equal(updates, 1);
+    assert.equal(transitionArmed, 1);
+    assert.equal(transitionDisposed, 1);
+    assert.equal(readinessChecks, 1);
+    assert.equal(processedSheets, 1);
+    assert.equal(env.AF.estado.rodando, false);
+    assert.equal(env.footerButton.clicks, 0);
+    assert.equal(clock.timers.size, 0);
+});
+
 test('an interrupted sheet retains confirmed changes without marking the sheet complete', async () => {
     const clock = new SyntheticClock();
     const env = createEnvironment(clock, null);

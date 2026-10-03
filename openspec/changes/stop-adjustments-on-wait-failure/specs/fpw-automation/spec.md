@@ -36,6 +36,12 @@ The workflow SHALL determine completion from supported UI evidence under variabl
 - **WHEN** an adjustment changes the selected employee but the expected loaded body structure is not observed within the configured deadline, or inspection fails
 - **THEN** the workflow SHALL stop with an employee-page-readiness diagnostic before processing that page
 
+#### Scenario: Adjustment starts with no employee selected
+- **WHEN** the header selector is on its empty placeholder and the complete `mainFrame` is the documented blank page, with no checked row-selection controls
+- **THEN** the workflow SHALL validate the supported shell, header, and footer, arm body-transition observation, and select the first non-empty employee through the existing header behavior
+- **AND** it SHALL require the post-selection supported body structure before processing the first sheet
+- **AND** any other invalid body structure or selected-row flag SHALL stop the workflow before processing or saving
+
 #### Scenario: Supported completion is observed
 - **WHEN** the popup reaches its supported ready structure, a save submission is followed by the expected popup completion and supported body reload, or a footer save is followed by the supported body reload
 - **THEN** the workflow SHALL retain the existing planning, candidate ordering, and save behavior for the completed action

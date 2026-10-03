@@ -73,6 +73,10 @@ Use precise messages such as observed UI completion or unconfirmed save. No avai
 
 **Alternative considered:** retain the input-count disappear/reappear heuristic. A sheet may have no rows, and a quick reload may occur between polls.
 
+### Allow only the documented empty-selection bootstrap
+
+At adjustment startup, allow the complete `/WebPonto/blank.htm` body only when the header selector is on its empty placeholder, the header/footer structures are supported, and no `Selecionado` row flags are checked. Arm the normal body-transition observer before selecting the first non-empty option through the existing header functions. Require the loaded `justuser_corpo.asp` body contract before processing. Keep all other startup and in-run body checks strict; a blank body with a non-empty employee selection remains a fatal precondition failure.
+
 ### Scope asynchronous work to an adjustment run
 
 Assign an adjustment-run identity and own its polling intervals, delayed candidate actions, and interceptor callbacks through one cleanup registry. Every action-capable callback checks both active-run identity and cancellation immediately before acting. Fatal stop, user stop, and normal completion release the run's asynchronous resources and pending sessionStorage intent; restore intercepted functions without overwriting unrelated replacements. Do not register the heartbeat or read-only analysis as adjustment-owned work.

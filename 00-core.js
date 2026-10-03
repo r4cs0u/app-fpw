@@ -42,7 +42,7 @@ window.AutomacaoFolha = window.AutomacaoFolha || {
         return window.top.frames[0];
     };
 
-    AF.core.validarEstrutura = function (estrutura, incluirPopup) {
+    AF.core.validarEstrutura = function (estrutura, incluirPopup, permitirSelecaoInicialVazia) {
         var erros = [];
 
         function exigir(condicao, mensagem) {
@@ -58,6 +58,22 @@ window.AutomacaoFolha = window.AutomacaoFolha || {
         var cabec = frames && frames[0];
         var corpo = frames && frames[1];
         var rodape = frames && frames[2];
+        var corpoInicialVazio = !!(
+            permitirSelecaoInicialVazia &&
+            cabec &&
+            cabec.employeeSelectionEmpty === true &&
+            corpo &&
+            corpo.name === 'mainFrame' &&
+            caminhoTerminaEm(corpo.path, '/WebPonto/blank.htm') &&
+            corpo.readyState === 'complete' &&
+            !String(corpo.bodyClass || '').trim() &&
+            corpo.hasSelectedRecords === false &&
+            (!corpo.form || (
+                corpo.form.name === 'myForm' &&
+                corpo.form.method === 'post' &&
+                caminhoTerminaEm(corpo.form.action, 'blank.htm')
+            ))
+        );
 
         exigir(caminhoTerminaEm(estrutura && estrutura.entryPath, '/WebPonto/just_user/justuser.asp'),
             'a pagina principal nao e justuser.asp');
@@ -81,14 +97,16 @@ window.AutomacaoFolha = window.AutomacaoFolha || {
 
         if (corpo) {
             exigir(corpo.name === 'mainFrame', 'frame 1 nao corresponde a mainFrame');
-            exigir(caminhoTerminaEm(corpo.path, '/WebPonto/just_user/justuser_corpo.asp'),
-                'caminho do mainFrame inesperado');
-            exigir(corpo.readyState === 'complete', 'documento mainFrame ainda nao carregou');
-            exigir(corpo.bodyClass === 'Tudo', 'estrutura do body de mainFrame inesperada');
-            exigir(!!corpo.form && corpo.form.name === 'myForm', 'form myForm ausente no mainFrame');
-            exigir(!!corpo.form && corpo.form.method === 'post', 'metodo do form myForm nao e POST');
-            exigir(!!corpo.form && caminhoTerminaEm(corpo.form.action, 'justuser_corpo.asp'),
-                'acao do form myForm inesperada');
+            if (!corpoInicialVazio) {
+                exigir(caminhoTerminaEm(corpo.path, '/WebPonto/just_user/justuser_corpo.asp'),
+                    'caminho do mainFrame inesperado');
+                exigir(corpo.readyState === 'complete', 'documento mainFrame ainda nao carregou');
+                exigir(corpo.bodyClass === 'Tudo', 'estrutura do body de mainFrame inesperada');
+                exigir(!!corpo.form && corpo.form.name === 'myForm', 'form myForm ausente no mainFrame');
+                exigir(!!corpo.form && corpo.form.method === 'post', 'metodo do form myForm nao e POST');
+                exigir(!!corpo.form && caminhoTerminaEm(corpo.form.action, 'justuser_corpo.asp'),
+                    'acao do form myForm inesperada');
+            }
         }
 
         if (rodape) {
@@ -140,6 +158,8 @@ window.AutomacaoFolha = window.AutomacaoFolha || {
                     bodyClass: doc.body ? doc.body.className : '',
                     form: null,
                     employeeSelector: false,
+                    employeeSelectionEmpty: false,
+                    hasSelectedRecords: false,
                     saveControl: false
                 };
 
@@ -153,8 +173,16 @@ window.AutomacaoFolha = window.AutomacaoFolha || {
                             target: formCabec.target
                         };
                     }
-                    descricao.employeeSelector = !!doc.querySelector('select#lstNome[name="lstNome"]');
+                    var seletorFuncionario = doc.querySelector('select#lstNome[name="lstNome"]');
+                    descricao.employeeSelector = !!seletorFuncionario;
+                    if (seletorFuncionario) {
+                        var opcaoSelecionada = seletorFuncionario.options[seletorFuncionario.selectedIndex];
+                        descricao.employeeSelectionEmpty = !opcaoSelecionada ||
+                            !(opcaoSelecionada.text || '').trim();
+                    }
                 } else if (indice === 1) {
+                    descricao.hasSelectedRecords =
+                        !!doc.querySelector('input[name^="Selecionado"]:checked');
                     var formCorpo = doc.querySelector('form[name="myForm"]');
                     if (formCorpo) {
                         descricao.form = {
@@ -192,12 +220,13 @@ window.AutomacaoFolha = window.AutomacaoFolha || {
         return estrutura;
     };
 
-    AF.core.exigirEstrutura = function (etapa, popupWindow) {
+    AF.core.exigirEstrutura = function (etapa, popupWindow, permitirSelecaoInicialVazia) {
         var resultado;
         try {
             resultado = AF.core.validarEstrutura(
                 AF.core.coletarEstrutura(popupWindow),
-                !!popupWindow
+                !!popupWindow,
+                !!permitirSelecaoInicialVazia
             );
         } catch (e) {
             resultado = { ok: false, erros: ['nao foi possivel inspecionar a estrutura atual'] };

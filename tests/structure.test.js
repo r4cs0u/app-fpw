@@ -6,11 +6,14 @@ const { join } = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
 
-function loadValidator() {
-    const window = {};
+function loadCore(window = {}) {
     const source = readFileSync(join(__dirname, '..', '00-core.js'), 'utf8');
     vm.runInNewContext(source, { window });
-    return window.AutomacaoFolha.core.validarEstrutura;
+    return window.AutomacaoFolha.core;
+}
+
+function loadValidator() {
+    return loadCore().validarEstrutura;
 }
 
 function supportedStructure() {
@@ -28,7 +31,8 @@ function supportedStructure() {
                     action: 'justuser_corpo.asp',
                     target: 'mainFrame'
                 },
-                employeeSelector: true
+                employeeSelector: true,
+                employeeSelectionEmpty: false
             },
             {
                 name: 'mainFrame',
@@ -39,7 +43,8 @@ function supportedStructure() {
                     name: 'myForm',
                     method: 'post',
                     action: 'justuser_corpo.asp'
-                }
+                },
+                hasSelectedRecords: false
             },
             {
                 name: 'bottomFrame',
@@ -52,12 +57,99 @@ function supportedStructure() {
     };
 }
 
+function initialBlankStructure() {
+    const estrutura = supportedStructure();
+    estrutura.frames[0].employeeSelectionEmpty = true;
+    estrutura.frames[1] = {
+        name: 'mainFrame',
+        path: '/WebPonto/blank.htm',
+        readyState: 'complete',
+        bodyClass: '',
+        form: {
+            name: 'myForm',
+            method: 'post',
+            action: 'blank.htm'
+        },
+        hasSelectedRecords: false
+    };
+    return estrutura;
+}
+
 test('supported Justificativas structure passes without employee or sheet data', () => {
     const validarEstrutura = loadValidator();
 
     const resultado = validarEstrutura(supportedStructure(), false);
     assert.equal(resultado.ok, true);
     assert.equal(resultado.erros.length, 0);
+});
+
+test('an empty initial selection may bootstrap only from the clean documented blank frame', () => {
+    const validarEstrutura = loadValidator();
+    const estrutura = initialBlankStructure();
+
+    assert.equal(validarEstrutura(estrutura, false).ok, false);
+    assert.equal(validarEstrutura(estrutura, false, true).ok, true);
+
+    estrutura.frames[1].hasSelectedRecords = true;
+    assert.equal(validarEstrutura(estrutura, false, true).ok, false);
+
+    estrutura.frames[1].hasSelectedRecords = false;
+    estrutura.frames[0].employeeSelectionEmpty = false;
+    assert.equal(validarEstrutura(estrutura, false, true).ok, false);
+});
+
+test('structure collection records only empty-selector and selected-row flags for blank startup', () => {
+    const headerForm = {
+        name: 'yourform',
+        method: 'POST',
+        target: 'mainFrame',
+        getAttribute: () => 'justuser_corpo.asp'
+    };
+    const bodyForm = {
+        name: 'myForm',
+        method: 'POST',
+        getAttribute: () => 'blank.htm'
+    };
+    const selector = { options: [{ text: '' }], selectedIndex: 0 };
+    const headerDocument = {
+        readyState: 'complete',
+        body: { className: 'Painel' },
+        querySelector(query) {
+            if (query === 'form[name="yourform"]') return headerForm;
+            if (query === 'select#lstNome[name="lstNome"]') return selector;
+            return null;
+        }
+    };
+    const bodyDocument = {
+        readyState: 'complete',
+        body: { className: '' },
+        querySelector(query) {
+            if (query === 'form[name="myForm"]') return bodyForm;
+            if (query === 'input[name^="Selecionado"]:checked') return null;
+            return null;
+        }
+    };
+    const footerDocument = {
+        readyState: 'complete',
+        body: { className: 'Painel' },
+        getElementById: id => id === 'btnGravar' ? {} : null
+    };
+    const window = {
+        top: {
+            location: { pathname: '/WebPonto/just_user/justuser.asp' },
+            frames: [
+                { name: 'topFrame', location: { pathname: '/WebPonto/just_user/justuser_cabec.asp' }, document: headerDocument },
+                { name: 'mainFrame', location: { pathname: '/WebPonto/blank.htm' }, document: bodyDocument },
+                { name: 'bottomFrame', location: { pathname: '/WebPonto/just_user/justuser_rodape.asp' }, document: footerDocument }
+            ]
+        }
+    };
+    const core = loadCore(window);
+    const estrutura = core.coletarEstrutura();
+
+    assert.equal(estrutura.frames[0].employeeSelectionEmpty, true);
+    assert.equal(estrutura.frames[1].hasSelectedRecords, false);
+    assert.equal(core.validarEstrutura(estrutura, false, true).ok, true);
 });
 
 test('missing frame, form, and required control produce explicit failures', () => {
