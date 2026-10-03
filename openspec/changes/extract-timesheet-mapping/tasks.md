@@ -12,5 +12,5 @@
 
 ## 3. Validate the test runtime
 
-- [ ] 3.1 Publish the completed change to `test`, then wait for the user's explicit “ok” before reloading MyWay/Justificativas; verify only that the updated mapping module loads and the application initializes, without invoking **Ajustar**, saving, or approving.
+- [x] 3.1 Publish the completed change to `test`, then wait for the user's explicit “ok” before reloading MyWay/Justificativas; verify only that the updated mapping module loads and the application initializes, without invoking **Ajustar**, saving, or approving.
 
