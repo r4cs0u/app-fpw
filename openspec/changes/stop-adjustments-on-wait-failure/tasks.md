@@ -1,0 +1,21 @@
+# Tasks
+
+## 1. Add bounded, run-owned adjustment waits
+
+- [x] 1.1 Before modifying waits, inventory existing timers and `esperar` calls in `SSD.md` by location, trigger, purpose, current timing/budget, completion signal, known compatibility workaround, and adjustment ownership; distinguish user-reported rationale from observed code and unknown behavior, separate variable system response from stabilization delays, polling cadence, and safety deadlines, preserve existing compatibility delays initially, and classify unrelated heartbeat/analysis/report/sound timers without changing them.
+- [x] 1.2 Add a shared adjustment wait/lifecycle primitive in `00-core.js` with explicit ready/timeout/cancelled/error outcomes, finite named safety deadlines distinct from compatibility delays, evidence-driven completion under variable response times, and immediate cancellation settlement; add synthetic-clock tests for multiple response durations, preserved stabilization delays, no success from elapsed time alone, readiness just before deadline, deadline exhaustion, inspection exceptions, exactly-once settlement, and timer cleanup, document initial budgets and their rationale in `SSD.md`, and verify the focused tests pass.
+- [x] 1.3 Scope delayed candidate callbacks and interceptor work to a run identity, clean up without affecting heartbeat or read-only analysis, and block stale callbacks after restart; add synthetic action-counter and analysis-regression tests, document ownership in `SSD.md`, and verify the focused tests pass.
+
+## 2. Wire popup, save, and navigation outcomes
+
+- [x] 2.1 Replace the popup readiness/close/reload success-shaped fallbacks in `30-popup.js` and its interceptor with explicit attempt outcomes; arm body-reload observation before popup save submission, observe reload and popup closure concurrently, retain completion evidence in either order, preserve supported rejection, candidate exhaustion, and compatibility stabilization delays, require tracked submission plus observed popup completion and structural body reload for success, and add synthetic tests for reload before/during/after popup closure, reload entirely between polling ticks, variable response durations, unavailable/early-closed popups, timeout, access failure, valid completion, rejection fallback, and cancellation before delayed save with zero post-stop writes.
+- [x] 2.2 Arm structural body-transition observation before footer save and adjustment employee selection, propagate outcomes through `40-fases.js` and adjustment navigation in `00-core.js`, and remove input-count readiness assumptions in those paths; add synthetic fast-reload, same-old-document, empty-sheet, timeout, error, and no-advance/no-resubmit tests, update `PAGE_STRUCTURE.md` with the required observations and persistence limits, and verify the focused tests pass.
+
+## 3. Preserve stop diagnostics and batch cleanup
+
+- [x] 3.1 Wire fatal wait outcomes and user cancellation to one batch-stop path with guaranteed final cleanup and non-running controls; retain stage/reason and earlier confirmed partial results without counting an uncertain action or claiming rollback, and prevent report-ready status in `80-painel.js` from hiding the failure; add synthetic orchestration/status tests, update relevant `AGENT.md` stop guidance and `ROADMAP.md` progress, and verify all focused regression tests pass.
+
+## 4. Validate the experimental integration
+
+- [x] 4.1 Run syntax checks for every changed JavaScript module, the complete `node --test` suite, `openspec validate stop-adjustments-on-wait-failure --strict`, and `git diff --check`; verify the existing successful planning/analysis contracts still pass, the timing matrix covers fast and variable responses without relying on a fixed response duration, and all failure-path tests use synthetic data only; record remaining timing-evidence gaps without treating read-only smoke evidence as adjustment validation.
+- [ ] 4.2 Publish only to `test`, follow the Tampermonkey installation protocol, wait for the user's explicit confirmation before refreshing MyWay, then record separate read-only runtime evidence of the expected version, module availability, supported page structure, and panel initialization; do not invoke **Ajustar**, save, or approval, and keep this task pending if runtime evidence cannot be obtained.

@@ -44,6 +44,13 @@
         return primeiro + ' ' + meio + ' ' + ultimo;
     }
 
+    function escaparHTML(valor) {
+        var entidades = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+        return String(valor).replace(/[&<>"']/g, function (caractere) {
+            return entidades[caractere];
+        });
+    }
+
     // ── Habilitar botão copiar ─────────────────────────────────
 
     AF.relatorios.habilitarCopiar = function (titulo) {
@@ -61,13 +68,19 @@
 
     // ── Relatório do Executar (40-fases) — TSV ─────────────────────
 
-    AF.relatorios.gerarFolgas = function (relStats, relLista, tempoMs, cancelado) {
+    AF.relatorios.gerarFolgas = function (relStats, relLista, tempoMs, cancelado, diagnostico) {
         var tempoTotal = Math.round(tempoMs / 1000);
         var minutos    = Math.floor(tempoTotal / 60);
         var segundos   = tempoTotal % 60;
 
         var rel = 'RELATORIO DE AJUSTE\n';
         rel += 'Status: '                    + (cancelado ? 'INTERROMPIDO' : 'CONCLUIDO') + '\n';
+        if (cancelado && diagnostico) {
+            var detalhe = typeof diagnostico === 'string' ? diagnostico :
+                (diagnostico.stage + ': ' + diagnostico.reason +
+                    (diagnostico.unconfirmed ? ' (resultado nao confirmado)' : ''));
+            rel += 'Motivo da interrupcao: ' + detalhe + '\n';
+        }
         rel += 'Gerado em: '                 + new Date().toLocaleString('pt-BR') + '\n';
         rel += 'Tempo total: '               + minutos + 'min ' + segundos + 's\n';
         rel += 'Folhas processadas: '        + relStats.totalFolhas + '\n';
@@ -83,8 +96,16 @@
 
         for (var ri = 0; ri < relLista.length; ri++) {
             var re = relLista[ri];
-            if (!re.lido) continue;
+            if (!re.lido && !re.parcial) continue;
             if (re.pulada) continue;
+            if (re.parcial) {
+                rel += re.nome.trim() + T
+                    + (re.folgasAlteradas || 0) + T
+                    + '' + T
+                    + (re.folgasSemAlteracao || 0) + T
+                    + '' + T + '' + T + '' + T + '' + T + '\n';
+                continue;
+            }
             var he  = normHora(re.HE);
             var hef = normHora(re.HEF);
             var hec = normHora(re.HEC);
@@ -111,18 +132,20 @@
             var jr = relLista[ji];
             if (!jr.nome || !jr.nome.trim()) continue;
             var foiLido = jr.lido === true && !jr.pulada;
+            var parcial = jr.parcial === true && !jr.pulada;
             var jhe  = foiLido ? normHora(jr.HE)  : null;
             var jhef = foiLido ? normHora(jr.HEF) : null;
             var jhec = foiLido ? normHora(jr.HEC) : null;
             listaJanela.push({
                 nome:   jr.nome.trim(),
-                folgas: foiLido ? (jr.folgasAlteradas    != null ? jr.folgasAlteradas    : 0) : null,
-                cod47:  foiLido ? (jr.linhas47           != null ? jr.linhas47           : 0) : null,
-                presas: foiLido ? (jr.folgasSemAlteracao != null ? jr.folgasSemAlteracao : 0) : null,
+                folgas: foiLido || parcial ? (jr.folgasAlteradas != null ? jr.folgasAlteradas : 0) : null,
+                cod47:  foiLido ? (jr.linhas47 != null ? jr.linhas47 : 0) : null,
+                presas: foiLido || parcial ? (jr.folgasSemAlteracao != null ? jr.folgasSemAlteracao : 0) : null,
                 irregs: foiLido ? (jr.irregs             != null ? jr.irregs             : 0) : null,
                 interj: foiLido ? (jr.interj             != null ? jr.interj             : 0) : null,
                 he: jhe, hef: jhef, hec: jhec,
-                lido: foiLido
+                lido: foiLido,
+                parcial: parcial
             });
         }
 
@@ -131,6 +154,7 @@
         AF.estado.relatorioMeta  = {
             titulo:  'Relatório de Ajuste',
             status:  cancelado ? 'INTERROMPIDO' : 'CONCLUÍDO',
+            diagnostico: cancelado ? diagnostico || null : null,
             folhas:  relStats.totalFolhas,
             tempo:   minutos + 'min ' + segundos + 's',
             gerado:  new Date().toLocaleString('pt-BR')
@@ -265,7 +289,7 @@
         // ── escalas de cor ──
         var maxIrregs = 1, maxInterj = 1, maxFolgas = 1, maxCod47 = 1, maxPressa = 1;
         for (var i = 0; i < lista.length; i++) {
-            if (lista[i].lido === false) continue;
+            if (lista[i].lido === false && !lista[i].parcial) continue;
             if ((lista[i].irregs || 0) > maxIrregs) maxIrregs = lista[i].irregs;
             if ((lista[i].interj || 0) > maxInterj) maxInterj = lista[i].interj;
             if ((lista[i].folgas || 0) > maxFolgas) maxFolgas = lista[i].folgas;
@@ -273,7 +297,7 @@
             if (temPressa && (lista[i].presas || 0) > maxPressa) maxPressa = lista[i].presas;
         }
 
-        // ── totais (apenas lidos) ──
+        // ── Totais incluem apenas folhas lidas e valores confirmados das parciais. ──
         var heToMin = function (str) {
             if (str === null || str === undefined) return null;
             var s = String(str || '00:00').trim().replace(/^'/, '');
@@ -291,7 +315,7 @@
         var tF = 0, tC = 0, tP = 0, tI = 0, tJ = 0, tHE = 0, tHEF = 0, tHECpos = 0, tHECneg = 0;
         for (var ti = 0; ti < lista.length; ti++) {
             var d = lista[ti];
-            if (d.lido === false) continue;
+            if (d.lido === false && !d.parcial) continue;
             tF  += d.folgas || 0;
             tC  += d.cod47  || 0;
             tP  += d.presas || 0;
@@ -308,6 +332,13 @@
 
         var statusColor  = meta.status === 'CONCLUÍDO' ? '#22c55e' : '#f97316';
         var badgeStatus  = '<span style=\"font-size:10px;font-weight:600;padding:2px 8px;border-radius:99px;background:rgba(34,197,94,.12);color:' + statusColor + ';border:1px solid rgba(34,197,94,.2);text-transform:uppercase;letter-spacing:.04em\">' + meta.status + '</span>';
+        var diagnostico = meta.diagnostico;
+        var textoDiagnostico = diagnostico ? (typeof diagnostico === 'string' ? diagnostico :
+            diagnostico.stage + ': ' + diagnostico.reason +
+                (diagnostico.unconfirmed ? ' (resultado nao confirmado)' : '')) : '';
+        var diagnosticoHtml = textoDiagnostico ?
+            '<div style=\"margin-top:8px;color:#fca5a5;font-size:11px\">Interrupcao: ' +
+                escaparHTML(textoDiagnostico) + '</div>' : '';
 
         var grupos = parsearLogPorFuncionario(logBuffer || []);
 
@@ -420,6 +451,7 @@
             +     '<span class=\"meta-lbl\">Duração:&nbsp;</span><span class=\"meta-hi\">' + meta.tempo + '</span>'
             +     '<span class=\"meta-lbl\">Gerado em:&nbsp;</span><span class=\"meta-val\">' + meta.gerado + '</span>'
             +   '</div>'
+            +   diagnosticoHtml
             + '</div>'
             + '<div class=\"body-scroll\">'
             + '<div class=\"sec\">'
@@ -525,7 +557,7 @@
             +   'for(var i=0;i<arr.length;i++){'
             +     'var d=arr[i],nr=d.lido===false;'
             +     'var pc=_temPressa?\'<td style="text-align:right;padding:5px 10px">\'+_chipOra(d.presas,_max.maxPressa)+"</td>":"";'
-            +     'html+=\'<tr class="fpw-row\'+(nr?\' row-unread\':\'\')+ \'" data-nome="\'+d.nome+\'">\''
+            +     'html+=\'<tr class="fpw-row\' +(nr ? \' row-unread\' : \'\') + \'" data-nome="\' + d.nome + \'" title="\' + d.nome + (d.parcial ? \' - parcial; folha interrompida\' : (nr ? \' - nao processada\' : \'\')) + \'">\''
             +       '+\'<td class="col-nome" title="\'+d.nome+\'">\'+_abrev(d.nome)+\'</td>\''
             +       '+\'<td style="text-align:right;padding:5px 10px">\'+_chipOra(d.folgas,_max.maxFolgas)+\'</td>\''
             +       '+\'<td style="text-align:right;padding:5px 10px">\'+_chipOra(d.cod47,_max.maxCod47)+\'</td>\''

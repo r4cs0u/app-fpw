@@ -1,271 +1,81 @@
-# Roadmap e Evolução do Projeto
+# Roadmap do app-fpw
 
-## Visão geral
+## Propósito
 
-Este documento reúne a visão de evolução do projeto, os próximos passos, as decisões de arquitetura e o mapeamento das atuações relevantes para manter o produto organizado ao longo da remodularização e do crescimento do ecossistema de automação.
+Este documento registra o estado atual do projeto e a ordem recomendada para melhorar sua estrutura antes de ampliar o conjunto de funcionalidades. Ele acompanha a direção de médio e longo prazo; tarefas detalhadas de cada mudança ficam no OpenSpec.
 
-Ele foi pensado para funcionar como um registro de trabalho em evolução, seguindo a lógica de acompanhamento do OpenSpec: cada decisão, mudança e proposta será registrada aqui para não se perder no processo.
+## Estado atual
 
----
+O `app-fpw` é um userscript Tampermonkey para apoiar a análise e os ajustes de folhas de ponto no WebPonto/MyWay. A branch `main` é a referência estável de produção; a branch `test` deste mesmo repositório é o ambiente de experimentação. Não está planejado um repositório separado `app-fpw-teste`.
 
-## 1. Contexto do projeto
+A base já tem módulos JavaScript para estado e acesso aos frames, utilitários de datas, mapeamento da folha, popups, análise, ajustes, relatórios, painel e identificação do ambiente. A documentação também já está dividida por propósito:
 
-O projeto atual é um userscript para automação da folha de ponto no sistema WebPonto/MyWay da Globo. Sua finalidade principal é analisar a folha, detectar pendências e ajustar automaticamente itens recorrentes do ponto, com foco em diminuir o esforço manual e acelerar a revisão das marcações.
+- [README.md](README.md): visão geral e uso do aplicativo.
+- [AGENT.md](AGENT.md): regras operacionais, limites e procedimentos para agentes e contribuidores.
+- [PAGE_STRUCTURE.md](PAGE_STRUCTURE.md): estrutura observada do WebPonto, frames, formulários e restrições de interação.
+- [SSD.md](SSD.md): arquitetura implementada, responsabilidades dos módulos e evidências técnicas.
+- Este roadmap: estado do projeto, prioridades e etapas futuras.
 
-O aplicativo já possui uma base funcional com:
+Os requisitos duráveis das capacidades conhecidas estão em [openspec/specs/](openspec/specs/). O OpenSpec também guarda o plano e o histórico de cada mudança em `openspec/changes/` e `openspec/changes/archive/`; esses arquivos não substituem os guias acima.
 
-- painel visual embutido na página;
-- análise de irregularidades;
-- contabilização de folgas, interjornadas, horas extras e código 47;
-- execução de ajustes automáticos;
-- geração de relatórios;
-- acompanhamento visual do processo.
+## Direção
 
-Ao mesmo tempo, o código ainda está fortemente acoplado à estrutura do DOM da página e depende de interações específicas com frames, popups e elementos HTML da interface do sistema externo.
+Evoluir primeiro a previsibilidade, a capacidade de testar e a segurança operacional. Fazer mudanças incrementais na branch `test`, preservando `main` como referência estável e sem mudar o comportamento funcional inadvertidamente. Novas funcionalidades maiores voltam ao foco depois que essa base estiver mais confiável.
 
----
+## Próximas etapas
 
-## 2. Estado atual
+### 1. Alinhar e manter o plano e a documentação
 
-### 2.1. O que está funcional
+**Objetivo:** manter os documentos atuais, claros e sem planos duplicados ou instruções conflitantes.
 
-- automação de análise da folha atual;
-- ajuste de folgas e movimentações relevantes;
-- visualização de status no painel;
-- logs e relatórios para acompanhamento;
-- integração com o ambiente WebPonto via manipulação de DOM e comportamento do sistema.
+**Trabalho:** registrar o estado real do projeto; manter responsabilidades distintas entre README, guia de agente, contrato da página, SSD e roadmap; usar o OpenSpec para planos e histórico de mudanças.
 
-### 2.2. O que exige atenção
+**Concluída quando:** os guias descrevem o que existe hoje, as decisões vigentes estão claras e não há mais um plano de versão de teste separado e redundante.
 
-- acoplamento forte ao HTML e ao comportamento interno do sistema externo;
-- uso de polling e intervalos para espera de estado;
-- lógica distribuída entre múltiplos módulos sem uma camada clara de regras de negócio;
-- pouca observabilidade em nível de execução e estado;
-- necessidade de uma arquitetura mais previsível para evoluir sem quebrar a automação.
+**Estado:** concluída em 2026-10-02 com a consolidação desta documentação.
 
-### 2.3. Riscos conhecidos
+### 2. Criar testes para regras independentes do site
 
-- mudanças na estrutura do sistema WebPonto podem quebrar o script;
-- falhas silenciosas em seletores e eventos podem gerar ajustes incorretos;
-- lógica muito dependente de DOM torna testes automatizados mais difíceis;
-- a automatização precisa continuar com supervisão humana para evitar impactos em dados reais.
+**Objetivo:** verificar cálculos e decisões sem abrir o WebPonto nem interagir com dados reais.
 
----
+**Trabalho:** identificar regras que possam receber dados de exemplo e retornar resultados — por exemplo, tratamento de datas, semanas, feriados e planejamento de ajustes. Escolher testes pequenos e direcionados antes de tentar cobrir todo o userscript.
 
-## 3. Objetivo da evolução
+**Concluída quando:** as regras escolhidas têm exemplos automatizados para resultados esperados e casos-limite, e existe um comando documentado que os executa de forma repetível.
 
-O objetivo principal não é apenas deixar o aplicativo mais bonito ou mais complexo, mas torná-lo mais robusto, previsível e escalável.
+### 3. Separar gradualmente as regras da página
 
-A jornada de evolução tem quatro pilares:
+**Objetivo:** reduzir o quanto os cálculos dependem diretamente de elementos HTML e da estrutura específica do WebPonto.
 
-1. manter a operação atual estável;
-2. criar uma versão de testes isolada;
-3. remodular a arquitetura do aplicativo;
-4. preparar a nova identidade e estrutura do produto.
+**Trabalho:** em pequenas mudanças, transformar a leitura da página em dados estruturados e passar esses dados às regras; manter a interação com frames, DOM e popups numa fronteira identificável. Não é uma reescrita total.
 
----
+**Concluída quando:** as principais regras de negócio podem ser testadas com dados de exemplo sem DOM, e os fluxos existentes continuam produzindo os resultados esperados em validações controladas.
 
-## 4. Estrutura de evolução planejada
+### 4. Reforçar segurança e diagnóstico das ações que alteram dados
 
-### 4.1. Versão estável atual
+**Objetivo:** garantir que alterações só ocorram no contexto esperado e que falhas parem de maneira visível e compreensível.
 
-A versão atual do projeto continua sendo a base de uso real, com o nome original do app e a lógica funcional já validada para o dia a dia.
+**Trabalho:** revisar pré-condições da página e dos seletores, condições de parada, tratamento de erros e pontos de gravação; diferenciar claramente leitura, alteração automatizada e aprovação final humana. Toda mudança nesse fluxo deve ser validada primeiro na branch `test`, respeitando [AGENT.md](AGENT.md) e [PAGE_STRUCTURE.md](PAGE_STRUCTURE.md).
 
-Objetivo:
-- manter funcionamento confiável;
-- registrar melhorias e correções sem interromper o uso real;
-- preservar o código de referência para comparação.
+**Concluída quando:** cada ação que altera dados tem pré-condições e resultado verificáveis, estados inesperados interrompem o fluxo com diagnóstico, e a validação confirma que nenhuma gravação ou aprovação ocorre fora do comportamento explicitamente aprovado.
 
-### 4.2. Projeto paralelo para testes
+**Progresso:** em andamento. A mudança `stop-adjustments-on-wait-failure` reúne esperas com evidência estrutural, parada por execução, limpeza de recursos e diagnóstico de resultados parciais. Prazos são limites provisórios de segurança, não tempos fixos de resposta do FPW; a validação sintética não substitui evidência de runtime.
 
-Criaremos um outro projeto no GitHub, chamado de `app-fpw-teste`, com a mesma base de configuração do projeto atual, mas pensando em um ambiente segregado para experimentação.
+### 5. Retomar evoluções maiores de funcionalidades
 
-Objetivo:
-- permitir mudanças e testes sem afetar o app principal;
-- versionar a nova linha em Tampermonkey;
-- validar novas ideias, remodulações e refatorações antes de aplicar ao app principal;
-- servir como laboratório de evolução.
+**Objetivo:** voltar a ampliar o produto sobre uma base mais fácil de manter e validar.
 
-### 4.3. Remodulação do aplicativo principal
+**Trabalho:** avaliar cada ideia como uma mudança OpenSpec própria, com objetivo, escopo, riscos e critérios de aceitação; validar na branch `test` antes de considerar promoção.
 
-Após a fase de testes e validação, o app principal será remodulado para:
+**Concluída quando:** não é uma entrega única. Cada funcionalidade aprovada tem critérios de aceitação, validação compatível com seu risco e decisão explícita sobre eventual promoção para a linha estável.
 
-- separar regras de negócio da manipulação do DOM;
-- centralizar o estado e a execução;
-- reduzir acoplamento com HTML específico;
-- criar um modelo mais observável para execução;
-- facilitar testes e manutenção.
+## Princípios para a execução
 
-### 4.4. Identidade da linha de teste
+- Trabalhar na branch `test`; manter `main` como referência estável até uma promoção deliberada.
+- Preferir mudanças pequenas e reversíveis, sem combinar remodulação ampla e mudança de comportamento no mesmo passo.
+- Distinguir evidência observada de garantia: um teste sintático, uma resposta HTTP ou uma observação de duração limitada não comprovam cenários além do que foi efetivamente verificado.
+- Não usar dados de funcionários ou conteúdo de folhas em documentação de arquitetura, exemplos públicos ou testes versionados.
+- Tratar gravação e aprovação no WebPonto como operações sensíveis e preservar a supervisão humana estabelecida nos guias.
 
-A linha experimental deve permanecer claramente identificada como branch de teste, sem redefinir o nome oficial do aplicativo principal.
+## Acompanhamento
 
-Essa diferenciação deve ser aplicada na nova versão de validação para distinguir a linha experimental da base estável do produto.
-
----
-
-## 5. Proposta de atuação por área
-
-### 5.1. Produto e UX
-
-- definir melhor a proposta do userscript para o usuário final;
-- deixar o painel mais claro e didático;
-- reduzir ruído visual e melhorar a compreensão do fluxo de execução;
-- padronizar mensagens e estados no painel;
-- facilitar a compreensão de quando o usuário deve agir manualmente.
-
-### 5.2. Arquitetura e qualidade de software
-
-- separar regras de negócio da camada de interface;
-- reduzir manipulação direta de DOM em módulos centrais;
-- criar modelos de execução mais robustos;
-- adotar abordagem de estados e observabilidade;
-- preparar a base para testes automatizados.
-
-### 5.3. Automação e execução
-
-- melhorar o gerenciamento de popups e interações de janela;
-- padronizar esperas e retries;
-- reduzir risco de ações em páginas inesperadas;
-- separar tarefas de leitura, ajuste, revisão e gravação.
-
-### 5.4. Documentação e conhecimento
-
-- manter um registro claro de regras da página;
-- documentar estrutura do WebPonto e os pontos críticos de automação;
-- mapear os módulos e seus papéis;
-- preservar o histórico de decisões e evoluções no código e na documentação.
-
----
-
-## 6. Estrutura documental recomendada
-
-### 6.1. Page Structure
-
-O arquivo `PAGE_STRUCTURE.md` deve continuar sendo a base técnica para registrar o mapeamento da página do WebPonto e todas as observações relevantes sobre:
-
-- frames;
-- formulários;
-- selects e inputs relevantes;
-- estrutura do corpo da página;
-- ações auxiliares;
-- regras de navegação e segurança;
-- observações de comportamento do sistema externo.
-
-Esse documento é o contrato técnico de interface do app com a página alvo.
-
-### 6.2. Agent guide / AGENT.md
-
-O arquivo `AGENT.md` deve funcionar como guia de comportamento para agentes que atuarem no projeto, incluindo:
-
-- o objetivo do agente;
-- limites e convenções de automação;
-- regras de interação com a interface;
-- guardrails diante de mudanças na página;
-- como lidar com páginas vazias, popups e estados inesperados;
-- boas práticas de execução segura e supervisão humana.
-
-Esse documento complementa o `PAGE_STRUCTURE.md`: enquanto o primeiro informa "o que existe na página", o segundo informa "como o agente deve agir sobre ela".
-
-### 6.3. Documento de roadmap/ evolução
-
-Este arquivo (`ROADMAP.md`) serve como registro central de evolução e acompanhamento do projeto:
-
-- objetivos;
-- decisões de arquitetura;
-- status geral;
-- passos em execução;
-- próximos trabalhos;
-- riscos e pendências.
-
-Ele funciona como a linha de tempo do projeto e guia de manutenção do produto.
-
----
-
-## 7. Proposta de trabalho em sequência
-
-### Fase 1 — estabilizar a visão
-
-- consolidar o objetivo atual do app;
-- registrar a arquitetura funcional atual;
-- definir a linha de produto da nova versão.
-
-### Fase 2 — separar uma versão teste
-
-- criar o repositório `app-fpw-teste`;
-- manter a mesma base conceitual de configuração;
-- versionar em Tampermonkey;
-- validar a nova linha sem afetar o app principal.
-
-### Fase 3 — remodularização
-
-- separar camada de dados e regras;
-- organizar estados e execução;
-- reduzir dependência do DOM;
-- preparar a base para testes.
-
-### Fase 4 — validação da linha de teste
-
-- identificar claramente a branch test;
-- ajustar nomenclatura do userscript para versões de teste;
-- revisar painel e mensagens;
-- consolidar a versão mais madura.
-
-### Fase 5 — maturidade operacional
-
-- testes automatizados;
-- documentação mais forte;
-- padrões de código e guardrails;
-- evolução contínua com rastreabilidade.
-
----
-
-## 8. Principais decisões a registrar
-
-### Decisão 1: manter a base atual estável
-A base funcional atual deve continuar como referência e backup operacional, enquanto as evoluções são testadas em separado.
-
-### Decisão 2: criar o ambiente `app-fpw-teste`
-O projeto paralelo será usado como laboratório de validação, com versionamento no Tampermonkey para permitir mudanças em um contexto controlado.
-
-### Decisão 3: normalizar a arquitetura
-A remodulação deve seguir a lógica de separar domínio, execução e interface, em vez de manter tudo acoplado ao DOM.
-
-### Decisão 4: usar `Page Structure` + `Agent Guide` como documentação complementar
-Esses documentos devem ser mantidos em conjunto para descrever tanto a estrutura da página quanto as regras de operação do agente.
-
-### Decisão 5: identificação da linha experimental
-A linha experimental deve ser identificada apenas como branch `test`, sem redefinir o nome oficial do aplicativo principal.
-
----
-
-## 9. Próximos passos sugeridos
-
-1. Criar o documento de roadmap e evolução em formato de acompanhamento.
-2. Separar a arquitetura do projeto em documentos temáticos.
-3. Criar o repositório `app-fpw-teste` como ambiente de teste controlado.
-4. Definir a base da nova versão como branch `test`.
-5. Iniciar a remodulação arquitetural depois da validação da versão teste.
-
----
-
-## 10. Conclusão
-
-O projeto já tem uma base funcional interessante e com utilidade prática clara. O que falta agora é transformar essa base em uma estrutura mais sustentável, observável e segura, sem perder a produtividade do que já funciona.
-
-A ideia de separar o projeto em três níveis — base estável, teste e remodulação — parece a melhor forma de evoluir de maneira inteligente: preservar o que funciona, experimentar sem risco e preparar a próxima geração do app com mais qualidade e menor fragilidade.
-
----
-
-## 11. Checklist de evolução
-
-- [ ] registrar visão e roadmap
-- [ ] separar documentação técnica e operacional
-- [ ] criar projeto paralelo `app-fpw-teste`
-- [ ] versionar a nova linha em Tampermonkey
-- [ ] identificar a linha experimental somente como `test`
-- [ ] mapear componentes e responsabilidades
-- [ ] remodular arquitetura principal
-- [ ] adicionar documentação de agente e estrutura da página
-- [ ] preparar testes e guardrails
-- [ ] revisar mudanças antes de promoção para produção
+O estado das etapas é descrito aqui em alto nível; tarefas concretas, decisões técnicas e evidências específicas pertencem às mudanças OpenSpec correspondentes. Ao concluir ou redirecionar uma etapa, atualizar este documento para não deixar itens concluídos escritos como trabalho futuro.

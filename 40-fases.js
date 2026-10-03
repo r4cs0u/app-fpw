@@ -44,13 +44,13 @@
     // ── Fase 1 ─────────────────────────────────────────────────────────
     // Re-mapeia a folha a cada rodada para refletir mudanças após cada popup.
 
-    AF.fases.processarFase1 = async function () {
+    AF.fases.processarFase1 = async function (execucao) {
         var movidas = 0;
         var presas = [];
         var datasUsadas = new Set();
         var seguranca = 0;
 
-        while (!AF.estado.cancelado) {
+        while (execucao && execucao.isActive()) {
             seguranca++;
             if (seguranca > 30) { AF.core.log('Fase 1 interrompida por seguranca.', '#f87171'); break; }
 
@@ -70,12 +70,13 @@
             datasUsadas.add(acao.dataAusencia);
 
             AF.core.log('Fase 1: ausencia ' + acao.dataAusencia + ' <- folga ' + acao.dataOrigem, '#0043ff');
-            var r = await AF.popup.executarAcaoFolga(acao);
+            var r = await AF.popup.executarAcaoFolga(acao, execucao);
             if (r.ok) {
                 movidas++;
             } else if (r.semAlteracao) {
                 presas.push({ fase: 1, semanaId: acao.semanaId, dataFolga: acao.dataOrigem, numFolga: acao.numAbrirPopup });
             }
+            if (r.fatal) break;
         }
 
         return { movidas: movidas, presas: presas };
@@ -83,14 +84,14 @@
 
     // ── Fase 2 ─────────────────────────────────────────────────────────
 
-    AF.fases.processarFase2 = async function () {
+    AF.fases.processarFase2 = async function (execucao) {
         var movidas = 0;
         var presas = [];
         var historicoTentativas = {};
         var datasUsadasFase2 = new Set();
         var seguranca = 0;
 
-        while (!AF.estado.cancelado) {
+        while (execucao && execucao.isActive()) {
             seguranca++;
             if (seguranca > 20) { AF.core.log('Fase 2 interrompida por seguranca.', '#f87171'); break; }
 
@@ -105,8 +106,9 @@
 
             AF.core.log('Fase 2: ausencia ' + acao.dataAusencia + (rodada.tipo === 'visivel' ? ' <- folga ' : ' <- folga oculta ') + acao.dataOrigem, '#0043ff');
 
-            var r = await AF.popup.executarAcaoFolga(acao);
+            var r = await AF.popup.executarAcaoFolga(acao, execucao);
             if (r.ok) { movidas++; continue; }
+            if (r.fatal) break;
             if (rodada.tipo === 'oculta') presas.push({ fase: 2, semanaId: acao.semanaId, dataFolga: acao.dataOrigem, numFolga: acao.numAbrirPopup });
             break;
         }
@@ -118,7 +120,7 @@
 
     // ── Fase 4: Alterar 47 → 48 ────────────────────────────────────────
 
-	AF.fases.processarFase4 = function () {
+	AF.fases.processarFase4 = function (execucao) {
 		if (AF.core && typeof AF.core.exigirEstrutura === 'function') {
 			if (!AF.core.exigirEstrutura('fase 4 - alteracao de campos')) {
 				return [];
@@ -134,6 +136,7 @@
 		var campos = Array.from(doc1.querySelectorAll('input[type=text]'));
 
 		for (var i = 0; i < campos.length; i++) {
+            if (execucao && !execucao.isActive()) break;
 			var inp = campos[i];
 			if (!inp.value || inp.value.trim() !== '47') continue;
 
@@ -196,66 +199,102 @@
 
     // ── Gravar ─────────────────────────────────────────────────────────
 
-	AF.fases.gravar = async function (nsMarcados) {
-	    try {
-	        if (AF.core && typeof AF.core.exigirEstrutura === 'function') {
-	            if (!AF.core.exigirEstrutura('gravacao no rodape')) {
-	                return;
-	            }
-	        }
+	AF.fases.gravar = async function (nsMarcados, execucao) {
+        execucao = execucao || AF.estado.execucaoAjuste;
+        if (!execucao || !execucao.isActive()) return { status: 'cancelled', stage: 'footer-save' };
 
-	        var doc2 = window.top.frames[2].document;
-	        var btn = doc2.getElementById('btnGravar');
-	        if (!btn) { AF.core.log('ERRO: btnGravar nao encontrado em frames[2].', '#f87171'); return; }
-	
-			btn.click();
-			
-			if (AF.estado.cancelado) return;
-			
-			await AF.fases.aguardarGravacao();
-			
-			AF.core.log('Gravado.', '#a6e3a1');
+        if (AF.core && typeof AF.core.exigirEstrutura === 'function' &&
+            !AF.core.exigirEstrutura('gravacao no rodape')) {
+            return { status: 'error', stage: 'footer-save', reason: 'As pre-condicoes estruturais falharam.' };
+        }
+
+        var tentativa = { submitted: false, submittedAt: null };
+        var observador;
+        try {
+            var doc2 = window.top.frames[2].document;
+            var btn = doc2.getElementById('btnGravar');
+            if (!btn) {
+                return { status: 'error', stage: 'footer-save', reason: 'btnGravar ausente no rodape.' };
+            }
+
+            observador = AF.core.observarTransicaoCorpo(execucao, tentativa);
+            observador.marcarEnvio();
+            if (!execucao.isActive()) return { status: 'cancelled', stage: 'footer-save' };
+            btn.click();
+
+            var outcome = await AF.fases.aguardarGravacao(observador, execucao);
+            if (!execucao.isActive()) {
+                var cancelamento = {
+                    status: 'cancelled',
+                    stage: 'footer-save',
+                    reason: 'Parada solicitada durante a gravacao no rodape.',
+                    unconfirmed: tentativa.submitted
+                };
+                if (tentativa.submitted) {
+                    AF.core.pararExecucaoAjuste(cancelamento, execucao);
+                }
+                return cancelamento;
+            }
+            if (outcome.status !== 'ready') {
+                outcome.unconfirmed = tentativa.submitted;
+                AF.core.pararExecucaoAjuste(outcome, execucao);
+                return outcome;
+            }
+
+            AF.core.log('Gravacao observada: pagina principal recarregada.', '#a6e3a1');
+            return outcome;
         } catch (e) {
-            AF.core.log('ERRO ao gravar: ' + e.message, '#f87171');
+            var error = {
+                status: 'error',
+                stage: 'footer-save',
+                reason: e && e.message ? e.message : String(e),
+                unconfirmed: tentativa.submitted
+            };
+            AF.core.pararExecucaoAjuste(error, execucao);
+            return error;
+        } finally {
+            if (observador) observador.dispose();
         }
     };
 
-	AF.fases.aguardarGravacao = async function () {
-    var recarregou = await new Promise(function (resolve) {
-        var fase = 'aguardando_sumir';
-        var t = 0;
-        var iv = setInterval(function () {
-            t++;
-            if (t > 40) { clearInterval(iv); resolve(false); return; }
-            try {
-                var ir = AF.core.getDoc1().querySelectorAll('input[name^="Irre"]');
-                var tx = AF.core.getDoc1().querySelectorAll('input[type=text]');
+    AF.fases.aguardarGravacao = async function (observador, execucao) {
+        var recarga = await AF.core.aguardarTransicaoCorpo(
+            execucao,
+            observador,
+            'footer-save-reload'
+        );
+        if (recarga.status !== 'ready') return recarga;
 
-                if (fase === 'aguardando_sumir') {
-                    if (ir.length === 0 && tx.length === 0) {
-                        fase = 'aguardando_voltar';
-                    }
-                } else {
-                    if (ir.length > 0 || tx.length > 0 || AF.core.paginaVaziaAgora()) {
-                        clearInterval(iv); resolve(true);
-                    }
-                }
-            } catch (e) {}
-        }, 300);
-    });
-
-    await AF.core.esperar(5000);
-};
+        var estabilizacao = await AF.core.esperarDelayAjuste(
+            execucao,
+            'footer-save-stabilization',
+            5000
+        );
+        if (estabilizacao.status !== 'ready') return estabilizacao;
+        return { status: 'ready', stage: 'footer-save-reload', value: recarga.value };
+    };
 
     // ── Processar folha atual ──────────────────────────────────────────
     // relLista é um mapa { nome → objeto } pré-populado com todos os nomes.
     // Aqui atualizamos o registro existente em vez de fazer push.
 
-    AF.fases.processarFolhaAtual = async function (relStats, relLista, relListaMap) {
+    AF.fases.processarFolhaAtual = async function (relStats, relLista, relListaMap, execucao) {
+        if (!execucao || !execucao.isActive()) return;
         var nome = AF.core.nomeAtual();
         AF.core.log('\u2500\u2500 ' + nome + ' \u2500\u2500', '#c084fc');
 
         var entry = relListaMap[nome] || relListaMap[nome.trim()];
+        var totalMovidas = 0;
+        var presasFinais = [];
+
+        function salvarProgressoParcial() {
+            if (!entry) return;
+            entry.parcial = true;
+            entry.folgasAlteradas = totalMovidas;
+            entry.folgasSemAlteracao = presasFinais.length;
+            relStats.folgasAlteradas += totalMovidas;
+            relStats.folgasNaoAlteradas += presasFinais.length;
+        }
 
         if (AF.core.paginaVaziaAgora()) {
             AF.core.log('Sem marcacoes, pulando.', '#000000');
@@ -271,40 +310,69 @@
         }
 
         AF.core.log('Processando folgas...', '#0043ff');
-        var r1 = await AF.fases.processarFase1();
-        if (AF.estado.cancelado) return;
-
-        var r2 = await AF.fases.processarFase2();
-        if (AF.estado.cancelado) return;
-
-        var mapaFinal = AF.mapa.mapearFolhaAtual();
-        var presasBase = [].concat(r1.presas).concat(r2.presas);
-        var plano3 = AF.planejamento.planejarFase3(mapaFinal, presasBase);
-        var totalMovidas = r1.movidas + r2.movidas;
-        var presasFinais = plano3.presasFinais.slice();
-
-        for (var i = 0; i < plano3.acoes.length; i++) {
-            if (AF.estado.cancelado) break;
-            var acao = plano3.acoes[i];
-            AF.core.log('Fase 3 [' + acao.tipo + ']: ausencia ' + acao.dataAusencia + ' <- feriado ' + acao.dataOrigem, '#0043ff');
-            var r3 = await AF.popup.executarAcaoFolga(acao);
-            if (r3.ok) totalMovidas++;
-            else presasFinais.push({ fase: 3, semanaId: acao.semanaId, dataFolga: acao.dataFolgaOriginal || acao.dataOrigem });
+        var r1 = await AF.fases.processarFase1(execucao);
+        totalMovidas += r1.movidas;
+        presasFinais = presasFinais.concat(r1.presas);
+        if (!execucao.isActive()) {
+            salvarProgressoParcial();
+            return;
         }
 
-        if (AF.estado.cancelado) return;
+        var r2 = await AF.fases.processarFase2(execucao);
+        totalMovidas += r2.movidas;
+        presasFinais = presasFinais.concat(r2.presas);
+        if (!execucao.isActive()) {
+            salvarProgressoParcial();
+            return;
+        }
 
-        var nsMarcados = AF.fases.processarFase4();
+        var mapaFinal = AF.mapa.mapearFolhaAtual();
+        var presasBase = presasFinais.slice();
+        var plano3 = AF.planejamento.planejarFase3(mapaFinal, presasBase);
+        presasFinais = plano3.presasFinais.slice();
+
+        for (var i = 0; i < plano3.acoes.length; i++) {
+            if (!execucao.isActive()) break;
+            var acao = plano3.acoes[i];
+            AF.core.log('Fase 3 [' + acao.tipo + ']: ausencia ' + acao.dataAusencia + ' <- feriado ' + acao.dataOrigem, '#0043ff');
+            var r3 = await AF.popup.executarAcaoFolga(acao, execucao);
+            if (r3.ok) totalMovidas++;
+            else if (!r3.fatal) {
+                presasFinais.push({
+                    fase: 3,
+                    semanaId: acao.semanaId,
+                    dataFolga: acao.dataFolgaOriginal || acao.dataOrigem
+                });
+            }
+            if (r3.fatal) break;
+        }
+
+        if (!execucao.isActive()) {
+            salvarProgressoParcial();
+            return;
+        }
+
+        var nsMarcados = AF.fases.processarFase4(execucao);
         var linhas47 = nsMarcados.length;
 
 		if (linhas47 > 0) {
 		    AF.core.log('Gravando Fase 4...', '#0043ff');
-		    await AF.fases.gravar(nsMarcados);
+		    var resultadoGravacao = await AF.fases.gravar(nsMarcados, execucao);
+            if (resultadoGravacao.status !== 'ready') {
+		        if (resultadoGravacao.status !== 'cancelled') {
+		            AF.core.pararExecucaoAjuste(resultadoGravacao, execucao);
+		        }
+		        salvarProgressoParcial();
+		        return;
+		    }
 		} else {
 		    AF.core.log('Fase 4: nada a alterar.', '#000000');
 		}
 		
-		if (AF.estado.cancelado) return;
+		if (!execucao.isActive()) {
+            salvarProgressoParcial();
+            return;
+        }
 
         var analise  = AF.fases.analisarFolha();
         var extras   = (AF.analisar && AF.analisar.somarHorasExtras) ? AF.analisar.somarHorasExtras() : { HE: '00:00', HEF: '00:00' };
@@ -337,117 +405,192 @@
 
     AF.fases.processarTodas = async function () {
         AF.estado.cancelado = false;
+        var execucao = AF.core.iniciarExecucaoAjuste();
         AF.estado.falhaPrecondicao = false;
-		AF.estado.rodando = true;
+        AF.estado.falhaAjuste = null;
+        AF.estado.motivoParadaAjuste = null;
+        AF.estado.rodando = true;
         AF.core.setBotoes(true);
-        AF.core.getDocC().getElementById('log-box').innerHTML = '';
-        AF.sons.tocar('inicio');
-
-        if (!AF.core.exigirEstrutura('inicio do ajuste')) {
-            AF.core.setBotoes(false);
-            AF.estado.rodando = false;
-            return;
-        }
-
-        AF.core.instalarInterceptorPopup();
-
         var relStats = {
             totalFolhas: 0, semMarcacoes: 0,
             folgasAlteradas: 0, folgasNaoAlteradas: 0,
             irregsRestantes: 0, interjRestantes: 0, linhas47: 0
         };
+        var relLista = null;
+        var relListaMap = null;
+        var inicioExec = Date.now();
 
-        var sel = AF.core.getSelNome();
-        if (!sel) { AF.core.log('ERRO: Lista de funcionarios nao encontrada.', '#f87171'); AF.core.setBotoes(false); return; }
-
-        // ── snapshot de TODOS os nomes antes de iniciar o loop ──
-        var relLista    = [];   // array ordenado
-        var relListaMap = {};   // mapa nome → objeto (para atualização rápida)
-        for (var pi = 0; pi < sel.options.length; pi++) {
-            var nomeTxt = (sel.options[pi].text || '').trim();
-            if (!nomeTxt) continue;
-            var obj = {
-                nome: nomeTxt,
-                lido: false, pulada: false,
-                folgasAlteradas: null, folgasSemAlteracao: null,
-                linhas47: null, irregs: null, interj: null,
-                HE: null, HEF: null, HEC: null
-            };
-            relLista.push(obj);
-            relListaMap[nomeTxt] = obj;
-        }
-        // ordenação alfabética (sem acentos) desde o início
-        var normSort = function (s) {
-            return (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-        };
-        relLista.sort(function (a, b) {
-            return normSort(a.nome) < normSort(b.nome) ? -1 : normSort(a.nome) > normSort(b.nome) ? 1 : 0;
+        execucao.addCleanup(function () {
+            sessionStorage.removeItem('autodataTrocar');
+            sessionStorage.removeItem('autodataFallback');
+            sessionStorage.removeItem('autodatasCandidatasPopup');
+            sessionStorage.removeItem('autopopupSemSucesso');
         });
 
-        var cabec = AF.core.getCabec();
-        var docC  = AF.core.getDocC();
+        try {
+            AF.core.getDocC().getElementById('log-box').innerHTML = '';
+            AF.sons.tocar('inicio');
+            if (!AF.core.exigirEstrutura('inicio do ajuste')) return;
 
-        var nomeSelecionado = (sel.options[sel.selectedIndex] && (sel.options[sel.selectedIndex].text || '').trim());
-        if (!nomeSelecionado) {
-            var primeiroValido = -1;
-            for (var pi2 = 0; pi2 < sel.options.length; pi2++) {
-                if ((sel.options[pi2].text || '').trim()) { primeiroValido = pi2; break; }
+            AF.core.instalarInterceptorPopup(execucao);
+            var sel = AF.core.getSelNome();
+            if (!sel) {
+                AF.core.pararExecucaoAjuste({
+                    status: 'error',
+                    stage: 'employee-list',
+                    reason: 'Lista de funcionarios nao encontrada.'
+                }, execucao);
+                return;
             }
-            if (primeiroValido < 0) { AF.core.log('ERRO: Nenhum funcionario encontrado.', '#f87171'); AF.core.setBotoes(false); return; }
 
-            sel.selectedIndex = primeiroValido;
-            try { cabec.AjustaCodEmpresaEmpregado(docC.yourform.lstNome, docC.yourform.CodEmpresaEmpregado); } catch (e) {}
-            try { cabec.AtualizaFuncionario(); } catch (e) { sel.dispatchEvent(new Event('change', { bubbles: true })); }
-
-            AF.core.log('Iniciando pelo primeiro: ' + AF.core.nomeAtual(), '#0043ff');
-            await AF.core.esperar(6000);
-
-            await new Promise(function (resolve) {
-                var t = 0;
-                var iv = setInterval(function () {
-                    t++;
-                    if (t > 20) { clearInterval(iv); resolve(); return; }
-                    try {
-                        var tx = AF.core.getDoc1().querySelectorAll('input[type=text]');
-                        var ir = AF.core.getDoc1().querySelectorAll('input[name^="Irre"]');
-                        if (tx.length > 0 || ir.length > 0 || AF.core.paginaVaziaAgora()) { clearInterval(iv); resolve(); }
-                    } catch (e) {}
-                }, 500);
+            relLista = [];
+            relListaMap = {};
+            for (var pi = 0; pi < sel.options.length; pi++) {
+                var nomeTxt = (sel.options[pi].text || '').trim();
+                if (!nomeTxt) continue;
+                var obj = {
+                    nome: nomeTxt,
+                    lido: false, pulada: false,
+                    folgasAlteradas: null, folgasSemAlteracao: null,
+                    linhas47: null, irregs: null, interj: null,
+                    HE: null, HEF: null, HEC: null
+                };
+                relLista.push(obj);
+                relListaMap[nomeTxt] = obj;
+            }
+            var normSort = function (s) {
+                return (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+            };
+            relLista.sort(function (a, b) {
+                return normSort(a.nome) < normSort(b.nome) ? -1 :
+                    normSort(a.nome) > normSort(b.nome) ? 1 : 0;
             });
-        } else {
-            AF.core.log('Continuando de: ' + AF.core.nomeAtual(), '#0043ff');
-        }
 
-        var nomeInicial = AF.core.nomeAtual();
-        var total       = 0;
-        var inicioExec  = Date.now();
+            var cabec = AF.core.getCabec();
+            var docC = AF.core.getDocC();
+            var nomeSelecionado = (sel.options[sel.selectedIndex] &&
+                (sel.options[sel.selectedIndex].text || '').trim());
 
-        while (true) {
-            if (AF.estado.cancelado) break;
+            if (!nomeSelecionado) {
+                var primeiroValido = -1;
+                for (var pi2 = 0; pi2 < sel.options.length; pi2++) {
+                    if ((sel.options[pi2].text || '').trim()) { primeiroValido = pi2; break; }
+                }
+                if (primeiroValido < 0) {
+                    AF.core.pararExecucaoAjuste({
+                        status: 'error',
+                        stage: 'employee-list',
+                        reason: 'Nenhum funcionario encontrado.'
+                    }, execucao);
+                    return;
+                }
 
-            if (!AF.core.exigirEstrutura('processamento da folha')) {
-                break;
+                var prontidaoInicial;
+                var observadorInicial;
+                try {
+                    observadorInicial = AF.core.observarTransicaoCorpo(execucao, {});
+                    observadorInicial.armarTransicao();
+                    sel.selectedIndex = primeiroValido;
+                    try {
+                        cabec.AjustaCodEmpresaEmpregado(docC.yourform.lstNome, docC.yourform.CodEmpresaEmpregado);
+                    } catch (e) {}
+                    try {
+                        cabec.AtualizaFuncionario();
+                    } catch (e) {
+                        sel.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+
+                    AF.core.log('Iniciando pelo primeiro: ' + AF.core.nomeAtual(), '#0043ff');
+                    prontidaoInicial = await AF.core.aguardarTransicaoCorpo(
+                        execucao,
+                        observadorInicial,
+                        'employee-readiness',
+                        6000
+                    );
+                } catch (erroProntidaoInicial) {
+                    prontidaoInicial = {
+                        status: 'error',
+                        stage: 'employee-readiness',
+                        reason: erroProntidaoInicial && erroProntidaoInicial.message ?
+                            erroProntidaoInicial.message : String(erroProntidaoInicial)
+                    };
+                } finally {
+                    if (observadorInicial) observadorInicial.dispose();
+                }
+
+                if (!execucao.isActive()) return;
+                if (prontidaoInicial.status !== 'ready') {
+                    if (prontidaoInicial.status !== 'cancelled') {
+                        AF.core.pararExecucaoAjuste(prontidaoInicial, execucao);
+                    }
+                    return;
+                }
+            } else {
+                AF.core.log('Continuando de: ' + AF.core.nomeAtual(), '#0043ff');
             }
 
-            await AF.fases.processarFolhaAtual(relStats, relLista, relListaMap);
-            total++;
+            var nomeInicial = AF.core.nomeAtual();
+            while (execucao.isActive()) {
+                if (!AF.core.exigirEstrutura('processamento da folha')) break;
 
-            if (AF.estado.cancelado) break;
+                await AF.fases.processarFolhaAtual(relStats, relLista, relListaMap, execucao);
+                if (!execucao.isActive()) break;
 
-            var res = await AF.core.avancarFuncionario();
-            if (AF.estado.cancelado) break;
+                var res = await AF.core.avancarFuncionario(execucao);
+                if (!execucao.isActive()) break;
 
-            if (res === 'fim') { AF.core.log('Fim da lista.', '#02ab19'); break; }
-            if (AF.core.nomeAtual() === nomeInicial) { AF.core.log('Concluido.', '#02ab19'); break; }
+                if (res.status !== 'ready') {
+                    if (res.status !== 'cancelled') {
+                        AF.core.pararExecucaoAjuste(res, execucao);
+                    }
+                    break;
+                }
+
+                if (res.value === 'fim') {
+                    AF.core.log('Fim da lista.', '#02ab19');
+                    break;
+                }
+                if (AF.core.nomeAtual() === nomeInicial) {
+                    AF.core.log('Concluido.', '#02ab19');
+                    break;
+                }
+            }
+        } catch (erroAjuste) {
+            AF.core.pararExecucaoAjuste({
+                status: 'error',
+                stage: 'adjustment-orchestration',
+                reason: erroAjuste && erroAjuste.message ? erroAjuste.message : String(erroAjuste)
+            }, execucao);
+        } finally {
+            if (AF.estado.execucaoAjuste === execucao) {
+                if (relLista !== null) {
+                    try {
+                        AF.relatorios.gerarFolgas(
+                            relStats,
+                            relLista,
+                            Date.now() - inicioExec,
+                            AF.estado.cancelado,
+                            AF.estado.falhaAjuste || AF.estado.motivoParadaAjuste
+                        );
+                    } catch (erroRelatorio) {
+                        AF.core.pararExecucaoAjuste({
+                            status: 'error',
+                            stage: 'partial-report',
+                            reason: erroRelatorio && erroRelatorio.message ?
+                                erroRelatorio.message : String(erroRelatorio)
+                        }, execucao);
+                        console.error('[FPW] Falha ao gerar relatorio parcial:', erroRelatorio);
+                    }
+                }
+
+                if (!AF.estado.cancelado) AF.sons.tocar('fim');
+                if (execucao.ativa) {
+                    execucao.cancel(AF.estado.cancelado ? 'Ajuste cancelado.' : 'Ajuste concluido.');
+                }
+                AF.core.setBotoes(false);
+                AF.estado.rodando = false;
+            }
         }
-
-        var tempoMs = Date.now() - inicioExec;
-        AF.relatorios.gerarFolgas(relStats, relLista, tempoMs, AF.estado.cancelado);
-
-        if (!AF.estado.cancelado) AF.sons.tocar('fim');
-
-        AF.core.setBotoes(false);
-		AF.estado.rodando = false;
     };
 	console.log('[FPW] 40-fases carregado. versão 1.4 - fix(fase1): re-mapear folha a cada rodada');
 })();

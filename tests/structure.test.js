@@ -129,7 +129,7 @@ test('exigirEstrutura flags failure and cancels run when preconditions fail', ()
     assert.equal(ok, false);
     assert.equal(AF.estado.falhaPrecondicao, true);
     assert.equal(AF.estado.cancelado, true);
-    assert.match(statusSet.texto, /Interrompido:/);
+    assert.match(statusSet.texto, /Interrompido \(teste\):/);
     assert.equal(statusSet.cor, '#f87171');
 });
 
@@ -170,7 +170,16 @@ test('popup interaction stops before edits or save if popup structure is invalid
         }
     };
 
-    AF.popup.tentarIndiceDatas(mockPopup, ['10/10/2026'], 0);
+    AF.popup.tentarIndiceDatas(mockPopup, ['10/10/2026'], 0, {
+        isActive: () => true,
+        setTimeout() {
+            throw new Error('A estrutura invalida nao deve agendar a gravacao.');
+        },
+        setInterval() {
+            throw new Error('A estrutura invalida nao deve iniciar polling.');
+        },
+        clearTimer() {}
+    });
 
     // Como exigirEstrutura falhou, nem o dispatch de alteração nem o clique de gravar devem ter ocorrido
     assert.equal(dispatched, false);
@@ -205,11 +214,9 @@ test('phase 4 fields modification and footer save stop when structure is invalid
     // Testar gravar
     AF.estado.falhaPrecondicao = false;
     AF.estado.cancelado = false;
+    AF.core.iniciarExecucaoAjuste();
     let saved = false;
     await AF.fases.gravar(['1']);
     assert.equal(AF.estado.falhaPrecondicao, true);
     assert.equal(AF.estado.cancelado, true);
 });
-
-
-

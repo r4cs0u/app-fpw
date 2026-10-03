@@ -22,16 +22,21 @@ Este repositório contém a base funcional do userscript para automação da fol
 3. Não depender de contagens de linhas ou de elementos fixos como sinal de prontidão.
 4. Sempre respeitar campos de edição e ações de gravação como operações write-sensitive.
 5. Tratar a interface como sensível: o script pode operar em dados reais e deve priorizar segurança e previsibilidade.
+6. Tratar temporizadores de espera como limites de segurança e compatibilidade, não como previsão fixa da resposta do FPW; só evidência observada permite continuar.
 
 ## Condições de parada
 
 - página de destino não carregou no contexto esperado;
 - seletor principal não foi encontrado;
 - popup ou frame de ação não corresponde ao modelo documentado;
+- um prazo de prontidão ou confirmação termina sem evidência suficiente; não repetir automaticamente o envio nem converter o tempo decorrido em sucesso;
+- uma parada manual ou falha deve encerrar a execução atual, limpar seus temporizadores, observadores e interceptores e impedir callbacks antigos de agir após um reinício;
 - há risco de alterar dados sem validação humana;
 - a automação não consegue garantir que está no contexto correto.
 
 Qualquer uma dessas condições deve levar a uma pausa e a uma revisão do fluxo antes de continuar.
+
+Ao interromper um ajuste, preservar no diagnóstico a etapa e o motivo, identificar explicitamente qualquer gravação cujo resultado não foi confirmado e disponibilizar um relatório parcial. Somente folhas concluídas entram como processadas; alterações confirmadas antes da interrupção podem constar como parciais. A interface não comprova persistência no servidor e a interrupção não significa rollback.
 
 ## Atualização da versão de teste no Tampermonkey
 
@@ -39,9 +44,7 @@ Quando houver alteração em `99-main.user.js` e for necessário atualizar a ins
 
 1. Confirmar que a alteração foi commitada e publicada na branch `test`.
 2. Abrir no Chrome a URL da entrada de teste: `https://github.com/r4cs0u/app-fpw/raw/refs/heads/test/99-main.user.js`.
-3. Aguardar a confirmação do Tampermonkey. Ela pode aparecer numa página `chrome-extension://.../ask.html?...` ou numa tela de instalação intermediária; o endereço e o parâmetro `aid` variam entre atualizações.
-4. Conferir que a confirmação se refere ao `app-fpw` da branch `test` e clicar no botão de ação que estiver disponível: **Atualizar**, **Instalar**, **Reinstalar** ou equivalente. Não considerar a abertura do link ou da tela intermediária como instalação concluída: é necessário acionar e confirmar esse botão no Tampermonkey.
-5. Depois que o Tampermonkey concluir a ação, atualizar a página do MyWay/Justificativas. Confirmar no runtime que a versão de teste está carregada e, quando aplicável, verificar o módulo novo no console. A atualização do MyWay só deve ocorrer depois de aplicar a alteração no Tampermonkey.
+3. Depois da confirmação do usuário, atualizar a página do MyWay/Justificativas e confirmar no runtime que a versão de teste está carregada e, quando aplicável, verificar o módulo novo no console. A atualização do MyWay só deve ocorrer depois do sinal explícito do usuário.
 
 Manter a instalação `main` separada; não instalar a URL da branch `main` durante a atualização experimental.
 

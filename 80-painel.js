@@ -196,8 +196,22 @@
                 setBtnCopiar(docC, true);
                 var label    = titulo || 'Relat\u00F3rio';
                 var cancelou = !!(AF.estado && AF.estado.cancelado);
-                if (cancelou) {
-                    setStatus(docC, 'Parado \u2014 ' + label + ' pronto', '#f97316');
+                var falha = AF.estado && AF.estado.falhaAjuste;
+                if (falha) {
+                    var detalhe = 'Interrompido (' + falha.stage + '): ' + falha.reason;
+                    if (falha.unconfirmed) detalhe += ' (resultado nao confirmado)';
+                    setStatus(docC, detalhe, '#f87171');
+                } else if (cancelou) {
+                    var parada = AF.estado.motivoParadaAjuste;
+                    if (parada && parada.unconfirmed) {
+                        setStatus(
+                            docC,
+                            'Parado: ' + parada.reason + ' (resultado nao confirmado)',
+                            '#f97316'
+                        );
+                    } else {
+                        setStatus(docC, 'Parado \u2014 ' + label + ' pronto', '#f97316');
+                    }
                 } else {
                     setStatus(docC, 'Conclu\u00EDdo \u2014 ' + label + ' pronto', '#4ade80');
                 }
@@ -225,13 +239,14 @@
         };
 
         docC.getElementById('btn-parar').onclick = function () {
+            var execucaoAtiva = !!(AF.estado.execucaoAjuste && AF.estado.execucaoAjuste.ativa);
             AF.core.cancelarTudo();
             sessionStorage.removeItem('autodataTrocar');
             sessionStorage.removeItem('autodataFallback');
             sessionStorage.removeItem('autodatasCandidatasPopup');
             sessionStorage.removeItem('autopopupSemSucesso');
             AF.sons.tocar('parada');
-            setStatus(docC, 'Parando...', '#f87171');
+            if (!execucaoAtiva) setStatus(docC, 'Parando...', '#f87171');
             setBtnAtivo(docC, false);
         };
 
