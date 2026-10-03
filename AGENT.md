@@ -15,6 +15,14 @@ Este repositório contém a base funcional do userscript para automação da fol
 - Evitar manipulações em páginas fora do contexto esperado do WebPonto.
 - Registrar mudanças importantes no roadmap e nos documentos de projeto.
 
+## Investigar falhas comparando com `main`
+
+- Quando uma funcionalidade falhar na branch experimental e o usuário indicar que ela funciona em `main`, tratar o fluxo correspondente em `main` como referência funcional comprovada antes de propor ou implementar uma solução.
+- Antes de mudar código, comparar o mesmo caminho entre `test` e `main`: sequência de ações, seleção inicial, transições de frame, sinais de prontidão, esperas de compatibilidade e condições de parada. Reproduzir a falha com o menor risco possível e identificar exatamente onde o comportamento diverge.
+- Preservar o fluxo existente de `main` e adaptar somente o necessário para atender às proteções da branch experimental. Não reescrever do zero, remover esperas ou substituir sinais de prontidão por suposições sem evidência.
+- Se o motivo de uma decisão existente em `main` não estiver claro, perguntar ao usuário antes de alterar ou substituir essa decisão.
+- Cobrir a regressão com testes que mantenham o comportamento funcional de referência e as novas condições de segurança.
+
 ## Regras de automação
 
 1. Resolver a estrutura da página a partir do `window.top` e dos frames em uso, em vez de reutilizar documentos antigos.
