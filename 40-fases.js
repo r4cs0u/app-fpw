@@ -334,7 +334,8 @@
         for (var i = 0; i < plano3.acoes.length; i++) {
             if (!execucao.isActive()) break;
             var acao = plano3.acoes[i];
-            AF.core.log('Fase 3 [' + acao.tipo + ']: ausencia ' + acao.dataAusencia + ' <- feriado ' + acao.dataOrigem, '#0043ff');
+            var destino = acao.tipo === 'domingo_oculto' ? 'domingo oculto' : 'feriado';
+            AF.core.log('Fase 3 [' + acao.tipo + ']: ausencia ' + acao.dataAusencia + ' <- ' + destino + ' ' + acao.dataOrigem, '#0043ff');
             var r3 = await AF.popup.executarAcaoFolga(acao, execucao);
             if (r3.ok) totalMovidas++;
             else if (!r3.fatal) {

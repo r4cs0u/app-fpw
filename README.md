@@ -49,3 +49,13 @@ Ao acessar a página do WebPonto, o script carrega os módulos necessários e in
 ## Observação
 
 O projeto foi construído como automação de interface para um ambiente interno e assume uma rotina de uso com supervisão humana. A aprovação final das alterações continua sendo responsabilidade do usuário, que valida os resultados antes de concluir o processo.
+
+## Testes locais
+
+Com Node.js instalado, execute na raiz do repositório:
+
+```sh
+node --test
+```
+
+Os testes de regras usam dados sintéticos e não acessam o WebPonto, dados de funcionários, DOM, popups ou controles de gravação/aprovação.

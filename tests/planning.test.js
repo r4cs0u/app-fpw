@@ -136,6 +136,7 @@ test('phase 3 deduplicates trapped folgas, chooses visible holidays, and retains
         semanas: {
             '28/09/2026': {
                 ausenciasMes: [record('30/09/2026', 30, 9, 2026, 4)],
+                ausencias: [record('30/09/2026', 30, 9, 2026, 4)],
                 feriadosSemana: [
                     record('01/10/2026', 1, 10, 2026, 5),
                     record('02/10/2026', 2, 10, 2026, 6)
@@ -161,16 +162,23 @@ test('phase 3 deduplicates trapped folgas, chooses visible holidays, and retains
 test('phase 3 uses a hidden holiday and keeps a trapped folga without a destination', () => {
     const planejamento = loadPlanning();
     const semFeriadoVisivel = {
+        ausencias: [],
         ausenciasMes: [],
         feriadosSemana: [],
         feriadosOcultos: ['04/10/2026', '05/10/2026']
+    };
+    const semAusencia = {
+        ausencias: [],
+        ausenciasMes: [],
+        feriadosSemana: [],
+        feriadosOcultos: []
     };
     const presaComDestino = { fase: 1, semanaId: 'semana-a', dataFolga: '03/10/2026', numFolga: '8' };
     const presaSemDestino = { fase: 1, semanaId: 'semana-b', dataFolga: '06/10/2026' };
     const resultado = planejamento.planejarFase3({
         semanas: {
             'semana-a': semFeriadoVisivel,
-            'semana-b': { ausenciasMes: [], feriadosSemana: [], feriadosOcultos: [] }
+            'semana-b': semAusencia
         }
     }, [presaComDestino, presaSemDestino]);
 
@@ -179,6 +187,68 @@ test('phase 3 uses a hidden holiday and keeps a trapped folga without a destinat
     assert.equal(resultado.acoes[0].candidatos.length, 2);
     assert.equal(resultado.presasFinais.length, 1);
     assert.equal(resultado.presasFinais[0].dataFolga, '06/10/2026');
+});
+
+test('phase 3 uses visible holidays and hidden Sundays without weekly absence, but retains all-worked folgas', () => {
+    const planejamento = loadPlanning();
+    const resultado = planejamento.planejarFase3({
+        semanas: {
+            '28/09/2026': {
+                ausencias: [],
+                ausenciasMes: [],
+                feriadosSemana: [record('04/10/2026', 4, 10, 2026, 5)],
+                feriadosOcultos: [],
+                domingosOcultos: []
+            },
+            '05/10/2026': {
+                ausencias: [],
+                ausenciasMes: [],
+                feriadosSemana: [],
+                feriadosOcultos: [],
+                domingosOcultos: ['11/10/2026']
+            },
+            '12/10/2026': {
+                ausencias: [],
+                ausenciasMes: [],
+                feriadosSemana: [],
+                feriadosOcultos: [],
+                domingosOcultos: []
+            }
+        }
+    }, [
+        { fase: 1, semanaId: '28/09/2026', dataFolga: '03/10/2026', numFolga: '8' },
+        { fase: 1, semanaId: '05/10/2026', dataFolga: '10/10/2026', numFolga: '9' },
+        { fase: 1, semanaId: '12/10/2026', dataFolga: '16/10/2026', numFolga: '10' }
+    ]);
+
+    assert.equal(resultado.acoes.length, 2);
+    assert.equal(resultado.acoes[0].tipo, 'feriado_visivel');
+    assert.equal(resultado.acoes[0].dataOrigem, '04/10/2026');
+    assert.equal(resultado.acoes[1].tipo, 'domingo_oculto');
+    assert.equal(resultado.acoes[1].dataOrigem, '11/10/2026');
+    assert.equal(resultado.presasFinais.length, 1);
+    assert.equal(resultado.presasFinais[0].dataFolga, '16/10/2026');
+});
+
+test('phase 3 does not select the trapped folga date as its own hidden-Sunday destination', () => {
+    const planejamento = loadPlanning();
+    const resultado = planejamento.planejarFase3({
+        semanas: {
+            '05/10/2026': {
+                ausencias: [],
+                ausenciasMes: [],
+                feriadosSemana: [],
+                feriadosOcultos: [],
+                domingosOcultos: ['11/10/2026']
+            }
+        }
+    }, [
+        { fase: 2, semanaId: '05/10/2026', dataFolga: '11/10/2026', numFolga: '9' }
+    ]);
+
+    assert.equal(resultado.acoes.length, 0);
+    assert.equal(resultado.presasFinais.length, 1);
+    assert.equal(resultado.presasFinais[0].dataFolga, '11/10/2026');
 });
 
 test('entrypoint loads the pure planning module before the phase executors', () => {

@@ -106,6 +106,71 @@ test('construirMapaFolha classifies folgas, ausencias, and feriados correctly', 
     assert.equal(semOutubro3.feriados[0].dataStr, '12/10/2026');
 });
 
+test('maps a folga only from the heading associated with its date in grouped table sections', () => {
+    const mapaModule = loadMapa();
+
+    function makeRow(text, tagName = 'TR') {
+        return {
+            tagName,
+            innerText: text,
+            textContent: text,
+            previousElementSibling: null,
+            parentElement: null,
+            rows: [],
+            querySelectorAll(selector) {
+                return selector === 'tr' ? this.rows : [];
+            }
+        };
+    }
+
+    function makeInput(name, row) {
+        return {
+            name,
+            value: '',
+            closest(selector) {
+                return selector === 'tr' ? row : null;
+            }
+        };
+    }
+
+    const heading03 = makeRow('03/10/2026 - Outro');
+    const unrelatedFolga = makeRow('Folga');
+    const groupedHeader = makeRow('03/10/2026 - Outro Folga', 'TBODY');
+    groupedHeader.rows = [heading03, unrelatedFolga];
+    groupedHeader.previousElementSibling = null;
+
+    const row03 = makeRow('');
+    row03.previousElementSibling = groupedHeader;
+
+    const heading04 = makeRow('04/10/2026 - Folga');
+    const row04 = makeRow('');
+    row04.previousElementSibling = heading04;
+
+    const inputs = [
+        makeInput('Irre1', row03),
+        makeInput('Irre2', row04)
+    ];
+    const entries = inputs.map(inp => ({
+        inp,
+        num: inp.name.replace('Irre', ''),
+        dataStr: mapaModule.obterDataDoInput(inp),
+        valor: inp.value,
+        cabecalho: mapaModule.obterCabecalhoDoDia(inp)
+    }));
+
+    assert.equal(entries[0].dataStr, '03/10/2026');
+    assert.equal(entries[0].cabecalho, '03/10/2026 - Outro');
+    assert.equal(entries[1].dataStr, '04/10/2026');
+    assert.equal(entries[1].cabecalho, '04/10/2026 - Folga');
+
+    const mapa = mapaModule.construirMapaFolha(new Date(2026, 8, 1), entries);
+    const semana = mapa.semanas['28/09/2026'];
+
+    assert.equal(semana.folgas.length, 1);
+    assert.equal(semana.folgas[0].dataStr, '04/10/2026');
+    assert.equal(semana.registros.length, 2);
+});
+
 test('construirMapaFolha computes folgasOcultas in the last week and feriadosOcultos', () => {
     const mapaModule = loadMapa();
     const dataAlvo = new Date(2024, 0, 1); // Janeiro 2024 (Feriados RJ incluem 01/01 e 20/01)
@@ -141,6 +206,30 @@ test('construirMapaFolha computes folgasOcultas in the last week and feriadosOcu
     assert.equal(semUltima.folgasOcultas.length, 6);
     assert.equal(semUltima.folgasOcultas.includes('31/01/2024'), false);
     assert.equal(semUltima.folgasOcultas.includes('29/01/2024'), true);
+});
+
+test('construirMapaFolha identifies hidden Sundays for every mapped week', () => {
+    const mapaModule = loadMapa();
+    const mapa = mapaModule.construirMapaFolha(new Date(2026, 9, 1), [
+        {
+            num: '1',
+            dataStr: '01/10/2026',
+            valor: '',
+            cabecalho: '01/10/2026 Quinta-feira'
+        },
+        {
+            num: '2',
+            dataStr: '11/10/2026',
+            valor: '',
+            cabecalho: '11/10/2026 Domingo'
+        }
+    ]);
+
+    const semanaInicial = mapa.semanas['28/09/2026'];
+    const semanaComDomingoRegistrado = mapa.semanas['05/10/2026'];
+    assert.equal(Array.isArray(semanaInicial.domingosOcultos), true);
+    assert.equal(semanaInicial.domingosOcultos.includes('04/10/2026'), true);
+    assert.equal(semanaComDomingoRegistrado.domingosOcultos.includes('11/10/2026'), false);
 });
 
 test('mapearFolhaAtual delegates collected descriptors to construirMapaFolha', () => {

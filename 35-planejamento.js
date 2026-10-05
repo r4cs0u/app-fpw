@@ -131,7 +131,9 @@
                 continue;
             }
 
-            var feriadosVisiveis = (semana.feriadosSemana || []);
+            var feriadosVisiveis = (semana.feriadosSemana || []).filter(function (feriado) {
+                return !presa.dataFolga || feriado.dataStr !== presa.dataFolga;
+            });
             if (feriadosVisiveis.length > 0) {
                 acoes.push({
                     fase: 3, tipo: 'feriado_visivel',
@@ -145,7 +147,9 @@
                 continue;
             }
 
-            var feriadosOcultos = (semana.feriadosOcultos || []);
+            var feriadosOcultos = (semana.feriadosOcultos || []).filter(function (data) {
+                return !presa.dataFolga || data !== presa.dataFolga;
+            });
             if (feriadosOcultos.length > 0) {
                 acoes.push({
                     fase: 3, tipo: 'feriado_oculto',
@@ -154,6 +158,22 @@
                     dataAusencia: dataAusencia,
                     dataOrigem: feriadosOcultos[0],
                     candidatos: feriadosOcultos.slice(),
+                    dataFolgaOriginal: presa.dataFolga
+                });
+                continue;
+            }
+
+            var domingosOcultos = (semana.domingosOcultos || []).filter(function (data) {
+                return !presa.dataFolga || data !== presa.dataFolga;
+            });
+            if (domingosOcultos.length > 0) {
+                acoes.push({
+                    fase: 3, tipo: 'domingo_oculto',
+                    semanaId: presa.semanaId,
+                    numAbrirPopup: numPopup,
+                    dataAusencia: dataAusencia,
+                    dataOrigem: domingosOcultos[0],
+                    candidatos: domingosOcultos.slice(),
                     dataFolgaOriginal: presa.dataFolga
                 });
                 continue;
