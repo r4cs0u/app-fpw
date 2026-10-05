@@ -15,5 +15,5 @@
 
 ## 4. Publication and Live Verification
 
-- [ ] 4.1 Commit and publish this work to the `test` branch, then verify the remote `test` branch head contains the commit.
-- [ ] 4.2 After the remote modules have propagated, run the published planning read-only against the live Justificativas sheet through MCP, and verify phase 2 proposes no adjustment from a hidden weekday such as 29/09/2026; do not run adjustment or save actions.
+- [x] 4.1 Commit and publish this work to the `test` branch, then verify the remote `test` branch head contains the commit.
+- [x] 4.2 After the remote modules have propagated, run the published planning read-only against the live Justificativas sheet through MCP, and verify phase 2 proposes no adjustment from a hidden weekday such as 29/09/2026; do not run adjustment or save actions.
