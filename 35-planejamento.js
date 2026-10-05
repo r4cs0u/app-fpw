@@ -85,12 +85,15 @@
         }
 
         var folgasOcultas = (semana.folgasOcultas || []).slice();
+        var elegiveisSet = new Set((semana.domingosOcultos || []).concat(semana.feriadosOcultos || []));
         var ocultasUnicas = [];
         var occSet = new Set();
         for (var o = 0; o < folgasOcultas.length; o++) {
-            if (occSet.has(folgasOcultas[o])) continue;
-            occSet.add(folgasOcultas[o]);
-            ocultasUnicas.push(folgasOcultas[o]);
+            var dataOculta = folgasOcultas[o];
+            if (!elegiveisSet.has(dataOculta)) continue;
+            if (occSet.has(dataOculta)) continue;
+            occSet.add(dataOculta);
+            ocultasUnicas.push(dataOculta);
         }
 
         for (var j = 0; j < ocultasUnicas.length; j++) {

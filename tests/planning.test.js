@@ -75,7 +75,9 @@ test('phase 2 skips duplicate, used, and attempted visible candidates before hid
                     record('03/10/2026', 3, 10, 2026, 1),
                     record('04/10/2026', 4, 10, 2026, 2)
                 ],
-                folgasOcultas: ['05/10/2026', '05/10/2026', '06/10/2026']
+                folgasOcultas: ['04/10/2026', '04/10/2026', '12/10/2026'],
+                domingosOcultos: ['04/10/2026'],
+                feriadosOcultos: ['12/10/2026']
             }
         }
     };
@@ -90,7 +92,7 @@ test('phase 2 skips duplicate, used, and attempted visible candidates before hid
         new Set(['03/10/2026'])
     );
     assert.equal(rodada.tipo, 'oculta');
-    assert.equal(rodada.acao.dataOrigem, '05/10/2026');
+    assert.equal(rodada.acao.dataOrigem, '04/10/2026');
     assert.equal(rodada.acao.candidatos.length, 2);
 });
 
@@ -102,7 +104,8 @@ test('phase 2 prefers the first available visible candidate and reports missing 
             record('03/10/2026', 3, 10, 2026, 1),
             record('04/10/2026', 4, 10, 2026, 2)
         ],
-        folgasOcultas: ['05/10/2026']
+        folgasOcultas: ['04/10/2026'],
+        domingosOcultos: ['04/10/2026']
     };
     const mapa = {
         alvo: new Date(2026, 8, 1),
@@ -127,6 +130,105 @@ test('phase 2 prefers the first available visible candidate and reports missing 
         new Set()
     );
     assert.equal(semSemana.motivo, 'sem_ultima_semana');
+});
+
+test('phase 2 rejects hidden weekday and only accepts hidden Sundays or holidays', () => {
+    const planejamento = loadPlanning();
+
+    // 1. Apenas dia de semana oculto (ex: terça 29/09/2026) -> sem_folga_oculta_valida
+    const mapaSemDiaValido = {
+        alvo: new Date(2026, 8, 1),
+        ultimaSemanaId: '28/09/2026',
+        semanas: {
+            '28/09/2026': {
+                ausenciasMes: [record('30/09/2026', 30, 9, 2026, 4)],
+                folgasVisiveis: [],
+                folgasOcultas: ['29/09/2026'],
+                domingosOcultos: [],
+                feriadosOcultos: []
+            }
+        }
+    };
+    const r1 = planejamento.planejarFase2Rodada(mapaSemDiaValido, {}, new Set());
+    assert.equal(r1.acabou, true);
+    assert.equal(r1.motivo, 'sem_folga_oculta_valida');
+
+    // 2. Domingo oculto disponível -> aceita domingo como origem
+    const mapaComDomingo = {
+        alvo: new Date(2026, 8, 1),
+        ultimaSemanaId: '28/09/2026',
+        semanas: {
+            '28/09/2026': {
+                ausenciasMes: [record('30/09/2026', 30, 9, 2026, 4)],
+                folgasVisiveis: [],
+                folgasOcultas: ['04/10/2026'],
+                domingosOcultos: ['04/10/2026'],
+                feriadosOcultos: []
+            }
+        }
+    };
+    const r2 = planejamento.planejarFase2Rodada(mapaComDomingo, {}, new Set());
+    assert.equal(r2.acabou, false);
+    assert.equal(r2.tipo, 'oculta');
+    assert.equal(r2.acao.dataOrigem, '04/10/2026');
+
+    // 3. Feriado oculto disponível -> aceita feriado como origem
+    const mapaComFeriado = {
+        alvo: new Date(2026, 8, 1),
+        ultimaSemanaId: '28/09/2026',
+        semanas: {
+            '28/09/2026': {
+                ausenciasMes: [record('30/09/2026', 30, 9, 2026, 4)],
+                folgasVisiveis: [],
+                folgasOcultas: ['12/10/2026'],
+                domingosOcultos: [],
+                feriadosOcultos: ['12/10/2026']
+            }
+        }
+    };
+    const r3 = planejamento.planejarFase2Rodada(mapaComFeriado, {}, new Set());
+    assert.equal(r3.acabou, false);
+    assert.equal(r3.tipo, 'oculta');
+    assert.equal(r3.acao.dataOrigem, '12/10/2026');
+
+    // 4. Mistura de dias elegíveis e inelegíveis: ignora o dia de semana, seleciona o elegível
+    const mapaMisto = {
+        alvo: new Date(2026, 8, 1),
+        ultimaSemanaId: '28/09/2026',
+        semanas: {
+            '28/09/2026': {
+                ausenciasMes: [record('30/09/2026', 30, 9, 2026, 4)],
+                folgasVisiveis: [],
+                folgasOcultas: ['29/09/2026', '04/10/2026'],
+                domingosOcultos: ['04/10/2026'],
+                feriadosOcultos: []
+            }
+        }
+    };
+    const r4 = planejamento.planejarFase2Rodada(mapaMisto, {}, new Set());
+    assert.equal(r4.acabou, false);
+    assert.equal(r4.tipo, 'oculta');
+    assert.equal(r4.acao.dataOrigem, '04/10/2026');
+    assert.equal(r4.acao.candidatos.length, 1);
+    assert.equal(r4.acao.candidatos[0], '04/10/2026');
+
+    // 5. Prioridade de folga visível sobre folga oculta (mesmo com domingo oculto disponível)
+    const mapaComVisivelEOculto = {
+        alvo: new Date(2026, 8, 1),
+        ultimaSemanaId: '28/09/2026',
+        semanas: {
+            '28/09/2026': {
+                ausenciasMes: [record('30/09/2026', 30, 9, 2026, 4)],
+                folgasVisiveis: [record('03/10/2026', 3, 10, 2026, 1)],
+                folgasOcultas: ['04/10/2026'],
+                domingosOcultos: ['04/10/2026'],
+                feriadosOcultos: []
+            }
+        }
+    };
+    const r5 = planejamento.planejarFase2Rodada(mapaComVisivelEOculto, {}, new Set());
+    assert.equal(r5.tipo, 'visivel');
+    assert.equal(r5.acao.dataOrigem, '03/10/2026');
 });
 
 test('phase 3 deduplicates trapped folgas, chooses visible holidays, and retains unresolved records', () => {

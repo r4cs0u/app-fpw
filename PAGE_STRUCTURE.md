@@ -34,6 +34,7 @@ The header and footer use body class `Painel`; the body document uses body class
 - The visible column headings describe two marks, irregularity, justification, justification flag, missing hours, selection, and status.
 - `input[name="hidTotRegs"]` is present as a row-count field. Selection controls use names beginning with `Selecionado`.
 - Table rows, inputs, and selects vary with the selected employee and period. Never use observed row/control counts as selectors or assume every selection has the same shape.
+- A day with no row on the page does not by itself identify a folga; non-rendered days may be ordinary worked days. Only dates confirmed as non-worked by schedule or calendar (such as hidden Sundays or supported holidays) can be treated as non-worked origins.
 
 ## Footer (`bottomFrame`)
 
