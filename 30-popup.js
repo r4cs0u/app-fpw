@@ -67,7 +67,7 @@
 
                 var doc = popup.document;
                 var caminho = String(popup.location.pathname || '').toLowerCase().replace(/\/+$/, '');
-                if (!caminho || caminho.endsWith('/redirecionamentoaspx.asp')) {
+                if (!caminho || caminho === 'blank' || caminho.endsWith('/redirecionamentoaspx.asp')) {
                     return { ready: false, reason: 'Popup aguardando redirecionamento para Ajuste Jornada Plan.' };
                 }
 

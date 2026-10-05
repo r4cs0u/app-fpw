@@ -342,6 +342,27 @@ test('popup readiness waits through the observed redirect before checking the fi
     run.cancel('test finished');
 });
 
+test('popup readiness treats the about:blank pathname as a transient route', async () => {
+    const clock = new SyntheticClock();
+    const popup = makePopup(['01/10/2026']);
+    popup.location.pathname = 'blank';
+    const env = createEnvironment(clock, popup);
+    const run = env.AF.core.iniciarExecucaoAjuste();
+    const wait = env.AF.popup.aguardarPopupPronto(run, { popup });
+
+    clock.setTimeout(() => { popup.location.pathname = '/RedirecionamentoAspx.asp'; }, 300);
+    clock.setTimeout(() => {
+        popup.location.pathname = '/WebPontoDotNet/Justificativa/TrocarHorario.aspx';
+    }, 900);
+
+    const outcome = await drive(clock, wait, 2000, 100);
+
+    assert.equal(outcome.status, 'ready');
+    assert.equal(outcome.value, popup);
+    assert.equal(clock.timers.size, 0);
+    run.cancel('test finished');
+});
+
 test('popup readiness rejects a completed unsupported route with its path in the diagnosis', async () => {
     const clock = new SyntheticClock();
     const popup = makePopup(['01/10/2026']);
