@@ -35,6 +35,23 @@
         }
     };
 
+    AF.popup.lerResultadoPopup = function (popup) {
+        var botaoOk = popup.document.getElementById('ppcMsg_btnMsgErro_CD');
+        if (!botaoOk || !botaoOk.offsetParent) return null;
+
+        var corpo = popup.document.body;
+        var texto = String(corpo && (corpo.innerText || corpo.textContent) || '')
+            .replace(/\s+/g, ' ')
+            .trim();
+        if (texto.indexOf('Dias selecionados possuem horários iguais!') >= 0) {
+            return { kind: 'rejected', message: 'Dias selecionados possuem horários iguais!' };
+        }
+        if (texto.indexOf('Alteração realizada com sucesso!') >= 0) {
+            return { kind: 'applied', message: 'Alteração realizada com sucesso!' };
+        }
+        return { kind: 'unknown' };
+    };
+
     AF.popup.aguardarPopupPronto = function (execucao, tentativa) {
         var prazo = AF.core.prazosEsperaAjuste.popupReadiness;
         return AF.core.esperarAjuste({
@@ -147,6 +164,8 @@
                 return erro('popup-edit', 'As pre-condicoes estruturais do popup falharam.');
             }
 
+            tentativa.resultadoPopup = null;
+            tentativa.mensagemPopupConfirmada = false;
             try {
                 for (var oi = 0; oi < seletor.options.length; oi++) seletor.options[oi].selected = false;
                 opcaoAtual.selected = true;
@@ -228,21 +247,40 @@
                         }
 
                         if (!tentativa.popupClosed) {
-                            var rejeicao = popup.document.getElementById('ppcMsg_btnMsgErro_CD');
-                            if (rejeicao && rejeicao.offsetParent) {
-                                tentativa.rejected = true;
-                                return { ready: true, value: { kind: 'rejected' } };
+                            var resultadoPopup = AF.popup.lerResultadoPopup(popup);
+                            if (resultadoPopup) {
+                                tentativa.resultadoPopup = resultadoPopup;
+                                if (resultadoPopup.kind === 'rejected') {
+                                    tentativa.rejected = true;
+                                    return { ready: true, value: resultadoPopup };
+                                }
+                                if (resultadoPopup.kind === 'unknown') {
+                                    return { ready: true, value: resultadoPopup };
+                                }
+                                if (!tentativa.mensagemPopupConfirmada) {
+                                    var botaoOk = popup.document.getElementById('ppcMsg_btnMsgErro_CD');
+                                    botaoOk.click();
+                                    tentativa.mensagemPopupConfirmada = true;
+                                }
                             }
                         }
 
-                        if (tentativa.popupClosed && tentativa.bodyReloaded) {
-                            return { ready: true, value: { kind: 'completed' } };
+                        if (tentativa.popupClosed && tentativa.bodyReloaded && tentativa.resultadoPopup &&
+                            tentativa.resultadoPopup.kind === 'applied') {
+                            return {
+                                ready: true,
+                                value: { kind: 'completed', message: tentativa.resultadoPopup.message }
+                            };
+                        }
+                        if (tentativa.popupClosed && tentativa.resultadoPopup &&
+                            tentativa.resultadoPopup.kind === 'rejected') {
+                            return { ready: true, value: tentativa.resultadoPopup };
                         }
                         return {
                             ready: false,
                             reason: tentativa.bodyReloaded ?
-                                'Reload observado; aguardando fechamento do popup.' :
-                                'Aguardando fechamento do popup e reload estrutural.'
+                                'Reload observado; aguardando confirmação de resultado do popup.' :
+                                'Aguardando mensagem de resultado e reload estrutural do popup.'
                         };
                     }
                 });
@@ -261,7 +299,17 @@
                         inspecionar: function () {
                             if (popup.closed) {
                                 tentativa.popupClosed = true;
-                                return { ready: true };
+                                if (tentativa.resultadoPopup && tentativa.resultadoPopup.kind === 'applied' &&
+                                    tentativa.bodyReloaded) {
+                                    return {
+                                        ready: true,
+                                        value: {
+                                            kind: 'completed',
+                                            message: tentativa.resultadoPopup.message
+                                        }
+                                    };
+                                }
+                                return { ready: false, reason: 'Popup fechado sem resultado positivo confirmado.' };
                             }
                             return { ready: false, reason: 'Reload observado; aguardando fechamento do popup.' };
                         }
@@ -276,20 +324,28 @@
                     status: resultadoTentativa.status,
                     stage: resultadoTentativa.stage,
                     reason: resultadoTentativa.reason,
-                    unconfirmed: tentativa.submitted && !tentativa.bodyReloaded
+                    unconfirmed: tentativa.submitted && (!tentativa.resultadoPopup ||
+                        tentativa.resultadoPopup.kind !== 'applied')
                 };
             }
 
             if (resultadoTentativa.value && resultadoTentativa.value.kind === 'rejected') {
-                if (!aindaAtiva() || popup.closed) {
-                    return { status: 'error', stage: 'candidate-rejection', reason: 'Popup indisponivel ao confirmar rejeicao.' };
+                if (!aindaAtiva()) {
+                    return { status: 'cancelled', stage: 'candidate-rejection' };
                 }
-                var botaoRejeicao = popup.document.getElementById('ppcMsg_btnMsgErro_CD');
-                if (!botaoRejeicao || !botaoRejeicao.offsetParent) {
-                    return { status: 'error', stage: 'candidate-rejection', reason: 'Mensagem de rejeicao deixou de estar disponivel.' };
+                if (popup.closed) {
+                    return {
+                        status: 'no-change',
+                        message: resultadoTentativa.value.message,
+                        popupClosed: true
+                    };
                 }
                 try {
                     if (!aindaAtiva()) return { status: 'cancelled', stage: 'candidate-rejection' };
+                    var botaoRejeicao = popup.document.getElementById('ppcMsg_btnMsgErro_CD');
+                    if (!botaoRejeicao || !botaoRejeicao.offsetParent) {
+                        return { status: 'error', stage: 'candidate-rejection', reason: 'Controle OK da rejeicao deixou de estar disponivel.' };
+                    }
                     botaoRejeicao.click();
                 } catch (erroRejeicao) {
                     return erro('candidate-rejection', erroRejeicao.message || String(erroRejeicao));
@@ -302,12 +358,38 @@
                 if (esperaFallback.status !== 'ready') {
                     return { status: esperaFallback.status, stage: esperaFallback.stage, reason: esperaFallback.reason };
                 }
+                try {
+                    if (popup.closed) {
+                        return {
+                            status: 'no-change',
+                            message: resultadoTentativa.value.message,
+                            popupClosed: true
+                        };
+                    }
+                } catch (erroPopupAposRejeicao) {
+                    return erro('candidate-rejection', erroPopupAposRejeicao.message || String(erroPopupAposRejeicao));
+                }
                 idx++;
                 continue;
             }
 
+            if (resultadoTentativa.value && resultadoTentativa.value.kind === 'unknown') {
+                return {
+                    status: 'error',
+                    stage: 'popup-result',
+                    reason: 'Mensagem de resultado do popup nao reconhecida; resultado nao confirmado.',
+                    unconfirmed: tentativa.submitted
+                };
+            }
+
             if (resultadoTentativa.value && resultadoTentativa.value.kind === 'completed') {
-                return { status: 'ready', submitted: true, bodyReloaded: true, popupClosed: true };
+                return {
+                    status: 'ready',
+                    submitted: true,
+                    bodyReloaded: true,
+                    popupClosed: true,
+                    message: resultadoTentativa.value.message
+                };
             }
         }
 

@@ -16,6 +16,11 @@ Este repositório contém a base funcional do userscript para automação da fol
 - Evitar manipulações em páginas fora do contexto esperado do WebPonto.
 - Registrar mudanças importantes no roadmap e nos documentos de projeto.
 
+## Operações de navegador via MCP
+
+- Quando o usuário pedir uma atuação no navegador via MCP, planejar o fluxo relacionado como uma única sequência MCP sempre que tecnicamente possível: localizar ou abrir a aba, navegar, inspecionar, executar somente as ações autorizadas e capturar o resultado. Evitar dividir uma mesma atuação em chamadas pequenas que provoquem novos pedidos de permissão.
+- Agrupar as etapas não amplia a autorização: antes de qualquer ação que possa alterar dados, deixar claro o efeito esperado e respeitar o escopo autorizado. Não clicar em aprovação final sem autorização explícita.
+
 ## Investigar falhas comparando com `main`
 
 - Quando uma funcionalidade falhar na branch experimental e o usuário indicar que ela funciona em `main`, tratar o fluxo correspondente em `main` como referência funcional comprovada antes de propor ou implementar uma solução.

@@ -81,6 +81,8 @@ Employee options are user-specific and can vary in content, count, and order. En
 
 The supported `Ajuste Jornada Plan` link is a JavaScript redirect that can expose a blank window or `/RedirecionamentoAspx.asp` before its final popup route. Match the working `main` behavior by waiting for the popup's actual form/date selector instead of rejecting that intermediate URL immediately. Once the final document is complete, keep the existing route and structural checks strict before any popup edit.
 
+User-reported popup outcomes refine the completion contract: `Dias selecionados possuem horários iguais!` means no change even when acknowledging it closes the popup or reloads the body; `Alteração realizada com sucesso!` is a positive UI result when followed by the expected popup closure and supported body transition. Capture the visible result text before acknowledging it. The DOM container for that text is not yet verified, so discover it from the live popup rather than inventing a selector. Closure and reload without a captured recognized message remain unconfirmed.
+
 ### Scope asynchronous work to an adjustment run
 
 Assign an adjustment-run identity and own its polling intervals, delayed candidate actions, and interceptor callbacks through one cleanup registry. Every action-capable callback checks both active-run identity and cancellation immediately before acting. Fatal stop, user stop, and normal completion release the run's asynchronous resources and pending sessionStorage intent; restore intercepted functions without overwriting unrelated replacements. Do not register the heartbeat or read-only analysis as adjustment-owned work.

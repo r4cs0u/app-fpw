@@ -63,6 +63,21 @@ The workflow SHALL determine completion from supported UI evidence under variabl
 - **THEN** the workflow SHALL retain its existing candidate fallback order and no-change outcome if candidates are exhausted
 - **AND** it SHALL NOT treat timeout or inspection failure as candidate rejection
 
+#### Scenario: Equal selected hours are rejected even if the popup closes
+- **WHEN** the popup reports `Dias selecionados possuem horários iguais!` and the user acknowledges the message
+- **THEN** the workflow SHALL classify the attempt as rejected with no change
+- **AND** it SHALL NOT count popup closure or a main-frame reload as success
+
+#### Scenario: Popup confirms a schedule change
+- **WHEN** the popup reports `Alteração realizada com sucesso!`, is acknowledged, and the supported body transition is observed
+- **THEN** the workflow SHALL classify the attempt as UI-confirmed completion
+- **AND** it SHALL NOT claim that this UI evidence proves server-side persistence
+
+#### Scenario: Popup closes before its result can be read
+- **WHEN** the popup closes before a recognized result message is captured
+- **THEN** the workflow SHALL report the result as unconfirmed
+- **AND** it SHALL NOT infer success only from popup closure and body reload
+
 ### Requirement: Stopped adjustments cannot issue delayed actions
 After an adjustment is stopped by the user or a fatal failure, the workflow SHALL terminate its pending waits and prevent remaining delayed work from editing, saving, or advancing employees. Starting a new adjustment SHALL NOT re-enable delayed work belonging to the stopped run. Cleanup SHALL restore the non-running controls, preserve the stop reason, and retain any already-confirmed partial results without claiming rollback.
 

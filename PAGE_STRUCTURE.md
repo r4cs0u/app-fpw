@@ -75,6 +75,17 @@ These actions open separate windows. Their forms were inspected but never submit
 | `Ajuste Jornada Plan.` | `/WebPontoDotNet/Justificativa/TrocarHorario.aspx` | The observed link uses a JavaScript redirect through `/RedirecionamentoAspx.asp`; a blank or redirector document is transient. Wait for the final supported route and ASP.NET Web Forms `form#form1`, period/date selector `#rpnPeriodo_ddlDatas`, and submit actions `btnGravar` / `btnCancelar` before editing. |
 | `Recup.Marcação` | `/WebPontoDotNet/Justificativa/RecuperaMarcacao.aspx` | ASP.NET Web Forms `form#form1`; date control `#dteDataJornada_I`, `btnExibir`, grid controls with `grdMarcacoes$ctlNN` names, and action controls `btnInserirMarcacao`, `btnConfirma`, `btnCancela`. Popup/editor control prefixes include `ppcNovaMarcacao`, `ppcDesconsideraMotivo`, and `ppcEditHora`. Treat grid/edit/confirm controls as potentially write-capable. |
 
+### Reported popup save messages and outcomes
+
+The following outcomes were reported during user testing; they are behavioral observations, not proof of server-side persistence:
+
+| Popup message | Reported meaning after acknowledging `OK` | Required interpretation |
+| --- | --- | --- |
+| `Dias selecionados possuem horários iguais!` | No schedule change is applied. The popup may remain open for another request or close; a main-frame refresh was also reported. | Rejection / no change, even if the popup closes or the main frame reloads. Never count closure plus reload alone as success. |
+| `Alteração realizada com sucesso!` | The popup closes and the time-sheet frame reloads with the change. | Positive UI confirmation. Record the message and the supported body transition; this still does not prove server-side persistence. |
+
+The implementation checks for the visible `#ppcMsg_btnMsgErro_CD` acknowledgement control and reads the popup's visible body text before acknowledging it; it does not assume a fixed message-container location. It recognizes only the two reported messages above. A recognized rejection is no change even if acknowledging it closes the popup or reloads the body. A recognized success requires both the message and a supported body transition plus popup closure. If no recognized outcome text is captured, stop as unconfirmed rather than inferring success from popup closure or reload. The acknowledgement control and body-text source still need runtime verification in MyWay.
+
 The `SelecionadoN` checkboxes in `mainFrame` are internal dirty flags, not row selectors; their click handler immediately unchecks them. Use the `radConfirma` radio to set the current row context for `Marcações`. Before changing employees, require all `SelecionadoN` flags to be clear.
 
 ## Header filters and other links

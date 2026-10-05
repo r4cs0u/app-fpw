@@ -65,7 +65,7 @@ function makeBodyDocument() {
 
 function makePopup(options) {
     let open = true;
-    const state = { rejected: false, saves: 0, selectedDates: [] };
+    const state = { rejected: false, resultMessage: '', saves: 0, selectedDates: [] };
     const selector = {
         options: options.map((date, index) => ({
             text: date,
@@ -83,6 +83,15 @@ function makePopup(options) {
         state,
         document: {
             readyState: 'complete',
+            body: {
+                get innerText() {
+                    if (state.rejected) return 'Dias selecionados possuem horários iguais!';
+                    return state.resultMessage;
+                },
+                get textContent() {
+                    return this.innerText;
+                }
+            },
             querySelector(selectorName) {
                 if (selectorName === 'form#form1') return {};
                 if (selectorName === 'input[name="btnGravar"]') {
@@ -98,10 +107,17 @@ function makePopup(options) {
             },
             getElementById(id) {
                 if (id === 'rpnPeriodo_ddlDatas') return selector;
-                if (id === 'ppcMsg_btnMsgErro_CD' && state.rejected) {
+                if (id === 'ppcMsg_btnMsgErro_CD' && (state.rejected || state.resultMessage)) {
                     return {
                         offsetParent: {},
-                        click() { state.rejected = false; }
+                        click() {
+                            const message = state.rejected ?
+                                'Dias selecionados possuem horários iguais!' :
+                                state.resultMessage;
+                            state.rejected = false;
+                            state.resultMessage = '';
+                            if (state.onAcknowledge) state.onAcknowledge(popup, message);
+                        }
                     };
                 }
                 return null;
@@ -379,31 +395,31 @@ test('same old ready body document is not accepted as a post-save reload', () =>
     run.cancel('test finished');
 });
 
-test('popup save succeeds when reload completes between polls and before popup closure', async () => {
+test('popup closure and body reload without a recognized message remain unconfirmed', async () => {
     const clock = new SyntheticClock();
     const popup = makePopup(['01/10/2026']);
     const env = createEnvironment(clock, popup);
     env.AF.estado.cancelado = false;
     const run = env.AF.core.iniciarExecucaoAjuste();
+    env.AF.core.prazosEsperaAjuste.bodyReload.deadlineMs = 600;
+    env.AF.core.prazosEsperaAjuste.popupCompletion.deadlineMs = 1200;
     const attempt = { execucao: run, popup, submitted: false };
     popup.state.onSave = () => {
         clock.setTimeout(() => env.replaceBody(), 50);
         clock.setTimeout(() => popup.close(), 100);
     };
 
-    const outcomePromise = env.AF.popup.tentarIndiceDatas(
+    const outcome = await drive(clock, env.AF.popup.tentarIndiceDatas(
         popup,
         ['01/10/2026'],
         0,
         run,
         attempt
-    );
-    const outcome = await drive(clock, outcomePromise, 3000);
+    ), 3000, 100);
 
-    assert.equal(outcome.status, 'ready');
-    assert.equal(outcome.submitted, true);
-    assert.equal(outcome.bodyReloaded, true);
-    assert.equal(outcome.popupClosed, true);
+    assert.equal(outcome.status, 'timeout');
+    assert.equal(outcome.stage, 'popup-close-after-reload');
+    assert.equal(outcome.unconfirmed, true);
     assert.equal(popup.state.saves, 1);
     assert.equal(attempt.bodyReloaded, true);
     assert.equal(env.frameListeners.size, 0);
@@ -411,7 +427,7 @@ test('popup save succeeds when reload completes between polls and before popup c
     assert.equal(clock.timers.size, 0);
 });
 
-test('popup save succeeds when popup closes before the body reload', async () => {
+test('popup success message is captured before OK and requires popup closure plus body reload', async () => {
     const clock = new SyntheticClock();
     const popup = makePopup(['01/10/2026']);
     const env = createEnvironment(clock, popup);
@@ -419,8 +435,66 @@ test('popup save succeeds when popup closes before the body reload', async () =>
     const run = env.AF.core.iniciarExecucaoAjuste();
     const attempt = { execucao: run, popup, submitted: false };
     popup.state.onSave = () => {
+        popup.state.resultMessage = 'Alteração realizada com sucesso!';
+    };
+    popup.state.onAcknowledge = (target, message) => {
+        if (message !== 'Alteração realizada com sucesso!') return;
         clock.setTimeout(() => popup.close(), 50);
         clock.setTimeout(() => env.replaceBody(), 100);
+    };
+
+    const outcome = await drive(
+        clock,
+        env.AF.popup.tentarIndiceDatas(popup, ['01/10/2026'], 0, run, attempt),
+        6000
+    );
+
+    assert.equal(outcome.status, 'ready');
+    assert.equal(outcome.message, 'Alteração realizada com sucesso!');
+    assert.equal(attempt.popupClosed, true);
+    assert.equal(attempt.bodyReloaded, true);
+    assert.equal(popup.state.saves, 1);
+    run.cancel('test finished');
+});
+
+test('equal-hours rejection remains no-change when OK closes popup and reloads the body', async () => {
+    const clock = new SyntheticClock();
+    const popup = makePopup(['first', 'second']);
+    const env = createEnvironment(clock, popup);
+    env.AF.estado.cancelado = false;
+    const run = env.AF.core.iniciarExecucaoAjuste();
+    const attempt = { execucao: run, popup, submitted: false };
+    popup.state.onSave = () => { popup.state.rejected = true; };
+    popup.state.onAcknowledge = () => {
+        clock.setTimeout(() => env.replaceBody(), 50);
+        clock.setTimeout(() => popup.close(), 100);
+    };
+
+    const outcome = await drive(
+        clock,
+        env.AF.popup.tentarIndiceDatas(popup, ['first', 'second'], 0, run, attempt),
+        6000
+    );
+
+    assert.equal(outcome.status, 'no-change');
+    assert.equal(outcome.message, 'Dias selecionados possuem horários iguais!');
+    assert.equal(outcome.popupClosed, true);
+    assert.equal(popup.state.saves, 1);
+    assert.equal(env.frameListeners.size, 0);
+    run.cancel('test finished');
+});
+
+test('unrecognized popup message stops without treating the reload as success', async () => {
+    const clock = new SyntheticClock();
+    const popup = makePopup(['01/10/2026']);
+    const env = createEnvironment(clock, popup);
+    env.AF.estado.cancelado = false;
+    const run = env.AF.core.iniciarExecucaoAjuste();
+    const attempt = { execucao: run, popup, submitted: false };
+    popup.state.onSave = () => {
+        popup.state.resultMessage = 'Mensagem nao mapeada';
+        clock.setTimeout(() => env.replaceBody(), 50);
+        clock.setTimeout(() => popup.close(), 100);
     };
 
     const outcome = await drive(
@@ -429,9 +503,10 @@ test('popup save succeeds when popup closes before the body reload', async () =>
         3000
     );
 
-    assert.equal(outcome.status, 'ready');
-    assert.equal(attempt.popupClosed, true);
-    assert.equal(attempt.bodyReloaded, true);
+    assert.equal(outcome.status, 'error');
+    assert.equal(outcome.stage, 'popup-result');
+    assert.equal(outcome.unconfirmed, true);
+    assert.equal(popup.state.saves, 1);
     run.cancel('test finished');
 });
 
@@ -447,6 +522,10 @@ test('supported rejection preserves candidate order and only submits the next ca
             popup.state.rejected = true;
             return;
         }
+        popup.state.resultMessage = 'Alteração realizada com sucesso!';
+    };
+    popup.state.onAcknowledge = (target, message) => {
+        if (message !== 'Alteração realizada com sucesso!') return;
         clock.setTimeout(() => env.replaceBody(), 50);
         clock.setTimeout(() => popup.close(), 100);
     };
