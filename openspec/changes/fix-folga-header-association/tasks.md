@@ -8,3 +8,8 @@
 ## 2. Integration Verification
 
 - [x] 2.1 Run `node --test` and verify the complete test suite passes without changing last-week inclusion, weekly planning, stable `main`, or write behavior.
+
+## 3. Publication and Live Verification
+
+- [x] 3.1 Publish the completed change to the `test` branch and verify the remote branch contains the published commit.
+- [x] 3.2 After the remote modules have propagated, validate the current Justificativas page through a read-only MCP check: 03/10/2026 is not classified as a folga and 04/10/2026 is; do not run adjustment or save actions.
