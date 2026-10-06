@@ -8,64 +8,8 @@
 
     AF.analisar.contarFolgas = function () {
         var mapa = AF.mapa.mapearFolhaAtual();
-        var chaves = Object.keys(mapa.semanas);
         var alvo = AF.utils.mesAlvoDaTabela();
-        var total = 0;
-
-        for (var i = 0; i < chaves.length; i++) {
-            var semana = mapa.semanas[chaves[i]];
-
-            var semanaValida = false;
-            var todasFolgas = (semana.folgas || [])
-                .concat(semana.folgasVisiveis || [])
-                .concat(semana.folgasOcultas || []);
-
-            for (var k = 0; k < todasFolgas.length; k++) {
-                var dataObj = AF.utils.parseDataBR(todasFolgas[k].dataStr);
-                if (dataObj && AF.utils.ehMesAlvo(dataObj, alvo)) {
-                    semanaValida = true;
-                    break;
-                }
-            }
-            if (!semanaValida) {
-                var todasDatas = (semana.ausencias || [])
-                    .concat(semana.ausenciasMes || [])
-                    .concat(semana.feriados || []);
-                for (var m = 0; m < todasDatas.length; m++) {
-                    var dObj = AF.utils.parseDataBR(todasDatas[m].dataStr);
-                    if (dObj && AF.utils.ehMesAlvo(dObj, alvo)) {
-                        semanaValida = true;
-                        break;
-                    }
-                }
-            }
-
-            if (!semanaValida) continue;
-
-            for (var j = 0; j < semana.folgas.length; j++) {
-                var folga = semana.folgas[j];
-                var fDataObj = AF.utils.parseDataBR(folga.dataStr);
-                if (!fDataObj || !AF.utils.ehMesAlvo(fDataObj, alvo)) continue;
-                if (semana.ausencias.length > 0 || semana.feriados.length > 0) {
-                    total++;
-                }
-            }
-
-            var temAusenciaMes = (semana.ausenciasMes && semana.ausenciasMes.length > 0);
-            if (temAusenciaMes) {
-                var fv = (semana.folgasVisiveis || []).filter(function (f) {
-                    var fd = AF.utils.parseDataBR(f.dataStr);
-                    return fd && AF.utils.ehMesAlvo(fd, alvo) && f.foraDoMes;
-                });
-                total += fv.length;
-                total += (semana.folgasOcultas || []).filter(function (f) {
-                    var fd = AF.utils.parseDataBR(f.dataStr);
-                    return fd && AF.utils.ehMesAlvo(fd, alvo);
-                }).length;
-            }
-        }
-
-        return total;
+        return AF.regras.contarFolgasAMovimentar(mapa, alvo);
     };
 
     // ── Dias com código 47 ───────────────────────────────────────────────
@@ -75,26 +19,16 @@
     AF.analisar.coletarDiasCod47 = function (opcoes) {
         opcoes = opcoes || {};
         var alvo = AF.utils.mesAlvoDaTabela();
-        var ultimaSemanaId = '';
-        var incluirTransicao = !opcoes.somenteMesAlvo;
-        if (incluirTransicao) {
-            ultimaSemanaId = AF.utils.semanaIdBR(new Date(alvo.getFullYear(), alvo.getMonth() + 1, 0));
-        }
         var campos = Array.from(AF.core.getDoc1().querySelectorAll('input[type=text]'));
-        var dias = [];
-
-        for (var i = 0; i < campos.length; i++) {
-            var inp = campos[i];
-            if (!inp.value || inp.value.trim() !== '47') continue;
-            var dataStr = AF.mapa.obterDataDoInput(inp);
-            var dataObj = AF.utils.parseDataBR(dataStr);
-            if (!dataObj) continue;
-            var noEscopo = AF.utils.ehMesAlvo(dataObj, alvo) ||
-                (ultimaSemanaId && AF.utils.semanaIdBR(dataObj) === ultimaSemanaId);
-            if (noEscopo) dias.push(dataStr);
-        }
-
-        return dias;
+        var entradas = campos.map(function (inp) {
+            return {
+                value: inp.value,
+                dataStr: inp.value && inp.value.trim() === '47'
+                    ? AF.mapa.obterDataDoInput(inp)
+                    : null
+            };
+        });
+        return AF.regras.selecionarDiasCod47(entradas, alvo, opcoes);
     };
 
     // ── Conta códigos 47 ─────────────────────────────────────────────────────────
@@ -108,8 +42,7 @@
         try {
             var doc1 = AF.core.getDoc1();
             var alvo = AF.utils.mesAlvoDaTabela();
-            var totalHEmin = 0, totalHEFmin = 0;
-
+            var lancamentos = [];
             Array.from(doc1.querySelectorAll('select[id^="lstNome"]')).forEach(function (sel) {
                 var opt = sel.options[sel.selectedIndex];
                 if (!opt) return;
@@ -124,24 +57,20 @@
                               doc1.querySelector('input[id="Data' + n + '"]');
                 if (inpData) {
                     var dataStr = inpData.value || AF.mapa.obterDataDoInput(inpData);
-                    var dataObj = AF.utils.parseDataBR(dataStr);
-                    if (!dataObj || !AF.utils.ehMesAlvo(dataObj, alvo)) return;
+                } else {
+                    dataStr = null;
                 }
 
                 var inp = doc1.querySelector('input[name="HorasInf' + n + '"]');
-                var raw = inp ? inp.value.replace('*', '').trim() : '';
-                var m = raw.match(/^(\d+):(\d+)(?::\d+)?$/);
-                if (!m) return;
-                var min = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
-                if (isHEF) totalHEFmin += min;
-                else       totalHEmin  += min;
+                lancamentos.push({
+                    codigo: cod,
+                    temData: !!inpData,
+                    dataStr: dataStr,
+                    horasTexto: inp ? inp.value : ''
+                });
             });
 
-            function fmtMin(t) {
-                return String(Math.floor(t / 60)).padStart(2, '0') + ':' + String(t % 60).padStart(2, '0');
-            }
-
-            return { HE: fmtMin(totalHEmin), HEF: fmtMin(totalHEFmin), HEmin: totalHEmin, HEFmin: totalHEFmin };
+            return AF.regras.somarHorasExtras(lancamentos, alvo);
         } catch (e) {
             return { HE: '00:00', HEF: '00:00', HEmin: 0, HEFmin: 0 };
         }
@@ -154,13 +83,7 @@
             var doc2 = window.top.frames[2].document;
             var inp = doc2.getElementById('txtSaldo');
             if (!inp) return '00:00';
-            var raw = inp.value.trim();
-            var negativo = raw.charAt(0) === '-';
-            var m = raw.replace('-', '').replace('*', '').trim().match(/^(\d+):(\d+)(?::\d+)?$/);
-            if (!m) return '00:00';
-            var h   = String(parseInt(m[1], 10)).padStart(2, '0');
-            var min = String(parseInt(m[2], 10)).padStart(2, '0');
-            return (negativo ? '-' : '') + h + ':' + min;
+            return AF.regras.interpretarSaldoHEC(inp.value);
         } catch (e) {
             return '00:00';
         }

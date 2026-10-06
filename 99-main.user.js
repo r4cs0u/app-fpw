@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         app-fpw
 // @namespace    http://tampermonkey.net/
-// @version      9.10-test
+// @version      9.11-test
 // @match        https://myway.g.globo/WebPonto/just_user/justuser.asp*
 // @grant        GM_xmlhttpRequest
 // @connect      raw.githubusercontent.com
@@ -19,6 +19,7 @@
         '05-log.js',
         '10-utils.js',
         '35-planejamento.js',
+        '37-regras-folha.js',
         '20-mapa.js',
         '25-detector.js',
         '27-modelo-relatorio.js',
@@ -64,11 +65,11 @@
             return;
         }
         AF.ambiente = 'test';
-        AF.versao = '9.10-test';
+        AF.versao = '9.11-test';
         AF.meta = AF.meta || {};
         AF.meta.nome = 'app-fpw';
         AF.meta.ambiente = 'test';
-        AF.meta.versao = '9.10-test';
+        AF.meta.versao = '9.11-test';
         console.info('[FPW][test] ambiente experimental carregado');
     }
 

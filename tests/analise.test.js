@@ -34,7 +34,7 @@ function load(files) {
     return AF;
 }
 
-const ALL = ['05-log.js', '10-utils.js', '20-mapa.js', '25-detector.js', '27-modelo-relatorio.js', '35-planejamento.js', '40-fases.js', '50-analisar.js', '60-relatorios.js'];
+const ALL = ['05-log.js', '10-utils.js', '35-planejamento.js', '37-regras-folha.js', '20-mapa.js', '25-detector.js', '27-modelo-relatorio.js', '40-fases.js', '50-analisar.js', '60-relatorios.js'];
 
 function dd(dia, mes = 9) {
     return String(dia).padStart(2, '0') + '/' + String(mes).padStart(2, '0') + '/2026';

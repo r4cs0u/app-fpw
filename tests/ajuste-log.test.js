@@ -32,7 +32,7 @@ function load(files, withCore) {
 }
 
 function loadFases() {
-    const AF = load(['05-log.js', '10-utils.js', '20-mapa.js', '25-detector.js', '27-modelo-relatorio.js', '35-planejamento.js', '40-fases.js', '50-analisar.js']);
+    const AF = load(['05-log.js', '10-utils.js', '35-planejamento.js', '37-regras-folha.js', '20-mapa.js', '25-detector.js', '27-modelo-relatorio.js', '40-fases.js', '50-analisar.js']);
     AF.core.log = (msg, cor, opcoes) => AF.log.registrar(msg, cor, opcoes);
     AF.core.norm = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
     return AF;

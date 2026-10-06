@@ -16,12 +16,13 @@ The repository uses branch `main` as its stable production reference and branch 
 | `05-log.js` | Structured, accumulated activity log (events with time, execution, employee, phase, and data), plain-text rendering, `sessionStorage` persistence for the tab lifetime, and the log window (view/copy). |
 | `10-utils.js` | Date parsing/formatting, week and target-month helpers, and RJ holiday calculation. |
 | `35-planejamento.js` | Pure phase 1–3 adjustment planning over structured maps; no DOM, frame, popup, or write access. |
+| `37-regras-folha.js` | Pure rules for counting movable days off, selecting code 47 dates, totaling overtime codes 2/27, and interpreting the compensation balance. Receives structured inputs; no DOM or frame access. |
 | `20-mapa.js` | Traverses the current body frame to extract descriptors (`coletarItensFolha`) and transforms them into weekly structured maps with classified absences, days off, and holidays (`construirMapaFolha`). |
 | `25-detector.js` | Reads the body frame into structured day rows (read-only) and applies pure detection rules that return the days of each irregularity (Sem Entrada/Saída, Interjornada, Marcação britânica, Folha não preenchida). Shared by analysis and adjustment. |
 | `27-modelo-relatorio.js` | Pure unified report state model for the team (Analysis and Adjustment coexisting), fraction progress, summary big numbers, filtering, sorting, TSV and irregularity-text export, and tab-lifetime `sessionStorage` persistence. |
 | `30-popup.js` | Opens and interacts with the planned-schedule popup used by adjustment flows. |
 | `40-fases.js` | Orchestrates adjustment phases and their popup interactions, changes applicable code 47 entries to 48, and invokes the footer save action when changes were made. Phase 1–3 decisions are delegated to `35-planejamento.js`. Before each sheet is changed it records the sheet state (read-only pre-analysis), and it records the state again after the last action. |
-| `50-analisar.js` | Runs the read-only analysis across employees, aggregates sheet statistics, and records a per-employee event with counts and days. |
+| `50-analisar.js` | Reads the page and delegates rule calculations to `37-regras-folha.js`; runs read-only analysis across employees, aggregates sheet statistics, and records a per-employee event with counts and days. |
 | `60-relatorios.js` | Builds the live HTML report, copies per-employee irregularity text, opens the team irregularity export window for the visible table rows, and supports report navigation and TSV copying. |
 | `70-sons.js` | Provides optional audio cues for execution and report events. |
 | `80-painel.js` | Builds the injected controls (including the always-available Log button), status display, and instruction side panel. |
