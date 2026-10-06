@@ -26,6 +26,7 @@ Ele não substitui a decisão final do usuário, mas ajuda a acelerar o fluxo de
 - Correção de ocorrências do código 47 para 48 quando aplicável;
 - Relatório unificado ao vivo: sempre disponível, com frações de progresso, cores por estado e colunas abertas de irregularidade;
 - Resumo em indicadores (big numbers) com filtros rápidos por clique;
+- Exportação copiável das irregularidades por funcionário ou da lista visível no relatório, com datas em `dd/mm`;
 - Janela de log estruturado acessível dentro e fora do relatório;
 - Painel visual com botões para analisar, ajustar e acompanhar o status da execução;
 - Log e notificações visuais para acompanhar o progresso da operação;
@@ -39,6 +40,8 @@ Ao acessar a página do WebPonto, o script carrega os módulos necessários e in
 2. verificar os dados coletados em relatórios;
 3. clicar em “Ajustar” para executar a correção automatizada de folgas e pendências;
 4. revisar os resultados e confirmar manualmente as ações finais.
+
+Na janela do relatório, o ícone no fim de cada linha copia as irregularidades daquele funcionário. O botão **Exportar irregularidades** abre o texto dos funcionários atualmente visíveis; portanto, filtros e extremos ativos também limitam a exportação. O texto lista todas as irregularidades de cada pessoa incluída, usa datas em `dd/mm` e pode ser copiado na própria janela.
 
 ## Benefícios
 

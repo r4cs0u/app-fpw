@@ -325,3 +325,102 @@ test('extremos ignoram nao processados e folhas sem marcacoes, e respeitam um fi
     assert.deepEqual(plain(AF.modelo.ordenarPorExtremo(todos, 'he', 'max', 0)), ['ANA', 'CAIO', 'DANI', 'BIA']);
     assert.deepEqual(plain(AF.modelo.ordenarPorExtremo(['BIA', 'CAIO'], 'he', 'max', 0)), ['CAIO', 'BIA']);
 });
+
+test('exportacao formata datas em ordem cronologica, remove repetidas e preserva datas invalidas no fim', () => {
+    const { AF } = loadModelo();
+    AF.modelo.iniciarExecucao('analise', ['ANA']);
+    AF.modelo.registrarAnalise('ANA', {
+        irregs: 5,
+        dias: {
+            semES: [
+                { data: '04/10/2026' }, '01/09/2026', '04/10/2026',
+                { data: '07/09/2026' }, '31/02/2026'
+            ]
+        }
+    });
+    assert.equal(
+        AF.modelo.textoIrregularidades('ANA'),
+        '*ANA\n- s/marcação de entrada ou saída nos dias, 01/09, 07/09, 04/10, 31/02/2026.'
+    );
+});
+
+test('exportacao gera todas as linhas na ordem definida e informa quando faltam datas', () => {
+    const { AF } = loadModelo();
+    AF.modelo.iniciarExecucao('analise', ['ANA', 'BIA']);
+    AF.modelo.registrarAnalise('ANA', {
+        irregs: 3,
+        interj: 1,
+        britanica: 3,
+        dias: {
+            semES: [{ data: '27/09/2026' }, '01/09/2026', '03/09/2026'],
+            interj: [{ data: '07/09/2026' }],
+            britanica: ['06/09/2026', '04/09/2026', '05/09/2026']
+        },
+        naoPreenchida: { avaliada: true, flag: true, pctNaoPreenchida: 73 }
+    });
+    AF.modelo.registrarAnalise('BIA', { irregs: 2, interj: 0, britanica: 0 });
+
+    assert.equal(AF.modelo.textoIrregularidades('ANA'), [
+        '*ANA',
+        '- s/marcação de entrada ou saída nos dias, 01/09, 03/09, 27/09.',
+        '- Checar se interjornada é devida nos dias, 07/09.',
+        '- Ajustar marcações britânicas, nos dias 04/09, 05/09, 06/09.',
+        '- Realizar o preenchimento da folha (73% dos dias sem marcação).'
+    ].join('\n'));
+    assert.equal(AF.modelo.textoIrregularidades('BIA'),
+        '*BIA\n- s/marcação de entrada ou saída nos dias, (2 ocorrências; datas não disponíveis).');
+});
+
+test('exportacao omite sem irregularidades, folha vazia e funcionario nao processado', () => {
+    const { AF } = loadModelo();
+    AF.modelo.iniciarExecucao('analise', ['ANA', 'BIA', 'VAZIA', 'NOVO']);
+    AF.modelo.registrarAnalise('ANA', { folgas: 1 });
+    AF.modelo.registrarAnalise('BIA', { britanica: 1, dias: { britanica: ['05/09/2026'] } });
+    AF.modelo.registrarSemMarcacoes('VAZIA', 'analise');
+
+    assert.equal(AF.modelo.textoIrregularidades('ANA'), '');
+    assert.equal(AF.modelo.textoIrregularidades('VAZIA'), '');
+    assert.equal(AF.modelo.textoIrregularidades('NOVO'), '');
+    assert.equal(AF.modelo.textoIrregularidades('BIA'),
+        '*BIA\n- Ajustar marcações britânicas, nos dias 05/09.');
+});
+
+test('exportacao do time respeita nomes recebidos, adiciona mes e rotulo do filtro', () => {
+    const { AF } = loadModelo();
+    AF.modelo.iniciarExecucao('analise', ['ANA', 'BIA', 'CAIO'], 'Outubro 2026');
+    AF.modelo.registrarAnalise('ANA', { britanica: 1, dias: { britanica: ['02/10/2026'] } });
+    AF.modelo.registrarAnalise('BIA', { irregs: 1, dias: { semES: ['03/10/2026'] } });
+    AF.modelo.registrarAnalise('CAIO', { folgas: 0 });
+
+    assert.equal(AF.modelo.textoIrregularidadesTime(['ANA', 'BIA'], 'britanica'), [
+        '*Irregularidades – Outubro 2026 – Marc. Britânicas',
+        '',
+        '*ANA',
+        '- Ajustar marcações britânicas, nos dias 02/10.',
+        '',
+        '*BIA',
+        '- s/marcação de entrada ou saída nos dias, 03/10.'
+    ].join('\n'));
+    assert.equal(AF.modelo.textoIrregularidadesTime(['CAIO'], null),
+        '*Irregularidades – Outubro 2026\n\nNenhuma irregularidade para exportar.');
+});
+
+test('exportacao usa a leitura mais recente e persiste os dias apos recarga', () => {
+    const storage = createStorage();
+    const first = loadModelo(storage);
+    first.AF.modelo.iniciarExecucao('analise', ['ANA'], 'Setembro 2026');
+    first.AF.modelo.registrarAnalise('ANA', { irregs: 1, dias: { semES: ['02/09/2026'] } });
+    first.AF.modelo.iniciarExecucao('ajuste', null);
+    first.AF.modelo.registrarAjuste('ANA', {
+        movidas: 0, presas: [],
+        leitura: { semES: { total: 1, dias: [{ data: '08/09/2026' }] } }
+    });
+    const textoAntes = first.AF.modelo.textoIrregularidades('ANA');
+    assert.match(textoAntes, /08\/09/);
+    assert.doesNotMatch(textoAntes, /02\/09/);
+
+    first.AF.modelo.salvar();
+    const restored = loadModelo(storage);
+    assert.equal(restored.AF.modelo.restaurar(), true);
+    assert.equal(restored.AF.modelo.textoIrregularidades('ANA'), textoAntes);
+});

@@ -74,7 +74,7 @@ Evoluir primeiro a previsibilidade, a capacidade de testar e a segurança operac
 
 1. **`sheet-detector-and-log` (A, concluída e arquivada):** fundação com detector de folha unificado e log estruturado.
 2. **`unified-live-report` (B, implementada na branch `test`):** modelo único por funcionário (`27-modelo-relatorio.js`), Análise e Ajuste coexistindo, botão Relatório sempre disponível com janela ao vivo (`60-relatorios.js`), frações de progresso (`movidas/(movidas+presas)`), cores por estado, colunas abertas de irregularidade, indicadores no topo com filtros rápidos e persistência na sessão.
-3. **Exportação de irregularidades (C, a planejar após B):** texto copiável por pessoa e do time inteiro, com os dias de cada irregularidade e, para folha não preenchida, apenas o aviso com a porcentagem; ícone por linha e botão "Exportar irregularidades" no fim da tabela.
+3. **`irregularity-export` (C, em implementação na branch `test`):** texto copiável por pessoa e pela lista visível do time, com os dias de cada irregularidade; ícone por linha e janela "Exportar irregularidades" que respeita filtros e extremos.
 
 Decisões de produto já tomadas para B e C: a fração usa a Análise como denominador e o Ajuste como numerador, e Ajustar repetido acumula sobre a mesma linha de base; uma nova Análise volta ao valor inteiro.
 

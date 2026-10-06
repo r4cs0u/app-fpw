@@ -240,7 +240,7 @@ test('cabecalho mostra mes, progresso e a duracao da ultima Analise e do ultimo 
     assert.doesNotMatch(html, /Ajuste:<\/b> em andamento • 1min 05s • /);
 });
 
-function janelaComElementos() {
+function janelaComElementos(copiados = [], timeouts = []) {
     const elementos = new Map();
     function el(id) {
         const e = { id, textContent: '', style: {}, _html: '', classList: { add() {}, remove() {} } };
@@ -249,14 +249,17 @@ function janelaComElementos() {
             const alvo = { '.mm[data-mm]': ['data-mm', /data-mm="([^"]+)"/g],
                 '.card[data-filtro]': ['data-filtro', /data-filtro="([^"]+)"/g],
                 'th[data-col]': ['data-col', /data-col="([^"]+)"/g],
-                'tr[data-nome]': ['data-nome', /data-nome="([^"]+)"/g] }[sel];
+                'tr[data-nome]': ['data-nome', /data-nome="([^"]+)"/g],
+                '.btn-copy-irreg[data-nome]': ['data-nome', /<button[^>]*class="btn-copy-irreg"[^>]*data-nome="([^"]+)"([^>]*)>/g] }[sel];
             if (!alvo) return [];
             // mesmos objetos enquanto o HTML nao muda, como num DOM real
             e._cache = e._cache || {};
             const chave = sel + '|' + e._html;
             if (!e._cache[chave]) {
                 e._cache[chave] = [...e._html.matchAll(alvo[1])].map(m => ({
-                    getAttribute: () => m[1], onclick: null, classList: { add() {}, remove() {} }
+                    getAttribute: () => m[1], onclick: null, textContent: '📋',
+                    disabled: sel === '.btn-copy-irreg[data-nome]' && /\sdisabled(?:\s|$)/.test(m[2]),
+                    classList: { add() {}, remove() {} }
                 }));
             }
             return e._cache[chave];
@@ -265,16 +268,18 @@ function janelaComElementos() {
         return e;
     }
     ['fpw-hdr-meta', 'fpw-cards-grid', 'fpw-thead-tr', 'fpw-tbody', 'fpw-rodape-contagem', 'fpw-notice-bar',
-        'btn-janela-log', 'btn-janela-copiar'].forEach(el);
+        'btn-janela-log', 'btn-janela-copiar', 'btn-exportar-irregularidades'].forEach(el);
     const win = {
         closed: false, focus() {},
+        setTimeout: callback => { timeouts.push(callback); return timeouts.length; },
+        navigator: { clipboard: { writeText: texto => { copiados.push(texto); return Promise.resolve(); } } },
         document: { open() {}, close() {}, write() {}, getElementById: id => elementos.get(id) || null, querySelectorAll: () => [] }
     };
     return { win, elementos };
 }
 
 function ordemDaTabela(elementos) {
-    return [...elementos.get('fpw-tbody').innerHTML.matchAll(/data-nome="([^"]+)"/g)].map(m => m[1]);
+    return [...elementos.get('fpw-tbody').innerHTML.matchAll(/<tr[^>]*data-nome="([^"]+)"/g)].map(m => m[1]);
 }
 
 test('janela: clicar em mín/máx ordena a tabela sem os zerados; novo clique ou cabecalho limpa', () => {
@@ -310,4 +315,135 @@ test('janela: clicar em mín/máx ordena a tabela sem os zerados; novo clique ou
     elementos.get('fpw-thead-tr').querySelectorAll('th[data-col]').find(t => t.getAttribute() === 'nome').onclick();
     assert.equal(ordemDaTabela(elementos).length, 3);
     assert.doesNotMatch(elementos.get('fpw-cards-grid').innerHTML, /mm-active/);
+});
+
+test('lista de nomes visiveis aplica filtro, extremo ou ordenacao e exclui zeros do extremo', () => {
+    const AF = loadRelatorios();
+    AF.modelo.iniciarExecucao('analise', ['ANA', 'BIA', 'CAIO']);
+    AF.modelo.registrarAnalise('ANA', { britanica: 1, HE: '07:00', dias: { britanica: ['01/10/2026'] } });
+    AF.modelo.registrarAnalise('BIA', { britanica: 1, HE: '03:00', dias: { britanica: ['02/10/2026'] } });
+    AF.modelo.registrarAnalise('CAIO', { britanica: 0, HE: '00:00' });
+
+    assert.deepEqual(JSON.parse(JSON.stringify(AF.relatorios.obterNomesVisiveis({
+        filtro: 'britanica', col: 'nome', dir: 1, extremo: null
+    }))), ['ANA', 'BIA']);
+    assert.deepEqual(JSON.parse(JSON.stringify(AF.relatorios.obterNomesVisiveis({
+        filtro: null, col: 'nome', dir: 1, extremo: { col: 'he', modo: 'max', sinal: 0 }
+    }))), ['ANA', 'BIA']);
+    assert.deepEqual(JSON.parse(JSON.stringify(AF.relatorios.obterNomesVisiveis({
+        filtro: null, col: 'nome', dir: 1, extremo: null
+    }))), ['ANA', 'BIA', 'CAIO']);
+});
+
+test('relatorio copia por funcionario sem propagar clique e exporta a mesma lista filtrada em janela reutilizavel', async () => {
+    const copiados = [];
+    const rowTimeouts = [];
+    const { win: relatorioWin, elementos } = janelaComElementos(copiados, rowTimeouts);
+    const exportElements = new Map();
+    const exportTimeouts = [];
+    let exportHTML = '';
+    const exportWin = {
+        closed: false,
+        focus() {},
+        setTimeout: callback => { exportTimeouts.push(callback); return exportTimeouts.length; },
+        navigator: { clipboard: { writeText: texto => { copiados.push(texto); return Promise.resolve(); } } },
+        document: {
+            open() {},
+            close() {},
+            write(html) {
+                exportHTML = html;
+                for (const m of html.matchAll(/id="([^"]+)"/g)) {
+                    exportElements.set(m[1], {
+                        textContent: '', classList: { add() {}, remove() {} }, onclick: null
+                    });
+                }
+            },
+            getElementById: id => exportElements.get(id) || null
+        }
+    };
+    const AF = loadRelatorios((url, name) => name === 'fpw-relatorio' ? relatorioWin : exportWin);
+    AF.modelo.iniciarExecucao('analise', ['ANA', 'BIA', 'CAIO'], 'Outubro 2026');
+    AF.modelo.registrarAnalise('ANA', {
+        britanica: 1, irregs: 1, HE: '07:00',
+        dias: { britanica: ['01/10/2026'], semES: ['03/10/2026'] }
+    });
+    AF.modelo.registrarAnalise('BIA', { britanica: 1, interj: 1, HE: '03:00', dias: {
+        britanica: ['02/10/2026'], interj: ['04/10/2026']
+    } });
+    AF.modelo.registrarAnalise('CAIO', { britanica: 0, HE: '00:00' });
+
+    AF.relatorios.abrirJanela();
+    assert.deepEqual(ordemDaTabela(elementos), ['ANA', 'BIA', 'CAIO']);
+    const botaoANA = elementos.get('fpw-tbody').querySelectorAll('.btn-copy-irreg[data-nome]')
+        .find(button => button.getAttribute() === 'ANA');
+    let stopped = false;
+    botaoANA.onclick({ stopPropagation() { stopped = true; } });
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(stopped, true);
+    assert.match(copiados[0], /^\*ANA\n/);
+    assert.doesNotMatch(copiados[0], /Interjornada/);
+    assert.equal(botaoANA.textContent, '✓');
+    const botaoCAIO = elementos.get('fpw-tbody').querySelectorAll('.btn-copy-irreg[data-nome]')
+        .find(button => button.getAttribute() === 'CAIO');
+    assert.equal(botaoCAIO.disabled, true);
+
+    const cardBritanica = elementos.get('fpw-cards-grid').querySelectorAll('.card[data-filtro]')
+        .find(card => card.getAttribute() === 'britanica');
+    cardBritanica.onclick();
+    assert.deepEqual(ordemDaTabela(elementos), ['ANA', 'BIA']);
+    AF.estado.rodando = true;
+    const estadoDuranteExecucao = JSON.stringify(AF.estado);
+    elementos.get('btn-exportar-irregularidades').onclick();
+    assert.equal(JSON.stringify(AF.estado), estadoDuranteExecucao);
+    assert.match(exportHTML, /fpw-irregularidades-texto/);
+    assert.equal(exportElements.get('fpw-irregularidades-titulo').textContent, 'Exportar irregularidades');
+    assert.match(exportElements.get('fpw-irregularidades-texto').textContent, /\*ANA/);
+    assert.match(exportElements.get('fpw-irregularidades-texto').textContent, /^\*Irregularidades – Outubro 2026 – Marc\. Britânicas/);
+    assert.match(exportElements.get('fpw-irregularidades-texto').textContent, /\*BIA/);
+    assert.doesNotMatch(exportElements.get('fpw-irregularidades-texto').textContent, /\*CAIO/);
+    assert.match(exportElements.get('fpw-irregularidades-horario').textContent,
+        /^Gerado em \d{2}\/\d{2}\/\d{4} \d{2}:\d{2}:\d{2}$/);
+    exportElements.get('fpw-irregularidades-copiar').onclick();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(copiados[1], exportElements.get('fpw-irregularidades-texto').textContent);
+    assert.equal(exportElements.get('fpw-irregularidades-copiar').textContent, 'Copiado!');
+    assert.equal(rowTimeouts.length, 1);
+    assert.equal(exportTimeouts.length, 1);
+    assert.match(copiados[1], /^\*Irregularidades – Outubro 2026 – Marc. Britânicas/);
+    assert.match(copiados[1], /\*ANA/);
+    assert.match(copiados[1], /\*BIA/);
+
+    cardBritanica.onclick();
+    assert.deepEqual(ordemDaTabela(elementos), ['ANA', 'BIA', 'CAIO']);
+    elementos.get('btn-exportar-irregularidades').onclick();
+    assert.equal(exportElements.get('fpw-irregularidades-titulo').textContent, 'Exportar irregularidades');
+    assert.match(exportElements.get('fpw-irregularidades-texto').textContent, /^\*Irregularidades – Outubro 2026\n/);
+    assert.match(exportElements.get('fpw-irregularidades-texto').textContent, /\*ANA/);
+    assert.match(exportElements.get('fpw-irregularidades-texto').textContent, /\*BIA/);
+    assert.doesNotMatch(exportElements.get('fpw-irregularidades-texto').textContent, /\*CAIO/);
+
+    AF.estado.rodando = false;
+    elementos.get('fpw-cards-grid').querySelectorAll('.mm[data-mm]')
+        .find(extremo => extremo.getAttribute() === 'he:min:0').onclick({});
+    assert.deepEqual(ordemDaTabela(elementos), ['BIA', 'ANA']);
+    elementos.get('btn-exportar-irregularidades').onclick();
+    assert.match(exportElements.get('fpw-irregularidades-texto').textContent, /^\*Irregularidades – Outubro 2026\n/);
+    assert.match(exportElements.get('fpw-irregularidades-texto').textContent, /\*ANA/);
+    assert.match(exportElements.get('fpw-irregularidades-texto').textContent, /\*BIA/);
+    assert.doesNotMatch(exportElements.get('fpw-irregularidades-texto').textContent, /\*CAIO/);
+
+    elementos.get('fpw-cards-grid').querySelectorAll('.card[data-filtro]')
+        .find(card => card.getAttribute() === 'presas').onclick();
+    assert.deepEqual(ordemDaTabela(elementos), []);
+    elementos.get('btn-exportar-irregularidades').onclick();
+    assert.equal(exportElements.get('fpw-irregularidades-texto').textContent,
+        '*Irregularidades – Outubro 2026 – Presas\n\nNenhuma irregularidade para exportar.');
+
+    relatorioWin.navigator.clipboard.writeText = () => Promise.reject(new Error('clipboard indisponivel'));
+    cardBritanica.onclick();
+    const botaoFalha = elementos.get('fpw-tbody').querySelectorAll('.btn-copy-irreg[data-nome]')
+        .find(button => button.getAttribute() === 'ANA');
+    botaoFalha.onclick({ stopPropagation() {} });
+    await new Promise(resolve => setImmediate(resolve));
+    assert.match(elementos.get('fpw-notice-bar').textContent, /Não foi possível copiar/);
 });

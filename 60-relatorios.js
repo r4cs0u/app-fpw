@@ -5,6 +5,7 @@
     AF.relatorios = AF.relatorios || {};
 
     var janelaRelatorio = null;
+    var janelaIrregularidades = null;
     var intervaloJanela = null;
     var ultimoVersaoJanela = -1;
     var estadoVisao = {
@@ -101,6 +102,7 @@
             + 'thead th:first-child{text-align:left;width:180px}'
             + 'thead th[data-col]{cursor:pointer}'
             + 'thead th.sort-active{color:var(--blue)}'
+            + 'thead th.irreg-copy-col{width:44px;text-align:center}'
             + 'tbody tr{cursor:pointer;transition:background .1s}'
             + 'tbody tr:hover{background:var(--tbl-row-hover)}'
             + 'tbody tr.active-row{background:var(--tbl-row-active)!important;outline:1px solid var(--tbl-row-active-outline)}'
@@ -114,6 +116,9 @@
             + '.chip-red{background:rgba(239,68,68,.18);color:#fca5a5}'
             + '.chip-zero{color:var(--text-faint)}'
             + '.chip-dash{color:var(--text-faint)}'
+            + '.btn-copy-irreg{border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text-muted);border-radius:4px;padding:2px 6px;cursor:pointer;font-size:11px}'
+            + '.btn-copy-irreg:hover:not(:disabled){background:rgba(59,130,246,.2);color:#bfdbfe}'
+            + '.btn-copy-irreg:disabled{opacity:.35;cursor:default}'
             + '.badge{font-size:9px;padding:1px 5px;border-radius:99px;font-weight:600;margin-left:4px;vertical-align:middle}'
             + '.badge-parcial{background:rgba(249,115,22,.2);color:#fdba74}'
             + '.badge-vazia{background:rgba(148,163,184,.15);color:#94a3b8}'
@@ -147,6 +152,7 @@
             + '<div class="action-bar">'
             +   '<span style="font-size:11px;color:var(--text-faint);" id="fpw-status-hint">👆 Clique na linha para navegar no FPW • Clique nos cards para filtrar</span>'
             +   '<span style="font-size:11px;color:var(--text-muted);" id="fpw-rodape-contagem"></span>'
+            +   '<button class="btn btn-blue" id="btn-exportar-irregularidades">📝 Exportar irregularidades</button>'
             + '</div>'
             + '</div></body></html>';
     };
@@ -258,6 +264,7 @@
             h += '<th data-col="' + c.id + '"' + cls + ' style="text-align:' + c.align + '">'
                 + escaparHTML(c.label) + '<span style="opacity:.6;font-size:9px;">' + seta + '</span></th>';
         }
+        h += '<th class="irreg-copy-col" title="Copiar irregularidades">📋</th>';
         return h;
     };
 
@@ -327,6 +334,11 @@
 
             var chipNP = d.naoPreenchida.texto === '-' ? '<span class="chip-dash">-</span>' :
                 '<span class="cell-chip chip-red"' + formatarTooltipNaoPreenchida(d.naoPreenchida) + '>' + d.naoPreenchida.texto + '</span>';
+            var textoIrregularidades = AF.modelo.textoIrregularidades(nome);
+            var botaoIrregularidades = '<button type="button" class="btn-copy-irreg" data-nome="' + escaparHTML(nome) + '"'
+                + (textoIrregularidades ? '' : ' disabled')
+                + ' aria-label="' + (textoIrregularidades ? 'Copiar irregularidades de ' + escaparHTML(nome) : 'Sem irregularidades para exportar') + '"'
+                + ' title="' + (textoIrregularidades ? 'Copiar irregularidades de ' + escaparHTML(nome) : 'Sem irregularidades para exportar') + '">📋</button>';
 
             // Horas
             function cellHora(v) {
@@ -347,6 +359,7 @@
                 + '<td>' + cellHora(d.HE) + '</td>'
                 + '<td>' + cellHora(d.HEF) + '</td>'
                 + '<td>' + cellHora(d.HEC) + '</td>'
+                + '<td>' + botaoIrregularidades + '</td>'
                 + '</tr>';
         }
         return h;
@@ -393,6 +406,16 @@
             if (html !== ultimoMetaHTML) { el.innerHTML = html; ultimoMetaHTML = html; }
         } catch (e) {}
     }
+
+    function obterNomesVisiveis(visao) {
+        visao = visao || estadoVisao;
+        var filtrados = AF.modelo.filtrar(visao.filtro);
+        return visao.extremo
+            ? AF.modelo.ordenarPorExtremo(filtrados, visao.extremo.col, visao.extremo.modo, visao.extremo.sinal)
+            : AF.modelo.ordenar(filtrados, visao.col, visao.dir);
+    }
+
+    AF.relatorios.obterNomesVisiveis = obterNomesVisiveis;
 
     // ── Condutor da Janela Viva ──────────────────────────────────────────
 
@@ -453,11 +476,8 @@
             }
 
             // Tbody
-            var nomesFiltrados = AF.modelo.filtrar(estadoVisao.filtro);
             var ex = estadoVisao.extremo;
-            var nomesOrdenados = ex
-                ? AF.modelo.ordenarPorExtremo(nomesFiltrados, ex.col, ex.modo, ex.sinal)
-                : AF.modelo.ordenar(nomesFiltrados, estadoVisao.col, estadoVisao.dir);
+            var nomesOrdenados = obterNomesVisiveis();
             var tbody = doc.getElementById('fpw-tbody');
             if (tbody) {
                 tbody.innerHTML = AF.relatorios.gerarTbodyHTML(nomesOrdenados, est.atual, estadoVisao.selecionado);
@@ -500,6 +520,13 @@
                         } catch (eNaveg) {}
                     };
                 });
+                tbody.querySelectorAll('.btn-copy-irreg[data-nome]').forEach(function (btn) {
+                    btn.onclick = function (ev) {
+                        if (ev && ev.stopPropagation) ev.stopPropagation();
+                        if (this.disabled) return;
+                        copiarIrregularidadeFuncionario(win, this);
+                    };
+                });
             }
 
             // Rodapé
@@ -530,6 +557,136 @@
             alert('Área de transferência indisponível.');
         }
     }
+
+    function copiarTexto(win, texto) {
+        function fallback() {
+            try {
+                var area = win.document.createElement('textarea');
+                area.value = texto;
+                win.document.body.appendChild(area);
+                area.select();
+                var ok = win.document.execCommand('copy');
+                win.document.body.removeChild(area);
+                return ok;
+            } catch (e) {
+                return false;
+            }
+        }
+        try {
+            if (win.navigator && win.navigator.clipboard && win.navigator.clipboard.writeText) {
+                return win.navigator.clipboard.writeText(texto).then(function () { return true; }, function () { return fallback(); });
+            }
+        } catch (e) {}
+        return Promise.resolve(fallback());
+    }
+
+    function notificarFalhaCopia(win, mensagem) {
+        var notice = win && win.document && win.document.getElementById('fpw-notice-bar');
+        if (notice) {
+            notice.style.display = 'block';
+            notice.textContent = mensagem;
+            if (win && typeof win.setTimeout === 'function') {
+                win.setTimeout(function () { notice.style.display = 'none'; }, 3000);
+            }
+            return;
+        }
+        try {
+            if (win && typeof win.alert === 'function') {
+                win.alert(mensagem);
+                return;
+            }
+            if (typeof window.alert === 'function') {
+                window.alert(mensagem);
+                return;
+            }
+        } catch (e) {}
+        if (AF.log && typeof AF.log.registrar === 'function') {
+            AF.log.registrar(mensagem, '#f87171');
+        }
+    }
+
+    function copiarIrregularidadeFuncionario(win, botao) {
+        var nome = botao.getAttribute('data-nome');
+        var texto = AF.modelo.textoIrregularidades(nome);
+        if (!texto) return;
+        copiarTexto(win, texto).then(function (ok) {
+            if (!ok) {
+                notificarFalhaCopia(win, 'Não foi possível copiar as irregularidades de ' + nome + '.');
+                return;
+            }
+            var original = botao.textContent;
+            botao.textContent = '✓';
+            botao.classList.add('copied');
+            win.setTimeout(function () {
+                botao.textContent = original;
+                botao.classList.remove('copied');
+            }, 2000);
+        });
+    }
+
+    function htmlJanelaIrregularidades() {
+        return '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>FPW - Irregularidades</title>'
+            + '<style>html,body{height:100%;margin:0;background:#0f1117;color:#e2e8f0;font-family:Consolas,"Courier New",monospace;font-size:12px}'
+            + '.bar{display:flex;gap:8px;align-items:center;padding:8px 12px;background:#0d1117;border-bottom:1px solid rgba(255,255,255,.12)}'
+            + '.bar b{font-family:system-ui,sans-serif;font-size:13px;margin-right:auto}.bar span{color:#94a3b8;font:11px system-ui,sans-serif}'
+            + 'button{background:#3b82f6;color:#fff;border:0;border-radius:5px;padding:5px 12px;font-size:12px;cursor:pointer}'
+            + 'button.ok{background:#22c55e}#fpw-irregularidades-texto{display:block;box-sizing:border-box;margin:0;height:calc(100% - 46px);overflow:auto;padding:10px 14px;white-space:pre-wrap;word-break:break-word;line-height:1.5;user-select:text}'
+            + '</style></head><body><div class="bar"><b id="fpw-irregularidades-titulo"></b>'
+            + '<span id="fpw-irregularidades-horario"></span><button id="fpw-irregularidades-copiar">Copiar tudo</button></div>'
+            + '<pre id="fpw-irregularidades-texto"></pre></body></html>';
+    }
+
+    function horarioGeracao(data) {
+        return String(data.getDate()).padStart(2, '0') + '/' + String(data.getMonth() + 1).padStart(2, '0') + '/'
+            + data.getFullYear() + ' ' + String(data.getHours()).padStart(2, '0') + ':'
+            + String(data.getMinutes()).padStart(2, '0') + ':' + String(data.getSeconds()).padStart(2, '0');
+    }
+
+    function preencherJanelaIrregularidades(win, texto) {
+        var doc = win.document;
+        doc.getElementById('fpw-irregularidades-titulo').textContent = 'Exportar irregularidades';
+        doc.getElementById('fpw-irregularidades-horario').textContent = 'Gerado em ' + horarioGeracao(new Date());
+        doc.getElementById('fpw-irregularidades-texto').textContent = texto;
+        win._fpwTextoIrregularidades = texto;
+        var btn = doc.getElementById('fpw-irregularidades-copiar');
+        if (btn) {
+            btn.onclick = function () {
+                copiarTexto(win, win._fpwTextoIrregularidades).then(function (ok) {
+                    if (!ok) {
+                        notificarFalhaCopia(win, 'Não foi possível copiar as irregularidades.');
+                        return;
+                    }
+                    btn.textContent = 'Copiado!';
+                    btn.classList.add('ok');
+                    win.setTimeout(function () {
+                        btn.textContent = 'Copiar tudo';
+                        btn.classList.remove('ok');
+                    }, 2000);
+                });
+            };
+        }
+    }
+
+    AF.relatorios.abrirExportacaoIrregularidades = function () {
+        var texto = AF.modelo.textoIrregularidadesTime(obterNomesVisiveis(), estadoVisao.filtro);
+        if (janelaIrregularidades && !janelaIrregularidades.closed) {
+            janelaIrregularidades.focus();
+            preencherJanelaIrregularidades(janelaIrregularidades, texto);
+            return janelaIrregularidades;
+        }
+
+        var win = window.open('', 'fpw-irregularidades', 'width=780,height=620,left=120,top=80,resizable=yes,scrollbars=yes');
+        if (!win) {
+            notificarFalhaCopia(janelaRelatorio, 'A janela de exportação foi bloqueada pelo navegador.');
+            return null;
+        }
+        janelaIrregularidades = win;
+        win.document.open();
+        win.document.write(htmlJanelaIrregularidades());
+        win.document.close();
+        preencherJanelaIrregularidades(win, texto);
+        return win;
+    };
 
     AF.relatorios.abrirJanela = function () {
         if (janelaRelatorio && !janelaRelatorio.closed) {
@@ -567,6 +724,10 @@
         var btnCopiar = win.document.getElementById('btn-janela-copiar');
         if (btnCopiar) {
             btnCopiar.onclick = function () { copiarTSV(win); };
+        }
+        var btnExportar = win.document.getElementById('btn-exportar-irregularidades');
+        if (btnExportar) {
+            btnExportar.onclick = function () { AF.relatorios.abrirExportacaoIrregularidades(); };
         }
 
         atualizarJanelaDOM(win, true);

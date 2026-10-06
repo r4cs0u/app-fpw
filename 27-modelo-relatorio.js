@@ -643,6 +643,95 @@
         });
         return itens.map(function (x) { return x.nome; });
     };
+
+    function extrairDataIrregularidade(item) {
+        var valor = item && typeof item === 'object' ? item.data : item;
+        var texto = String(valor == null ? '' : valor).trim();
+        var match = texto.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+        if (!match) return { texto: texto, chave: null, diaMes: texto };
+
+        var dia = parseInt(match[1], 10);
+        var mes = parseInt(match[2], 10);
+        var ano = parseInt(match[3], 10);
+        var data = new Date(Date.UTC(ano, mes - 1, dia));
+        if (data.getUTCFullYear() !== ano || data.getUTCMonth() !== mes - 1 || data.getUTCDate() !== dia) {
+            return { texto: texto, chave: null, diaMes: texto };
+        }
+        return {
+            texto: texto,
+            chave: ano * 10000 + mes * 100 + dia,
+            diaMes: String(dia).padStart(2, '0') + '/' + String(mes).padStart(2, '0')
+        };
+    }
+
+    function formatarDiasIrregularidade(dias) {
+        var validas = [];
+        var invalidas = [];
+        var vistas = Object.create(null);
+        (dias || []).forEach(function (item, indice) {
+            var data = extrairDataIrregularidade(item);
+            if (!data.texto) return;
+            var chave = data.chave === null ? 'invalida:' + data.texto : 'data:' + data.chave;
+            if (vistas[chave]) return;
+            vistas[chave] = true;
+            var entrada = { data: data, indice: indice };
+            if (data.chave === null) invalidas.push(entrada);
+            else validas.push(entrada);
+        });
+        validas.sort(function (a, b) { return a.data.chave - b.data.chave || a.indice - b.indice; });
+        return validas.map(function (x) { return x.data.diaMes; })
+            .concat(invalidas.map(function (x) { return x.data.texto; }));
+    }
+
+    function linhaIrregularidade(ocorrencia, prefixo) {
+        var total = Number(ocorrencia && ocorrencia.total) || 0;
+        if (total <= 0) return '';
+        var dias = formatarDiasIrregularidade(ocorrencia.dias);
+        if (!dias.length) {
+            return prefixo + ' (' + total + ' ocorrência' + (total === 1 ? '' : 's') + '; datas não disponíveis).';
+        }
+        return prefixo + ' ' + dias.join(', ') + '.';
+    }
+
+    AF.modelo.textoIrregularidades = function (nome) {
+        var f = AF.modelo.obterDadosFunc(nome);
+        if (!f.processado || f.vazia) return '';
+
+        var linhas = [];
+        var semES = linhaIrregularidade(f.semES, '- s/marcação de entrada ou saída nos dias,');
+        var interj = linhaIrregularidade(f.interj, '- Checar se interjornada é devida nos dias,');
+        var britanica = linhaIrregularidade(f.britanica, '- Ajustar marcações britânicas, nos dias');
+        if (semES) linhas.push(semES);
+        if (interj) linhas.push(interj);
+        if (britanica) linhas.push(britanica);
+        if (f.naoPreenchida.sinalizada) {
+            var pct = f.naoPreenchida.pct;
+            linhas.push('- Realizar o preenchimento da folha (' + (pct == null ? '-' : pct) + '% dos dias sem marcação).');
+        }
+        return linhas.length ? '*' + f.nome + '\n' + linhas.join('\n') : '';
+    };
+
+    var rotulosFiltroIrregularidade = {
+        semES: 'Sem Entrada/Saída',
+        interj: 'Interjornada',
+        britanica: 'Marc. Britânicas',
+        naoPreenchida: 'Folhas não Preenchidas',
+        presas: 'Presas',
+        pendentes: 'Movim.'
+    };
+
+    AF.modelo.textoIrregularidadesTime = function (nomes, filtro) {
+        var mes = estado.mes || 'Não definido';
+        var rotulo = rotulosFiltroIrregularidade[filtro] || (filtro ? String(filtro) : '');
+        var titulo = '*Irregularidades – ' + mes + (rotulo ? ' – ' + rotulo : '');
+        var blocos = [];
+        (nomes || []).forEach(function (nome) {
+            var texto = AF.modelo.textoIrregularidades(nome);
+            if (texto) blocos.push(texto);
+        });
+        return titulo + '\n\n' + (blocos.length ? blocos.join('\n\n') : 'Nenhuma irregularidade para exportar.');
+    };
+
     // ── Exportação TSV ──────────────────────────────────────────────────
 
     AF.modelo.tsv = function () {
