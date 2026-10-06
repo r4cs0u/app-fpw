@@ -693,6 +693,10 @@
         return prefixo + ' ' + dias.join(', ') + '.';
     }
 
+    function nomeParaExportacao(nome) {
+        return String(nome || '').replace(/\s+\d+$/, '').trim();
+    }
+
     AF.modelo.textoIrregularidades = function (nome) {
         var f = AF.modelo.obterDadosFunc(nome);
         if (!f.processado || f.vazia) return '';
@@ -708,7 +712,7 @@
             var pct = f.naoPreenchida.pct;
             linhas.push('- Realizar o preenchimento da folha (' + (pct == null ? '-' : pct) + '% dos dias sem marcação).');
         }
-        return linhas.length ? '*' + f.nome + '\n' + linhas.join('\n') : '';
+        return linhas.length ? '*' + nomeParaExportacao(f.nome) + '\n' + linhas.join('\n') : '';
     };
 
     var rotulosFiltroIrregularidade = {

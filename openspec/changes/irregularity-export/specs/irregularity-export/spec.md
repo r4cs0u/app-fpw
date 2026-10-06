@@ -5,7 +5,7 @@ Gerar, a partir do relatório do time, textos de irregularidades prontos para co
 ## ADDED Requirements
 
 ### Requirement: Texto de irregularidades por funcionário
-O sistema SHALL gerar, para um funcionário, um texto cuja primeira linha é `*` seguido do nome completo e que tem, em seguida, uma linha para cada irregularidade existente, nesta ordem: Sem Entrada/Saída, Interjornada, Marcações britânicas e Folha não preenchida. As linhas de Sem Entrada/Saída, Interjornada e Marcações britânicas SHALL listar os dias da irregularidade em `dd/mm`, em ordem cronológica e sem repetição, separados por vírgula, e terminar com ponto. A linha de Folha não preenchida SHALL conter apenas o aviso para realizar o preenchimento da folha e a porcentagem de dias sem marcação, sem listar dias. Irregularidades inexistentes SHALL NOT gerar linha. O texto SHALL usar a leitura mais recente do funcionário, seja da Análise ou do Ajuste.
+O sistema SHALL gerar, para um funcionário, um texto cuja primeira linha é `*` seguido do nome da pessoa sem o sufixo numérico do seletor FPW (espaço seguido de um ou mais dígitos), preservando números que façam parte do restante do nome, e que tem, em seguida, uma linha para cada irregularidade existente, nesta ordem: Sem Entrada/Saída, Interjornada, Marcações britânicas e Folha não preenchida. As linhas de Sem Entrada/Saída, Interjornada e Marcações britânicas SHALL listar os dias da irregularidade em `dd/mm`, em ordem cronológica e sem repetição, separados por vírgula, e terminar com ponto. A linha de Folha não preenchida SHALL conter apenas o aviso para realizar o preenchimento da folha e a porcentagem de dias sem marcação, sem listar dias. Irregularidades inexistentes SHALL NOT gerar linha. O texto SHALL usar a leitura mais recente do funcionário, seja da Análise ou do Ajuste.
 
 Os textos das linhas SHALL ser:
 - Sem Entrada/Saída: `- s/marcação de entrada ou saída nos dias, <dias>.`
@@ -22,6 +22,11 @@ Os textos das linhas SHALL ser:
 #### Scenario: Irregularidade ausente não gera linha
 - **WHEN** um funcionário tem apenas marcações britânicas
 - **THEN** o texto SHALL conter somente a linha do nome e a linha de marcações britânicas
+
+#### Scenario: Sufixo numérico do seletor não aparece no nome
+- **WHEN** o seletor FPW fornece o nome `MARIA 2 SILVA 4812`
+- **THEN** a primeira linha SHALL ser `*MARIA 2 SILVA`
+- **AND** o número interno `2` SHALL ser preservado
 
 #### Scenario: Dias repetidos e fora de ordem
 - **WHEN** a mesma data aparece mais de uma vez em uma irregularidade, por exemplo uma britânica detectada na entrada e na saída do mesmo dia

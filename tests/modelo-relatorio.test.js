@@ -385,6 +385,18 @@ test('exportacao omite sem irregularidades, folha vazia e funcionario nao proces
         '*BIA\n- Ajustar marcações britânicas, nos dias 05/09.');
 });
 
+test('exportacao remove o sufixo numerico do seletor, preservando numeros internos ao nome', () => {
+    const { AF } = loadModelo();
+    AF.modelo.iniciarExecucao('analise', ['MARIA 2 SILVA 4812']);
+    AF.modelo.registrarAnalise('MARIA 2 SILVA 4812', {
+        britanica: 1,
+        dias: { britanica: ['05/09/2026'] }
+    });
+
+    assert.equal(AF.modelo.textoIrregularidades('MARIA 2 SILVA 4812'),
+        '*MARIA 2 SILVA\n- Ajustar marcações britânicas, nos dias 05/09.');
+});
+
 test('exportacao do time respeita nomes recebidos, adiciona mes e rotulo do filtro', () => {
     const { AF } = loadModelo();
     AF.modelo.iniciarExecucao('analise', ['ANA', 'BIA', 'CAIO'], 'Outubro 2026');

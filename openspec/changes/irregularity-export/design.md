@@ -35,6 +35,8 @@ Alternativa descartada: janela que se atualiza ao vivo. Exportação costuma ser
 
 **7. Sem novo módulo e sem nova versão.** Tudo cabe em `27` e `60`, então `99-main.user.js` não muda e a instalação Tampermonkey de teste não precisa ser atualizada; recarregar o MyWay basta.
 
+**8. Nome sem o identificador do seletor.** Antes de compor a primeira linha do texto, remover apenas o sufixo final formado por espaços e dígitos (`\s+\d+$`), o mesmo sufixo que a tabela já omite visualmente. Números internos ao nome são mantidos. O nome original segue como chave do modelo e como valor usado na navegação da tabela.
+
 ## Risks / Trade-offs
 
 - **[Contagem sem datas em algum caminho de leitura]** → Há caminhos em que o modelo recebe a contagem sem a lista de dias. A spec exige manter a linha informando a quantidade e que as datas não estão disponíveis, e os testes cobrem Análise e Ajuste para garantir que os dias chegam ao modelo nos fluxos normais.
