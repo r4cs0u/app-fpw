@@ -139,10 +139,16 @@
             'border-bottom:1px solid #374151;text-align:center;flex-shrink:0;' +
             'display:flex;align-items:center;justify-content:space-between;">'
             + '<span style="flex:1;text-align:center;">FolhaF\u00E1cil</span>'
+            + '<div style="display:flex;gap:4px;flex-shrink:0;">'
+            + '<button id="btn-log" title="Log de atividades" style="'
+            + 'background:transparent;border:1px solid #374151;border-radius:5px;'
+            + 'color:#9ca3af;cursor:pointer;font-size:11px;padding:2px 7px;'
+            + 'font-family:Arial,sans-serif;line-height:1.4;flex-shrink:0;">\uD83D\uDCDC</button>'
             + '<button id="btn-instrucoes" title="Instru\u00E7\u00F5es de uso" style="'
             + 'background:transparent;border:1px solid #374151;border-radius:5px;'
             + 'color:#9ca3af;cursor:pointer;font-size:11px;padding:2px 7px;'
             + 'font-family:Arial,sans-serif;line-height:1.4;flex-shrink:0;">\uD83D\uDCD6</button>'
+            + '</div>'
             + '</div>' +
 
             // Botões
@@ -174,6 +180,14 @@
         });
 
         // toggle sidepanel
+        docC.getElementById('btn-log').addEventListener('click', function () {
+            if (AF.log && typeof AF.log.abrirJanela === 'function') {
+                AF.log.abrirJanela();
+            } else {
+                setStatus(docC, 'Log indispon\u00EDvel', '#f87171');
+            }
+        });
+
         docC.getElementById('btn-instrucoes').addEventListener('click', function () {
             var s = docC.getElementById('fpw-sidepanel');
             if (!s) return;
@@ -223,7 +237,6 @@
         docC.getElementById('btn-analisar').onclick = async function () {
             AF.estado.cancelado = false;
             AF.estado.relatorioLista = null;
-            AF.core.limparLogBuffer();
             setBtnCopiar(docC, false);
             setStatus(docC, 'Analisando...', '#60a5fa');
             await AF.analisar.analisarTodas();
@@ -232,7 +245,6 @@
         docC.getElementById('btn-executar').onclick = async function () {
             AF.estado.cancelado = false;
             AF.estado.relatorioLista = null;
-            AF.core.limparLogBuffer();
             setBtnCopiar(docC, false);
             setStatus(docC, 'Ajustando...', '#a78bfa');
             await AF.fases.processarTodas();

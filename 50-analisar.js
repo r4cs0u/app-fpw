@@ -68,64 +68,38 @@
         return total;
     };
 
-    // ── Conta irregularidades ─────────────────────────────────────────
+    // ── Dias com código 47 ───────────────────────────────────────────────
+    // Por padrão só o mês alvo; a Fase 4 do Ajuste também considera a semana de transição.
 
-    AF.analisar.contarIrregs = function () {
-        var inputs = Array.from(AF.core.getDoc1().querySelectorAll('input[name^="Irre"]'));
-        var marc = 0, he = 0, smES = 0;
+    AF.analisar.coletarDiasCod47 = function (opcoes) {
+        opcoes = opcoes || {};
         var alvo = AF.utils.mesAlvoDaTabela();
-
-        for (var i = 0; i < inputs.length; i++) {
-            var inp = inputs[i];
-            var dataStr = AF.mapa.obterDataDoInput(inp);
-            var dataObj = AF.utils.parseDataBR(dataStr);
-            if (!dataObj || !AF.utils.ehMesAlvo(dataObj, alvo)) continue;
-            var v = AF.core.norm(inp.value);
-            if (v.includes('marcacao irregular')) marc++;
-            if (v.includes('hora extra irregular')) he++;
-            if (v.includes('s/marc') || v.includes('smarc')) smES++;
+        var ultimaSemanaId = '';
+        if (opcoes.incluirSemanaTransicao) {
+            ultimaSemanaId = AF.utils.semanaIdBR(new Date(alvo.getFullYear(), alvo.getMonth() + 1, 0));
         }
-
-        return { marc: marc, he: he, smES: smES, total: marc + he + smES };
-    };
-
-    // ── Conta interjornadas ───────────────────────────────────────────────
-
-    AF.analisar.contarInterj = function () {
-        var alvo = AF.utils.mesAlvoDaTabela();
-        var linhas = Array.from(AF.core.getDoc1().querySelectorAll('tr'));
-        var interj = 0;
-
-        for (var j = 0; j < linhas.length; j++) {
-            var txt = (linhas[j].innerText || linhas[j].textContent || '');
-            var mData = txt.match(/\d{2}\/\d{2}\/\d{4}/);
-            if (!mData) continue;
-            var dataObj = AF.utils.parseDataBR(mData[0]);
-            if (!dataObj || !AF.utils.ehMesAlvo(dataObj, alvo)) continue;
-            if (txt.includes('Interjornada')) interj++;
-        }
-
-        return interj;
-    };
-
-    // ── Conta códigos 47 ─────────────────────────────────────────────────────────
-
-    AF.analisar.contarCod47 = function () {
-        var alvo = AF.utils.mesAlvoDaTabela();
         var campos = Array.from(AF.core.getDoc1().querySelectorAll('input[type=text]'));
-        var count = 0;
+        var dias = [];
 
         for (var i = 0; i < campos.length; i++) {
             var inp = campos[i];
             if (!inp.value || inp.value.trim() !== '47') continue;
             var dataStr = AF.mapa.obterDataDoInput(inp);
             var dataObj = AF.utils.parseDataBR(dataStr);
-            if (dataObj && AF.utils.ehMesAlvo(dataObj, alvo)) count++;
+            if (!dataObj) continue;
+            var noEscopo = AF.utils.ehMesAlvo(dataObj, alvo) ||
+                (ultimaSemanaId && AF.utils.semanaIdBR(dataObj) === ultimaSemanaId);
+            if (noEscopo) dias.push(dataStr);
         }
 
-        return count;
+        return dias;
     };
 
+    // ── Conta códigos 47 ─────────────────────────────────────────────────────────
+
+    AF.analisar.contarCod47 = function () {
+        return AF.analisar.coletarDiasCod47().length;
+    };
     // ── Soma HE (cod 2) e HEF (cod 27) ─────────────────────────────────────
 
     AF.analisar.somarHorasExtras = function () {
@@ -194,19 +168,28 @@
 
     AF.analisar.analisarFolhaAtual = function () {
         if (AF.core.paginaVaziaAgora()) {
-            return { vazia: true, folgas: 0, irregs: 0, interj: 0, cod47: 0, HE: '00:00', HEF: '00:00', HEC: '00:00', HEmin: 0, HEFmin: 0 };
+            return {
+                vazia: true, folgas: 0, irregs: 0, interj: 0, cod47: 0, cod47Dias: [],
+                britanica: 0, naoPreenchida: null, dias: null,
+                HE: '00:00', HEF: '00:00', HEC: '00:00', HEmin: 0, HEFmin: 0
+            };
         }
 
-        var irregs   = AF.analisar.contarIrregs();
-        var extras   = AF.analisar.somarHorasExtras();
-        var saldoHEC = AF.analisar.lerSaldoHEC();
+        var deteccao = AF.detector.lerFolhaAtual();
+        var cod47Dias = AF.analisar.coletarDiasCod47();
+        var extras    = AF.analisar.somarHorasExtras();
+        var saldoHEC  = AF.analisar.lerSaldoHEC();
 
         return {
             vazia:  false,
             folgas: AF.analisar.contarFolgas(),
-            irregs: irregs.total,
-            interj: AF.analisar.contarInterj(),
-            cod47:  AF.analisar.contarCod47(),
+            irregs: deteccao.contagens.semES,
+            interj: deteccao.contagens.interj,
+            cod47:  cod47Dias.length,
+            cod47Dias: cod47Dias,
+            britanica: deteccao.contagens.britanica,
+            naoPreenchida: deteccao.naoPreenchida,
+            dias: deteccao.dias,
             HE:     extras.HE,
             HEF:    extras.HEF,
             HEC:    saldoHEC,
@@ -215,6 +198,36 @@
         };
     };
 
+    function logExecucao(acao, a, b) {
+        if (AF.log && typeof AF.log[acao] === 'function') AF.log[acao](a, b);
+    }
+
+    AF.analisar.registrarEventoAnalise = registrarEventoAnalise;
+
+    function datasDe(lista) {
+        return (lista || []).map(function (x) { return x.data; });
+    }
+
+    function registrarEventoAnalise(nome, r) {
+        if (!AF.log || typeof AF.log.evento !== 'function') return;
+        if (r.vazia) {
+            AF.log.evento('analise-folha', { vazia: true }, 'Sem marcacoes.', '#000000');
+            return;
+        }
+        var np = r.naoPreenchida || {};
+        AF.log.evento('analise-folha', {
+            folgasAMovimentar: r.folgas,
+            cod47: { total: r.cod47, dias: r.cod47Dias },
+            semEntradaSaida: { total: r.irregs, dias: datasDe(r.dias && r.dias.semES) },
+            interjornada: { total: r.interj, dias: datasDe(r.dias && r.dias.interj) },
+            marcacaoBritanica: { total: r.britanica, dias: datasDe(r.dias && r.dias.britanica) },
+            folhaNaoPreenchida: np.avaliada
+                ? { sinalizada: np.flag, pctNaoPreenchida: np.pctNaoPreenchida, criterios: np.criterios,
+                    diasVisiveis: np.visiveis, diasPreenchidos: np.preenchidos }
+                : { sinalizada: false, avaliada: false },
+            horasExtras: { HE100: r.HE, HEF100: r.HEF, saldoHEC70: r.HEC }
+        }, 'Analise da folha.', '#6b7280');
+    }
     // ── Loop principal de análise ───────────────────────────────────────────
 
     AF.analisar.analisarTodas = async function () {
@@ -231,6 +244,8 @@
             : new Date();
 
         var nomeMesStr = AF.utils.nomeMes[alvo.getMonth()] + ' ' + alvo.getFullYear();
+        logExecucao('iniciarExecucao', 'analise');
+        AF.estado.ultimaAnalise = AF.estado.ultimaAnalise || {};
         AF.core.log('Analisando ' + nomeMesStr + '...', '#0043ff');
 
         var stats = {
@@ -239,6 +254,8 @@
             folgasMoviveis: 0,
             irregs: 0,
             interj: 0,
+            britanica: 0,
+            naoPreenchidas: 0,
             cod47: 0,
             HEmin: 0,
             HEFmin: 0
@@ -248,6 +265,7 @@
         var sel = AF.core.getSelNome();
         if (!sel) {
             AF.core.log('ERRO: Lista de funcionarios nao encontrada.', '#f87171');
+            logExecucao('encerrarExecucao', 'interrompida', 'lista de funcionarios nao encontrada');
             AF.core.setBotoes(false);
             return;
         }
@@ -267,8 +285,10 @@
             if (AF.estado.cancelado) break;
 
             var nome = AF.core.nomeAtual();
+            logExecucao('definirFuncionario', nome);
             var r    = AF.analisar.analisarFolhaAtual();
             total++;
+            registrarEventoAnalise(nome, r);
 
             if (r.vazia) {
                 stats.vazias++;
@@ -279,16 +299,21 @@
                 stats.irregs         += r.irregs;
                 stats.interj         += r.interj;
                 stats.cod47          += r.cod47;
+                stats.britanica      += r.britanica;
+                if (r.naoPreenchida && r.naoPreenchida.flag) stats.naoPreenchidas++;
                 stats.HEmin          += r.HEmin;
                 stats.HEFmin         += r.HEFmin;
 
-                var temAlgo = r.folgas || r.irregs || r.interj || r.cod47 ||
+                var naoPreench = !!(r.naoPreenchida && r.naoPreenchida.flag);
+                var temAlgo = r.folgas || r.irregs || r.interj || r.cod47 || r.britanica || naoPreench ||
                               r.HE !== '00:00' || r.HEF !== '00:00';
                 if (temAlgo) {
                     var partes = [];
                     if (r.folgas)            partes.push('Folgas:' + r.folgas);
                     partes.push('Irreg:'  + r.irregs);
                     partes.push('Interj:' + r.interj);
+                    if (r.britanica)         partes.push('Brit:'    + r.britanica);
+                    if (naoPreench)          partes.push('NaoPreench:' + r.naoPreenchida.pctNaoPreenchida + '%');
                     if (r.cod47)             partes.push('Cod47:'   + r.cod47);
                     if (r.HE  !== '00:00')   partes.push('HE100%:'  + r.HE);
                     if (r.HEF !== '00:00')   partes.push('HEF100%:' + r.HEF);
@@ -307,8 +332,20 @@
                     cod47:  r.cod47,
                     HE:     r.HE,
                     HEF:    r.HEF,
-                    HEC:    r.HEC
+                    HEC:    r.HEC,
+                    britanica:     r.britanica,
+                    naoPreenchida: r.naoPreenchida,
+                    dias:          r.dias
                 });
+
+                AF.estado.ultimaAnalise[nome] = {
+                    folgas: r.folgas,
+                    cod47:  r.cod47,
+                    semES:  r.irregs,
+                    interj: r.interj,
+                    britanica: r.britanica,
+                    naoPreenchida: naoPreench ? 1 : 0
+                };
             }
 
             if (AF.estado.cancelado) break;
@@ -342,11 +379,12 @@
 
         var tempoMs = Date.now() - inicioExec;
         AF.relatorios.gerarAnalise(stats, lista, nomeMesStr, tempoMs, AF.estado.cancelado);
+        logExecucao('encerrarExecucao', AF.estado.cancelado ? 'cancelada' : 'concluida');
 
         if (!AF.estado.cancelado) AF.sons.tocar('fim');
 
         AF.core.setBotoes(false);
         AF.estado.rodando = false;
     };
-    console.log('[FPW] 50-analisar carregado. versão 1.3 - atualizar cores do log');
+    console.log('[FPW] 50-analisar carregado. versão 1.4 - detector unificado e log estruturado');
 })();

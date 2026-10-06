@@ -13,7 +13,10 @@ function createDocument() {
         const element = {
             style: {},
             children: [],
-            addEventListener() {},
+            addEventListener(type, handler) {
+                this.listeners = this.listeners || {};
+                this.listeners[type] = handler;
+            },
             appendChild(child) {
                 this.children.push(child);
                 child.parentNode = this;
@@ -104,4 +107,43 @@ test('report-ready status retains an unconfirmed user-stop reason', () => {
     const status = doc.getElementById('fpw-status-text').textContent;
     assert.match(status, /Parada solicitada durante a gravacao no rodape/);
     assert.match(status, /resultado nao confirmado/);
+});
+
+test('log button is always enabled, opens the log window and does not touch the run status', () => {
+    const doc = createDocument();
+    let opened = 0;
+    const AF = {
+        estado: { cancelado: false, rodando: true },
+        core: { getDocC: () => doc },
+        relatorios: {},
+        log: { abrirJanela() { opened++; } }
+    };
+    const panel = loadPanel(AF);
+    panel.iniciar(doc);
+
+    const button = doc.getElementById('btn-log');
+    assert.ok(button, 'btn-log must exist');
+    assert.notEqual(button.disabled, true);
+
+    AF.core.setBotoes(true);
+    assert.notEqual(button.disabled, true);
+    const statusBefore = doc.getElementById('fpw-status-text').textContent;
+
+    button.listeners.click();
+
+    assert.equal(opened, 1);
+    assert.equal(doc.getElementById('fpw-status-text').textContent, statusBefore);
+    assert.equal(doc.getElementById('btn-parar').disabled, false);
+    assert.equal(AF.estado.cancelado, false);
+});
+
+test('log button reports when the log module is unavailable', () => {
+    const doc = createDocument();
+    const AF = { estado: {}, core: { getDocC: () => doc }, relatorios: {} };
+    const panel = loadPanel(AF);
+    panel.iniciar(doc);
+
+    doc.getElementById('btn-log').listeners.click();
+
+    assert.match(doc.getElementById('fpw-status-text').textContent, /Log indispon/);
 });

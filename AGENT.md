@@ -20,6 +20,7 @@ Este repositório contém a base funcional do userscript para automação da fol
 
 - Quando o usuário pedir uma atuação no navegador via MCP, planejar o fluxo relacionado como uma única sequência MCP sempre que tecnicamente possível: localizar ou abrir a aba, navegar, inspecionar, executar somente as ações autorizadas e capturar o resultado. Evitar dividir uma mesma atuação em chamadas pequenas que provoquem novos pedidos de permissão.
 - Agrupar as etapas não amplia a autorização: antes de qualquer ação que possa alterar dados, deixar claro o efeito esperado e respeitar o escopo autorizado. Não clicar em aprovação final sem autorização explícita.
+- Inspeção da folha é somente leitura: informar o `pageId` em cada chamada de `evaluate_script`, ler o frame do corpo a partir do `window.top` e devolver JSON estruturado em uma única sequência (listar páginas, escolher a aba da Justificativa e extrair). Não colar nomes de funcionários em documentação ou testes versionados nem manter arquivos temporários com dados da folha; apagar qualquer arquivo temporário ao terminar. Fixtures de teste devem ser sintéticos, derivados da estrutura observada.
 
 ## Investigar falhas comparando com `main`
 
@@ -37,6 +38,7 @@ Este repositório contém a base funcional do userscript para automação da fol
 4. Sempre respeitar campos de edição e ações de gravação como operações write-sensitive.
 5. Tratar a interface como sensível: o script pode operar em dados reais e deve priorizar segurança e previsibilidade.
 6. Tratar temporizadores de espera como limites de segurança e compatibilidade, não como previsão fixa da resposta do FPW; só evidência observada permite continuar.
+7. Detectar irregularidades e marcações lendo os `value` dos campos (`Marc1N`, `Marc2N`, `IrreN`, `CodJustN`) e o cabeçalho do dia. Nunca usar o `innerText` das linhas de marcação como evidência: ele inclui os textos das opções da lista de justificativas (por exemplo, uma opção de interjornada).
 
 ## Condições de parada
 

@@ -5,42 +5,151 @@
     AF.fases = AF.fases || {};
 
     // ── Análise da folha atual ──────────────────────────────────────────
-    // Filtra por mes alvo + semana de transição do ultimo mes
+    // Usa o detector único (25-detector.js), somente leitura, no mês alvo.
 
     AF.fases.analisarFolha = function () {
         if (AF.core.paginaVaziaAgora()) {
-            return { marc: 0, he: 0, smES: 0, interj: 0, vazia: true };
+            return { irregs: 0, semES: 0, interj: 0, britanica: 0, naoPreenchida: null, dias: null, vazia: true };
         }
 
-        var alvo = AF.utils.mesAlvoDaTabela();
-        var inputs = Array.from(AF.core.getDoc1().querySelectorAll('input[name^="Irre"]'));
-        var marc = 0, he = 0, smES = 0;
-
-        for (var i = 0; i < inputs.length; i++) {
-            var inp = inputs[i];
-            var dataStr = AF.mapa.obterDataDoInput(inp);
-            var dataObj = AF.utils.parseDataBR(dataStr);
-            if (!dataObj || !AF.utils.ehMesAlvo(dataObj, alvo)) continue;
-            var v = AF.core.norm(inp.value);
-            if (v.includes('marcacao irregular')) marc++;
-            if (v.includes('hora extra irregular')) he++;
-            if (v.includes('s/marc de entrada/saida')) smES++;
-        }
-
-        var interj = 0;
-        var linhas = Array.from(AF.core.getDoc1().querySelectorAll('tr'));
-        for (var j = 0; j < linhas.length; j++) {
-            var txt = (linhas[j].innerText || linhas[j].textContent || '');
-            var mData = txt.match(/\d{2}\/\d{2}\/\d{4}/);
-            if (!mData) continue;
-            var dObj = AF.utils.parseDataBR(mData[0]);
-            if (!dObj || !AF.utils.ehMesAlvo(dObj, alvo)) continue;
-            if (txt.includes('[Interjornada]')) interj++;
-        }
-
-        return { marc: marc, he: he, smES: smES, interj: interj, vazia: false };
+        var deteccao = AF.detector.lerFolhaAtual();
+        return {
+            irregs: deteccao.contagens.semES,
+            semES: deteccao.contagens.semES,
+            interj: deteccao.contagens.interj,
+            britanica: deteccao.contagens.britanica,
+            naoPreenchida: deteccao.naoPreenchida,
+            dias: deteccao.dias,
+            vazia: false
+        };
     };
 
+    // ── Estado da folha (antes/depois) para o log ────────────────────────
+
+    function datasUnicasOrdenadas(lista) {
+        var vistas = {};
+        var out = [];
+        for (var i = 0; i < lista.length; i++) {
+            if (lista[i] && !vistas[lista[i]]) { vistas[lista[i]] = true; out.push(lista[i]); }
+        }
+        out.sort(function (a, b) {
+            var da = AF.utils.parseDataBR(a), db = AF.utils.parseDataBR(b);
+            return (da ? da.getTime() : 0) - (db ? db.getTime() : 0);
+        });
+        return out;
+    }
+
+    function datasDosItens(itens) {
+        return (itens || []).map(function (x) { return typeof x === 'string' ? x : x && x.dataStr; });
+    }
+
+    function datasDaDeteccao(lista) {
+        return (lista || []).map(function (x) { return x.data; });
+    }
+
+    AF.fases.montarEstadoFolha = function (mapa, deteccao, cod47Dias, folgasAMovimentar) {
+        var folgas = [], ausencias = [], feriados = [], folgasOcultas = [], feriadosOcultos = [], domingosOcultos = [];
+        var semanas = (mapa && mapa.semanas) || {};
+        Object.keys(semanas).forEach(function (chave) {
+            var sem = semanas[chave];
+            folgas = folgas.concat(datasDosItens(sem.folgas));
+            ausencias = ausencias.concat(datasDosItens(sem.ausencias));
+            feriados = feriados.concat(datasDosItens(sem.feriados));
+            folgasOcultas = folgasOcultas.concat(sem.folgasOcultas || []);
+            feriadosOcultos = feriadosOcultos.concat(sem.feriadosOcultos || []);
+            domingosOcultos = domingosOcultos.concat(sem.domingosOcultos || []);
+        });
+
+        var np = deteccao.naoPreenchida || {};
+        return {
+            folgasAMovimentar: folgasAMovimentar,
+            folgas: datasUnicasOrdenadas(folgas),
+            folgasOcultas: datasUnicasOrdenadas(folgasOcultas),
+            ausencias: datasUnicasOrdenadas(ausencias),
+            feriados: datasUnicasOrdenadas(feriados),
+            feriadosOcultos: datasUnicasOrdenadas(feriadosOcultos),
+            domingosOcultos: datasUnicasOrdenadas(domingosOcultos),
+            cod47: datasUnicasOrdenadas(cod47Dias || []),
+            irregularidades: {
+                semEntradaSaida: { total: deteccao.contagens.semES, dias: datasDaDeteccao(deteccao.dias.semES) },
+                interjornada: { total: deteccao.contagens.interj, dias: datasDaDeteccao(deteccao.dias.interj) },
+                marcacaoBritanica: { total: deteccao.contagens.britanica, dias: datasDaDeteccao(deteccao.dias.britanica) },
+                folhaNaoPreenchida: np.avaliada
+                    ? { sinalizada: np.flag, pctNaoPreenchida: np.pctNaoPreenchida, criterios: np.criterios,
+                        diasVisiveis: np.visiveis, diasPreenchidos: np.preenchidos }
+                    : { sinalizada: false, avaliada: false }
+            },
+            contagens: {
+                folgas: folgasAMovimentar,
+                cod47: (cod47Dias || []).length,
+                semES: deteccao.contagens.semES,
+                interj: deteccao.contagens.interj,
+                britanica: deteccao.contagens.britanica,
+                naoPreenchida: np.flag ? 1 : 0
+            },
+            deteccao: deteccao
+        };
+    };
+
+    AF.fases.capturarEstadoFolha = function () {
+        var deteccao = AF.detector.lerFolhaAtual();
+        var mapa = AF.mapa.mapearFolhaAtual();
+        var cod47Dias = AF.analisar.coletarDiasCod47({ incluirSemanaTransicao: true });
+        return AF.fases.montarEstadoFolha(mapa, deteccao, cod47Dias, AF.analisar.contarFolgas());
+    };
+
+    // Compara o estado inicial do Ajuste com a Análise anterior do mesmo funcionário.
+    AF.fases.compararComAnalise = function (contagens, anterior) {
+        var campos = ['folgas', 'cod47', 'semES', 'interj', 'britanica', 'naoPreenchida'];
+        var diffs = [];
+        for (var i = 0; i < campos.length; i++) {
+            var c = campos[i];
+            if (anterior[c] !== undefined && anterior[c] !== contagens[c]) {
+                diffs.push({ campo: c, analise: anterior[c], atual: contagens[c] });
+            }
+        }
+        return diffs;
+    };
+
+    function logEvento(tipo, dados, msg, cor) {
+        if (AF.log && typeof AF.log.evento === 'function') AF.log.evento(tipo, dados, msg, cor);
+    }
+
+    function iniciarLogExecucao(tipo) {
+        if (AF.log && typeof AF.log.iniciarExecucao === 'function') AF.log.iniciarExecucao(tipo);
+    }
+
+    function encerrarLogExecucao(status, detalhe) {
+        if (AF.log && typeof AF.log.encerrarExecucao === 'function') AF.log.encerrarExecucao(status, detalhe);
+    }
+
+    function logFase(fase) {
+        if (AF.log && typeof AF.log.definirFase === 'function') AF.log.definirFase(fase);
+    }
+
+    function resumoOutcome(outcome) {
+        if (!outcome) return null;
+        return { status: outcome.status, stage: outcome.stage, reason: outcome.reason, unconfirmed: !!outcome.unconfirmed };
+    }
+
+    AF.fases.estadoParaLog = function (estado) {
+        var copia = { coletado: true };
+        Object.keys(estado).forEach(function (k) { if (k !== 'deteccao') copia[k] = estado[k]; });
+        return copia;
+    };
+
+    AF.fases.registrarAcaoFolga = function (fase, acao, r, tipo) {
+        var resultado = r.ok ? 'movida' : (r.fatal ? 'falha' : 'sem-alteracao');
+        logEvento('acao-folga', {
+            fase: fase,
+            tipo: tipo || null,
+            ausencia: acao.dataAusencia,
+            origem: acao.dataOrigem,
+            resultado: resultado,
+            outcome: resumoOutcome(r.outcome)
+        }, 'Fase ' + fase + ': ausencia ' + acao.dataAusencia + ' <- origem ' + acao.dataOrigem + ' => ' + resultado,
+            r.ok ? '#a6e3a1' : (r.fatal ? '#f87171' : '#ffb000'));
+    };
     // ── Fase 1 ─────────────────────────────────────────────────────────
     // Re-mapeia a folha a cada rodada para refletir mudanças após cada popup.
 
@@ -60,6 +169,7 @@
             if (rodada.acabou) break;
 
             if (rodada.presa) {
+                rodada.presa.motivo = 'sem destino elegivel na semana (planejador)';
                 presas.push(rodada.presa);
                 datasUsadas.add(rodada.presa.dataFolga);
                 continue;
@@ -71,10 +181,12 @@
 
             AF.core.log('Fase 1: ausencia ' + acao.dataAusencia + ' <- folga ' + acao.dataOrigem, '#0043ff');
             var r = await AF.popup.executarAcaoFolga(acao, execucao);
+            AF.fases.registrarAcaoFolga(1, acao, r, 'visivel');
             if (r.ok) {
                 movidas++;
             } else if (r.semAlteracao) {
-                presas.push({ fase: 1, semanaId: acao.semanaId, dataFolga: acao.dataOrigem, numFolga: acao.numAbrirPopup });
+                presas.push({ fase: 1, semanaId: acao.semanaId, dataFolga: acao.dataOrigem, numFolga: acao.numAbrirPopup,
+                    motivo: 'sem alteracao no popup (destino nao aceito)' });
             }
             if (r.fatal) break;
         }
@@ -107,9 +219,11 @@
             AF.core.log('Fase 2: ausencia ' + acao.dataAusencia + (rodada.tipo === 'visivel' ? ' <- folga ' : ' <- folga oculta ') + acao.dataOrigem, '#0043ff');
 
             var r = await AF.popup.executarAcaoFolga(acao, execucao);
+            AF.fases.registrarAcaoFolga(2, acao, r, rodada.tipo);
             if (r.ok) { movidas++; continue; }
             if (r.fatal) break;
-            if (rodada.tipo === 'oculta') presas.push({ fase: 2, semanaId: acao.semanaId, dataFolga: acao.dataOrigem, numFolga: acao.numAbrirPopup });
+            if (rodada.tipo === 'oculta') presas.push({ fase: 2, semanaId: acao.semanaId, dataFolga: acao.dataOrigem, numFolga: acao.numAbrirPopup,
+                motivo: 'sem alteracao no popup (folga oculta)' });
             break;
         }
 
@@ -192,6 +306,7 @@
 
 			var cod = doc1.querySelector('[name="CodJust' + num + '"]');
 			AF.core.log('Fase 4: ' + dataStr + ' | 47 → 48 | CodJust: ' + (cod ? cod.value : '-'), '#ffb000');
+			logEvento('cod47', { data: dataStr, de: '47', para: '48', codJust: cod ? cod.value : null }, 'Fase 4: ' + dataStr + ' 47 -> 48', '#ffb000');
 		}
 
 		return nsMarcados;
@@ -281,6 +396,7 @@
     AF.fases.processarFolhaAtual = async function (relStats, relLista, relListaMap, execucao) {
         if (!execucao || !execucao.isActive()) return;
         var nome = AF.core.nomeAtual();
+        if (AF.log && typeof AF.log.definirFuncionario === 'function') AF.log.definirFuncionario(nome);
         AF.core.log('\u2500\u2500 ' + nome + ' \u2500\u2500', '#c084fc');
 
         var entry = relListaMap[nome] || relListaMap[nome.trim()];
@@ -288,6 +404,8 @@
         var presasFinais = [];
 
         function salvarProgressoParcial() {
+            logEvento('estado-depois', { coletado: false, motivo: 'folha interrompida antes de concluir' },
+                'Estado depois: nao coletado (folha interrompida).', '#f97316');
             if (!entry) return;
             entry.parcial = true;
             entry.folgasAlteradas = totalMovidas;
@@ -309,6 +427,28 @@
             return;
         }
 
+        try {
+            var estadoAntes = AF.fases.capturarEstadoFolha();
+            AF.estado.preAnalise = AF.estado.preAnalise || {};
+            AF.estado.preAnalise[nome] = estadoAntes.contagens;
+            logEvento('estado-antes', AF.fases.estadoParaLog(estadoAntes), 'Estado antes do ajuste.', '#6b7280');
+            var anterior = AF.estado.ultimaAnalise && AF.estado.ultimaAnalise[nome];
+            if (!anterior) {
+                logEvento('pre-analise', { analiseAnterior: false }, 'Sem analise anterior para este funcionario; estado inicial registrado.', '#6b7280');
+            } else {
+                var diferencas = AF.fases.compararComAnalise(estadoAntes.contagens, anterior);
+                if (diferencas.length) {
+                    logEvento('divergencia-analise', { diferencas: diferencas },
+                        'Estado inicial diverge da analise anterior; usando o estado atual.', '#ffb000');
+                } else {
+                    logEvento('pre-analise', { analiseAnterior: true, divergencia: false }, 'Estado inicial igual ao da analise anterior.', '#6b7280');
+                }
+            }
+        } catch (erroAntes) {
+            AF.core.log('Falha ao registrar o estado inicial: ' + (erroAntes && erroAntes.message ? erroAntes.message : erroAntes), '#ffb000');
+        }
+
+        logFase('fase 1');
         AF.core.log('Processando folgas...', '#0043ff');
         var r1 = await AF.fases.processarFase1(execucao);
         totalMovidas += r1.movidas;
@@ -318,6 +458,7 @@
             return;
         }
 
+        logFase('fase 2');
         var r2 = await AF.fases.processarFase2(execucao);
         totalMovidas += r2.movidas;
         presasFinais = presasFinais.concat(r2.presas);
@@ -326,6 +467,7 @@
             return;
         }
 
+        logFase('fase 3');
         var mapaFinal = AF.mapa.mapearFolhaAtual();
         var presasBase = presasFinais.slice();
         var plano3 = AF.planejamento.planejarFase3(mapaFinal, presasBase);
@@ -337,12 +479,14 @@
             var destino = acao.tipo === 'domingo_oculto' ? 'domingo oculto' : 'feriado';
             AF.core.log('Fase 3 [' + acao.tipo + ']: ausencia ' + acao.dataAusencia + ' <- ' + destino + ' ' + acao.dataOrigem, '#0043ff');
             var r3 = await AF.popup.executarAcaoFolga(acao, execucao);
+            AF.fases.registrarAcaoFolga(3, acao, r3, acao.tipo);
             if (r3.ok) totalMovidas++;
             else if (!r3.fatal) {
                 presasFinais.push({
                     fase: 3,
                     semanaId: acao.semanaId,
-                    dataFolga: acao.dataFolgaOriginal || acao.dataOrigem
+                    dataFolga: acao.dataFolgaOriginal || acao.dataOrigem,
+                    motivo: 'sem alteracao no popup (fase 3)'
                 });
             }
             if (r3.fatal) break;
@@ -353,6 +497,7 @@
             return;
         }
 
+        logFase('fase 4');
         var nsMarcados = AF.fases.processarFase4(execucao);
         var linhas47 = nsMarcados.length;
 
@@ -375,15 +520,28 @@
             return;
         }
 
-        var analise  = AF.fases.analisarFolha();
+        logFase('final');
+        var estadoDepois = null;
+        var contagensDepois;
+        try {
+            estadoDepois = AF.fases.capturarEstadoFolha();
+            contagensDepois = estadoDepois.contagens;
+        } catch (erroDepois) {
+            AF.core.log('Falha ao registrar o estado final: ' + (erroDepois && erroDepois.message ? erroDepois.message : erroDepois), '#ffb000');
+            var analise = AF.fases.analisarFolha();
+            contagensDepois = {
+                semES: analise.irregs, interj: analise.interj, britanica: analise.britanica,
+                naoPreenchida: analise.naoPreenchida && analise.naoPreenchida.flag ? 1 : 0
+            };
+        }
         var extras   = (AF.analisar && AF.analisar.somarHorasExtras) ? AF.analisar.somarHorasExtras() : { HE: '00:00', HEF: '00:00' };
         var saldoHEC = (AF.analisar && AF.analisar.lerSaldoHEC)      ? AF.analisar.lerSaldoHEC()      : '00:00';
 
         relStats.totalFolhas++;
         relStats.folgasAlteradas    += totalMovidas;
         relStats.folgasNaoAlteradas += presasFinais.length;
-        relStats.irregsRestantes    += (analise.marc + analise.he + analise.smES);
-        relStats.interjRestantes    += analise.interj;
+        relStats.irregsRestantes    += contagensDepois.semES;
+        relStats.interjRestantes    += contagensDepois.interj;
         relStats.linhas47           += linhas47;
 
         if (entry) {
@@ -392,12 +550,27 @@
             entry.folgasAlteradas    = totalMovidas;
             entry.folgasSemAlteracao = presasFinais.length;
             entry.linhas47           = linhas47;
-            entry.irregs             = analise.marc + analise.he + analise.smES;
-            entry.interj             = analise.interj;
+            entry.irregs             = contagensDepois.semES;
+            entry.interj             = contagensDepois.interj;
+            entry.britanica          = contagensDepois.britanica;
+            entry.naoPreenchida      = estadoDepois ? estadoDepois.deteccao.naoPreenchida : null;
+            entry.dias               = estadoDepois ? estadoDepois.deteccao.dias : null;
             entry.HE                 = extras.HE;
             entry.HEF                = extras.HEF;
             entry.HEC                = saldoHEC;
         }
+
+        if (estadoDepois) {
+            logEvento('estado-depois', AF.fases.estadoParaLog(estadoDepois), 'Estado depois do ajuste.', '#6b7280');
+        }
+        presasFinais.forEach(function (presa) {
+            logEvento('folga-presa', {
+                fase: presa.fase,
+                data: presa.dataFolga,
+                semana: presa.semanaId,
+                motivo: presa.motivo || 'sem destino elegivel apos as fases 1 a 3'
+            }, 'Folga presa: ' + presa.dataFolga + ' (fase ' + presa.fase + ')', '#ffb000');
+        });
 
         AF.core.log('Folha concluida | Folgas: ' + totalMovidas + ' | Presas: ' + presasFinais.length + ' | 47>48: ' + linhas47 + ' | HE100%: ' + extras.HE + ' | HEF100%: ' + extras.HEF + ' | HEC70%: ' + saldoHEC, '#a6e3a1');
     };
@@ -407,6 +580,7 @@
     AF.fases.processarTodas = async function () {
         AF.estado.cancelado = false;
         var execucao = AF.core.iniciarExecucaoAjuste();
+        iniciarLogExecucao('ajuste');
         AF.estado.falhaPrecondicao = false;
         AF.estado.falhaAjuste = null;
         AF.estado.motivoParadaAjuste = null;
@@ -584,6 +758,13 @@
                     }
                 }
 
+                var falhaFinal = AF.estado.falhaAjuste;
+                var paradaFinal = AF.estado.motivoParadaAjuste;
+                encerrarLogExecucao(
+                    !AF.estado.cancelado ? 'concluida' : (falhaFinal ? 'interrompida' : 'cancelada'),
+                    falhaFinal ? falhaFinal.stage + ': ' + falhaFinal.reason : (paradaFinal ? paradaFinal.reason : '')
+                );
+
                 if (!AF.estado.cancelado) AF.sons.tocar('fim');
                 if (execucao.ativa) {
                     execucao.cancel(AF.estado.cancelado ? 'Ajuste cancelado.' : 'Ajuste concluido.');
@@ -593,5 +774,5 @@
             }
         }
     };
-	console.log('[FPW] 40-fases carregado. versão 1.4 - fix(fase1): re-mapear folha a cada rodada');
+	console.log('[FPW] 40-fases carregado. versão 1.5 - estado antes/depois, pre-analise e eventos estruturados');
 })();

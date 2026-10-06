@@ -12,16 +12,18 @@ The repository uses branch `main` as its stable production reference and branch 
 
 | Module | Current responsibility |
 | --- | --- |
-| `00-core.js` | Shared `AutomacaoFolha` state, frame access, logging, employee navigation, popup interception, and session heartbeat. |
+| `00-core.js` | Shared `AutomacaoFolha` state, frame access, logging entry point (`AF.core.log`), employee navigation, popup interception, and session heartbeat. |
+| `05-log.js` | Structured, accumulated activity log (events with time, execution, employee, phase, and data), plain-text rendering, `sessionStorage` persistence for the tab lifetime, and the log window (view/copy). |
 | `10-utils.js` | Date parsing/formatting, week and target-month helpers, and RJ holiday calculation. |
 | `35-planejamento.js` | Pure phase 1–3 adjustment planning over structured maps; no DOM, frame, popup, or write access. |
 | `20-mapa.js` | Traverses the current body frame to extract descriptors (`coletarItensFolha`) and transforms them into weekly structured maps with classified absences, days off, and holidays (`construirMapaFolha`). |
+| `25-detector.js` | Reads the body frame into structured day rows (read-only) and applies pure detection rules that return the days of each irregularity (Sem Entrada/Saída, Interjornada, Marcação britânica, Folha não preenchida). Shared by analysis and adjustment. |
 | `30-popup.js` | Opens and interacts with the planned-schedule popup used by adjustment flows. |
-| `40-fases.js` | Orchestrates adjustment phases and their popup interactions, changes applicable code 47 entries to 48, and invokes the footer save action when changes were made. Phase 1–3 decisions are delegated to `35-planejamento.js`. |
-| `50-analisar.js` | Runs the read-only analysis across employees and aggregates sheet statistics. |
-| `60-relatorios.js` | Builds TSV and HTML reports and supports report navigation and copying. |
+| `40-fases.js` | Orchestrates adjustment phases and their popup interactions, changes applicable code 47 entries to 48, and invokes the footer save action when changes were made. Phase 1–3 decisions are delegated to `35-planejamento.js`. Before each sheet is changed it records the sheet state (read-only pre-analysis), and it records the state again after the last action. |
+| `50-analisar.js` | Runs the read-only analysis across employees, aggregates sheet statistics, and records a per-employee event with counts and days. |
+| `60-relatorios.js` | Builds TSV and HTML reports and supports report navigation and copying; its log section is grouped from the structured events of the current execution. |
 | `70-sons.js` | Provides optional audio cues for execution and report events. |
-| `80-painel.js` | Builds the injected controls, status display, and instruction side panel. |
+| `80-painel.js` | Builds the injected controls (including the always-available Log button), status display, and instruction side panel. |
 | `85-ambiente.js` | Sets experimental environment, version, repository, and branch metadata. |
 
 The modules share a global `window.AutomacaoFolha` namespace rather than using a bundler or module system. The core and workflow modules access the legacy same-origin frames through `window.top`; the analysis, mapping, popup, and adjustment flows are consequently coupled to the WebPonto DOM and its navigation behavior.
@@ -35,6 +37,21 @@ The modules share a global `window.AutomacaoFolha` namespace rather than using a
 5. The panel and report window display execution status and results.
 
 See [PAGE_STRUCTURE.md](PAGE_STRUCTURE.md) for the observed frames, selectors, readiness conditions, and write-sensitive controls. Follow [AGENT.md](AGENT.md) for stop conditions and the test-installation and session-recovery procedures.
+
+## Sheet detection and activity log
+
+Analysis and adjustment now share one detection path. `25-detector.js` first reads the body frame into rows (day heading, `Marc1N`/`Marc2N`, `IrreN`, `CodJustN`) and then applies pure rules that return the **days** of each occurrence; every count is the length of its day list.
+
+| Category | Rule |
+| --- | --- |
+| Sem Entrada/Saída | Each irregularity row of the target month whose normalized text contains `marcacao irregular`, `hora extra irregular` or `s/marc` (a day with two such rows counts twice). `Ausência de Marcação` rows do not count. |
+| Interjornada | Each target-month day whose **heading** contains the interjornada marker, counted once per day. Row text is never used because it includes the justification select options. |
+| Marcação britânica | Manual (`*`) day entries and exits of the target month, in date order and per field; runs of 3 or more with equal minutes. The value is the number of days in those runs. |
+| Folha não preenchida | Visible target-month days with no mark in any row. Flagged when filled days ≤ `floor(visible / 4)`, or when unfilled consecutive visible days span 7 or more calendar days; the percentage not filled is reported. |
+
+Differences from the previous counters: the two former implementations used different text criteria (`s/marc` versus `s/marc de entrada/saida`; `Interjornada` versus `[Interjornada]`), and `irregs` is now the single Sem Entrada/Saída count. The report table and TSV still show the previous columns; the new categories are stored with each employee entry and written to the log until the report is reworked.
+
+`05-log.js` keeps one accumulated list of structured events for the page session. `AF.core.log` creates events with the current execution, employee and phase, so existing call sites are unchanged. The log persists in `sessionStorage` (debounced writes, flushed at the end of each sheet execution and on `pagehide`), survives a page reload, and is discarded when the tab closes. It is bounded by a conservative character limit because the storage is shared with the site; the oldest events are dropped with a notice, and storage failures never stop a run. An execution still marked as running after a reload is marked as interrupted. Messages and data are sanitized so cookies, tokens, authorization values, and URL query strings are not recorded.
 
 ## Timer and wait inventory
 
@@ -54,7 +71,7 @@ This inventory records the current code, not measured FPW response times. Pollin
 | `40-fases.js`: footer save | Observe body document/load generation every 300 ms up to 12,300 ms, then preserve a further fixed 5,000 ms stabilization after supported reload. | Requires a post-save transition and the supported loaded body structure; no input disappearance/count heuristic. A timeout or inspection error is unconfirmed, not success. | Adjustment-owned and run-cancellable. |
 | `40-fases.js`: first employee selection | Preserve a 6,000 ms minimum stabilization while polling every 500 ms up to the 16,500 ms employee-readiness deadline. | Requires a post-selection transition and supported body structure; empty sheets are ready; timeout/error stops before processing that page. | Adjustment startup only. Later adjustment selection passes its run to `core.avancarFuncionario`; read-only analysis without a run retains legacy navigation. |
 | `99-main.user.js`: panel setup | Poll every 500 ms for up to about 60.5 seconds (121st tick) for the header selector; a frame `load` schedules a zero-delay recheck; watchdog every 2 seconds. | Waits for initial panel prerequisites and restores the panel after header navigation. | Application startup/UI lifecycle, not adjustment-owned. |
-| `60-relatorios.js`: report copy feedback | 2,500 ms after successful clipboard write. | Resets temporary visual “copied” button feedback. | Report UI only; no automation readiness meaning. |
+copied button feedback. | Report UI only; no automation readiness meaning. |“copied” button feedback. | Report UI only; no automation readiness meaning. |
 | `70-sons.js`: audio sequences | Per-note offsets derived from note durations/delays; completion jingle has a 900 ms initial offset. | Schedules optional audio cues. | Sound/UI only; no automation readiness meaning. |
 
 For adjustment work, preserve the existing compatibility delays initially and distinguish them from polling cadence and newly named maximum safety deadlines. Deadlines bound unresolved uncertainty; their values and rationale must not be represented as expected system response times. No per-delay historical cause or live adjustment timing measurement is established by this inventory. Heartbeat, analysis, report, sound, startup, and shared-navigation behavior are classified here to make scope explicit, not authorized for unrelated changes.
@@ -83,6 +100,7 @@ The [session-liveness specification](openspec/specs/session-liveness/spec.md) co
 - Readiness and navigation handling use polling and timing assumptions in some workflows; a selector or page-contract change can affect automation.
 - Error handling and runtime diagnostics are inconsistent, so some failures may be hard to distinguish from empty or completed results.
 - Loading remote JavaScript with `eval` means runtime behavior depends on the ordered files published on the test branch and on Tampermonkey's cross-origin request grant.
+- Mark-based rules (British marking and Folha não preenchida) depend on the `Marc1N`/`Marc2N` fields observed on the page; if those fields are absent the categories are reported as not evaluated rather than as zero.
 - The automated adjustment flow includes write-sensitive interactions. Human supervision and the stop conditions in `AGENT.md` remain essential.
 
 These are constraints for future work, not claims that the present workflow has already been remodularized or comprehensively tested. See [ROADMAP.md](ROADMAP.md) for the recommended order of improvement.

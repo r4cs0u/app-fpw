@@ -145,7 +145,10 @@
                 interj: foiLido ? (jr.interj             != null ? jr.interj             : 0) : null,
                 he: jhe, hef: jhef, hec: jhec,
                 lido: foiLido,
-                parcial: parcial
+                parcial: parcial,
+                britanica: foiLido ? (jr.britanica != null ? jr.britanica : 0) : null,
+                naoPreenchida: foiLido ? (jr.naoPreenchida || null) : null,
+                dias: foiLido ? (jr.dias || null) : null
             });
         }
 
@@ -159,7 +162,7 @@
             tempo:   minutos + 'min ' + segundos + 's',
             gerado:  new Date().toLocaleString('pt-BR')
         };
-        AF.estado.relatorioLog = (AF.estado.logBuffer || []).slice();
+        AF.estado.relatorioLog = logDaExecucaoAtual();
 
         AF.relatorios.habilitarCopiar('Relatório de Ajuste');
 
@@ -231,7 +234,10 @@
                 he:  foiLido ? normHora(jr.HE)  : null,
                 hef: foiLido ? normHora(jr.HEF) : null,
                 hec: foiLido ? normHora(jr.HEC) : null,
-                lido: foiLido
+                lido: foiLido,
+                britanica: foiLido ? (jr.britanica != null ? jr.britanica : 0) : null,
+                naoPreenchida: foiLido ? (jr.naoPreenchida || null) : null,
+                dias: foiLido ? (jr.dias || null) : null
             });
         }
         // ordenação alfabética inicial (sem acentos)
@@ -248,7 +254,7 @@
             tempo:   min + 'min ' + seg + 's',
             gerado:  new Date().toLocaleString('pt-BR')
         };
-        AF.estado.relatorioLog = (AF.estado.logBuffer || []).slice();
+        AF.estado.relatorioLog = logDaExecucaoAtual();
 
         AF.relatorios.habilitarCopiar('Relatório de Análise');
 
@@ -261,26 +267,31 @@
         AF.core.log('Relatorio pronto.', '#02ab19');
     };
 
-    // ── Parser do logBuffer → grupos por funcionário ───────────────
+    // ── Log da execução atual e agrupamento por funcionário ────────
+
+    function logDaExecucaoAtual() {
+        if (AF.log && typeof AF.log.eventosDaExecucao === 'function') {
+            return AF.log.eventosDaExecucao().map(function (e) {
+                return { msg: e.msg, cor: e.cor, func: e.func };
+            });
+        }
+        return (AF.estado.logBuffer || []).slice();
+    }
 
     function parsearLogPorFuncionario(buffer) {
-        var grupos   = [];
-        var atual    = null;
-        var sepRe    = /^\u2500+ (.+?) \u2500+$/;
-
+        var grupos = [];
+        var indice = {};
         for (var i = 0; i < buffer.length; i++) {
             var item = buffer[i];
-            var match = sepRe.exec(item.msg);
-            if (match) {
-                atual = { nome: match[1].trim(), linhas: [] };
-                grupos.push(atual);
-            } else if (atual) {
-                atual.linhas.push(item);
+            if (!item.func) continue;
+            if (!indice.hasOwnProperty(item.func)) {
+                indice[item.func] = grupos.length;
+                grupos.push({ nome: item.func, linhas: [] });
             }
+            grupos[indice[item.func]].linhas.push(item);
         }
         return grupos;
     }
-
     // ── Gerar HTML da janela ───────────────────────────────────────
 
     function gerarHTML(lista, meta, tipo, tsv, logBuffer) {
@@ -762,5 +773,5 @@
         };
     };
 
-    console.log('[FPW] 60-relatorios carregado | v1.3');
+    console.log('[FPW] 60-relatorios carregado | v1.4 - log por execucao');
 })();

@@ -36,6 +36,17 @@ The header and footer use body class `Painel`; the body document uses body class
 - Table rows, inputs, and selects vary with the selected employee and period. Never use observed row/control counts as selectors or assume every selection has the same shape.
 - A day with no row on the page does not by itself identify a folga; non-rendered days may be ordinary worked days. Only dates confirmed as non-worked by schedule or calendar (such as hidden Sundays or supported holidays) can be treated as non-worked origins.
 
+### Day rows and marks (observed 2026-10-05, read-only, three sheets)
+
+- Each day is a day-heading `<tr>` followed by one or more mark rows. The heading holds the date (`DD/MM/YYYY` plus weekday), the planned schedule (`Horário: HH:MM às HH:MM (...)`, or `Horário: Folga` / `Horário: Feriado`), a code token, and optional markers in `<b>`. The marker `[Interjornada]` appears in the heading, never in the mark rows.
+- Each mark row carries fields suffixed by a global row index `N` (not a per-day index): `Marc1N` (left mark), `Marc2N` (right mark), `IrreN` (irregularity text), `lstNomeN` (justification select), `CodJustN` (justification code) and `HorasInfN` (informed hours). Read marks from the field `value`, never from the row `innerText`.
+- `innerText` of a mark row includes the text of every `<option>` of its justification select (one option mentions interjornada), so row text is not evidence of an irregularity.
+- A mark value is `HH:MM` plus a one-character suffix. Observed origins: no suffix (a trailing space) is the time clock, `M` is the mobile app, `W` is the web, and `*` is a manual entry. Only `*` entries are treated as manually typed.
+- A day can have one to four (or more) rows. Rows are usually chained: `Marc1` of a row repeats `Marc2` of the previous row (a split of the shift, not a new mark). A final row can also be independent (both marks present, not chained) or orphan (only `Marc1`, usually with `Hora Extra Irregular`).
+- Day entry is the left mark of the first row. Day exit is the right mark of the last row that has a right mark. An orphan last row with an empty right mark does not remove the exit of the previous rows.
+- Observed `IrreN` values: blank, `Hora Extra`, `Hora Extra Irregular`, `s/marc de entrada/saída`, `Ausência de Marcação` and `Saída Antecipada`. Days with `Ausência de Marcação` have empty `Marc1N`/`Marc2N` and are often justified as a folga (code 48). Accents in these texts must be handled by normalizing before comparing.
+- Rows from the transition week of the next month are also rendered; counts for the target month must filter by the date of the day heading.
+
 ## Footer (`bottomFrame`)
 
 - Contains summary fields and the `btnAprovar` / `btnGravar` controls.

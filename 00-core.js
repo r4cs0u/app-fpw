@@ -1,10 +1,10 @@
 window.AutomacaoFolha = window.AutomacaoFolha || {
     ambiente: 'test',
-    versao: '9.8-test',
+    versao: '9.9-test',
     meta: {
         nome: 'app-fpw',
         ambiente: 'test',
-        versao: '9.8-test'
+        versao: '9.9-test'
     },
     estado: {
         cancelado: false,
@@ -615,10 +615,14 @@ window.AutomacaoFolha = window.AutomacaoFolha || {
         return (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
     };
 
-    AF.core.log = function (msg, cor) {
-        // Acumula no buffer para uso na janela de relatório
-        AF.estado.logBuffer = AF.estado.logBuffer || [];
-        AF.estado.logBuffer.push({ msg: msg, cor: cor || '#f9fafb' });
+    AF.core.log = function (msg, cor, opcoes) {
+        // Acumula no log estruturado (05-log.js); sem ele, mantém o buffer simples
+        if (AF.log && typeof AF.log.registrar === 'function') {
+            AF.log.registrar(msg, cor, opcoes);
+        } else {
+            AF.estado.logBuffer = AF.estado.logBuffer || [];
+            AF.estado.logBuffer.push({ msg: msg, cor: cor || '#f9fafb' });
+        }
 
         try {
             var docC = AF.core.getDocC();
@@ -682,7 +686,15 @@ window.AutomacaoFolha = window.AutomacaoFolha || {
             if (AF.estado.falhaAjuste.unconfirmed) texto += ' (resultado nao confirmado)';
         }
 
-        AF.core.log(texto, outcome.status === 'cancelled' ? '#f97316' : '#f87171');
+        AF.core.log(texto, outcome.status === 'cancelled' ? '#f97316' : '#f87171', {
+            tipo: outcome.status === 'cancelled' ? 'parada' : 'falha',
+            dados: {
+                status: outcome.status,
+                stage: outcome.stage || null,
+                reason: outcome.reason || null,
+                unconfirmed: !!outcome.unconfirmed
+            }
+        });
         if (AF.painel && typeof AF.painel.setStatus === 'function') {
             AF.painel.setStatus(texto, outcome.status === 'cancelled' ? '#f97316' : '#f87171');
         }
