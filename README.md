@@ -41,7 +41,7 @@ Ao acessar a página do WebPonto, o script carrega os módulos necessários e in
 3. clicar em “Ajustar” para executar a correção automatizada de folgas e pendências;
 4. revisar os resultados e confirmar manualmente as ações finais.
 
-Na janela do relatório, o ícone no fim de cada linha copia as irregularidades daquele funcionário. O botão **Exportar irregularidades** abre o texto dos funcionários atualmente visíveis; portanto, filtros e extremos ativos também limitam a exportação. O texto lista todas as irregularidades de cada pessoa incluída, usa datas em `dd/mm` e pode ser copiado na própria janela.
+Na janela do relatório, o ícone no fim de cada linha copia as irregularidades daquele funcionário. O botão **Exportar irregularidades** abre o texto dos funcionários atualmente visíveis; portanto, filtros e extremos ativos também limitam a exportação. O texto lista as irregularidades por pessoa, usa datas em `dd/mm` e pode ser copiado na própria janela. Quando Folha não preenchida está sinalizada, o texto mostra somente o aviso de preenchimento e a porcentagem, sem as outras linhas de irregularidade.
 
 ## Benefícios
 

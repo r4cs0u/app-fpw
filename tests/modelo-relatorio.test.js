@@ -355,8 +355,7 @@ test('exportacao gera todas as linhas na ordem definida e informa quando faltam 
             semES: [{ data: '27/09/2026' }, '01/09/2026', '03/09/2026'],
             interj: [{ data: '07/09/2026' }],
             britanica: ['06/09/2026', '04/09/2026', '05/09/2026']
-        },
-        naoPreenchida: { avaliada: true, flag: true, pctNaoPreenchida: 73 }
+        }
     });
     AF.modelo.registrarAnalise('BIA', { irregs: 2, interj: 0, britanica: 0 });
 
@@ -364,11 +363,29 @@ test('exportacao gera todas as linhas na ordem definida e informa quando faltam 
         '*ANA',
         '- s/marcação de entrada ou saída nos dias, 01/09, 03/09, 27/09.',
         '- Checar se interjornada é devida nos dias, 07/09.',
-        '- Ajustar marcações britânicas, nos dias 04/09, 05/09, 06/09.',
-        '- Realizar o preenchimento da folha (73% dos dias sem marcação).'
+        '- Ajustar marcações britânicas, nos dias 04/09, 05/09, 06/09.'
     ].join('\n'));
     assert.equal(AF.modelo.textoIrregularidades('BIA'),
         '*BIA\n- s/marcação de entrada ou saída nos dias, (2 ocorrências; datas não disponíveis).');
+});
+
+test('folha nao preenchida exporta somente o aviso e suprime as outras irregularidades', () => {
+    const { AF } = loadModelo();
+    AF.modelo.iniciarExecucao('analise', ['THALES']);
+    AF.modelo.registrarAnalise('THALES', {
+        irregs: 5,
+        interj: 2,
+        britanica: 3,
+        dias: {
+            semES: ['01/09/2026', '03/09/2026'],
+            interj: ['05/09/2026', '06/09/2026'],
+            britanica: ['02/09/2026', '08/09/2026', '15/09/2026']
+        },
+        naoPreenchida: { avaliada: true, flag: true, pctNaoPreenchida: 79 }
+    });
+
+    assert.equal(AF.modelo.textoIrregularidades('THALES'),
+        '*THALES\n- Realizar o preenchimento da folha (79% dos dias sem marcação).');
 });
 
 test('exportacao omite sem irregularidades, folha vazia e funcionario nao processado', () => {

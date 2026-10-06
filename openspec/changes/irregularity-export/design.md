@@ -37,6 +37,8 @@ Alternativa descartada: janela que se atualiza ao vivo. Exportação costuma ser
 
 **8. Nome sem o identificador do seletor.** Antes de compor a primeira linha do texto, remover apenas o sufixo final formado por espaços e dígitos (`\s+\d+$`), o mesmo sufixo que a tabela já omite visualmente. Números internos ao nome são mantidos. O nome original segue como chave do modelo e como valor usado na navegação da tabela.
 
+**9. Prioridade da folha não preenchida na exportação.** Quando a leitura sinalizar Folha não preenchida, montar somente o aviso dessa condição e a porcentagem; não acrescentar linhas de Sem Entrada/Saída, Interjornada ou Marcações britânicas. A tabela e os indicadores continuam exibindo as detecções normalmente; a exclusividade vale apenas para o texto de exportação, evitando mensagens redundantes de correção.
+
 ## Risks / Trade-offs
 
 - **[Contagem sem datas em algum caminho de leitura]** → Há caminhos em que o modelo recebe a contagem sem a lista de dias. A spec exige manter a linha informando a quantidade e que as datas não estão disponíveis, e os testes cobrem Análise e Ajuste para garantir que os dias chegam ao modelo nos fluxos normais.

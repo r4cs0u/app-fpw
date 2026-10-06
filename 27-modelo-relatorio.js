@@ -702,15 +702,16 @@
         if (!f.processado || f.vazia) return '';
 
         var linhas = [];
-        var semES = linhaIrregularidade(f.semES, '- s/marcação de entrada ou saída nos dias,');
-        var interj = linhaIrregularidade(f.interj, '- Checar se interjornada é devida nos dias,');
-        var britanica = linhaIrregularidade(f.britanica, '- Ajustar marcações britânicas, nos dias');
-        if (semES) linhas.push(semES);
-        if (interj) linhas.push(interj);
-        if (britanica) linhas.push(britanica);
         if (f.naoPreenchida.sinalizada) {
             var pct = f.naoPreenchida.pct;
             linhas.push('- Realizar o preenchimento da folha (' + (pct == null ? '-' : pct) + '% dos dias sem marcação).');
+        } else {
+            var semES = linhaIrregularidade(f.semES, '- s/marcação de entrada ou saída nos dias,');
+            var interj = linhaIrregularidade(f.interj, '- Checar se interjornada é devida nos dias,');
+            var britanica = linhaIrregularidade(f.britanica, '- Ajustar marcações britânicas, nos dias');
+            if (semES) linhas.push(semES);
+            if (interj) linhas.push(interj);
+            if (britanica) linhas.push(britanica);
         }
         return linhas.length ? '*' + nomeParaExportacao(f.nome) + '\n' + linhas.join('\n') : '';
     };
