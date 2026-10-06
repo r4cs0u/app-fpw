@@ -42,7 +42,7 @@ Evoluir primeiro a previsibilidade, a capacidade de testar e a segurança operac
 
 **Concluída quando:** as regras escolhidas têm exemplos automatizados para resultados esperados e casos-limite, e existe um comando documentado que os executa de forma repetível.
 
-**Estado:** critérios atendidos. A suíte (`node --test`, documentado no [README.md](README.md)) cobre datas, planejamento de ajustes, mapeamento da folha, detector, modelo do relatório, esperas e a interface do relatório, com 172 testes aprovados em 2026-10-06. Novas regras devem continuar entrando com testes.
+**Estado:** critérios atendidos. A suíte (`node --test`, documentado no [README.md](README.md)) cobre datas, planejamento de ajustes, mapeamento da folha, detector, modelo do relatório, esperas e a interface do relatório, com 181 testes aprovados em 2026-10-06. Novas regras devem continuar entrando com testes.
 
 ### 3. Separar gradualmente as regras da página
 
@@ -52,7 +52,7 @@ Evoluir primeiro a previsibilidade, a capacidade de testar e a segurança operac
 
 **Concluída quando:** as principais regras de negócio podem ser testadas com dados de exemplo sem DOM, e os fluxos existentes continuam produzindo os resultados esperados em validações controladas.
 
-**Progresso:** em andamento. O mapeamento da folha e o planejamento de ajustes foram extraídos, e `sheet-detector-and-log` (arquivada; ver etapa 5) trouxe a leitura da folha em linhas estruturadas e a detecção pura, com os dias de cada irregularidade, usada por Análise e Ajuste. `unified-live-report` e `irregularity-export` seguiram o mesmo princípio: o modelo do relatório e o texto de irregularidades são funções puras testadas sem DOM. `extract-sheet-reading-rules` separa em `37-regras-folha.js` quatro regras de leitura usadas pela Análise: contagem de folgas, escopo dos dias com código 47, totalização das horas extras e interpretação do saldo compensável. A implementação, a suíte automatizada (181 testes) e a validação de runtime na versão `9.11-test` estão concluídas. Uma tentativa de Ajuste feita na validação parou na Fase 3 por `popup-readiness`, sem gravação, em código não alterado por esta mudança; a causa permanece sem investigação. A leitura do DOM fica nos adaptadores de `50-analisar.js`; `processarFase4` e demais interações de gravação permanecem fora desta extração. Ainda falta avaliar e isolar outras fronteiras entre DOM, regras e orquestração nos fluxos de Análise e Ajuste.
+**Progresso:** em andamento. O mapeamento da folha e o planejamento de ajustes foram extraídos, e `sheet-detector-and-log` (arquivada; ver etapa 5) trouxe a leitura da folha em linhas estruturadas e a detecção pura, com os dias de cada irregularidade, usada por Análise e Ajuste. `unified-live-report` e `irregularity-export` seguiram o mesmo princípio: o modelo do relatório e o texto de irregularidades são funções puras testadas sem DOM. `extract-sheet-reading-rules` (arquivada) separa em `37-regras-folha.js` quatro regras de leitura usadas pela Análise: contagem de folgas, escopo dos dias com código 47, totalização das horas extras e interpretação do saldo compensável. A implementação, a suíte automatizada (181 testes) e a validação de runtime na versão `9.11-test` estão concluídas. Uma tentativa de Ajuste feita na validação parou na Fase 3 por `popup-readiness`, sem gravação, em código não alterado por esta mudança; a causa permanece sem investigação. A leitura do DOM fica nos adaptadores de `50-analisar.js`; `processarFase4` e demais interações de gravação permanecem fora desta extração. Ainda falta avaliar e isolar outras fronteiras entre DOM, regras e orquestração nos fluxos de Análise e Ajuste.
 
 ### 4. Reforçar segurança e diagnóstico das ações que alteram dados
 
@@ -72,13 +72,19 @@ Evoluir primeiro a previsibilidade, a capacidade de testar e a segurança operac
 
 **Concluída quando:** não é uma entrega única. Cada funcionalidade aprovada tem critérios de aceitação, validação compatível com seu risco e decisão explícita sobre eventual promoção para a linha estável.
 
-**Progresso:** A, B e C foram concluídas e arquivadas; seus requisitos duráveis estão em `openspec/specs/`. Todas estão publicadas apenas na branch `test`, sem promoção para `main`. A validação de C em runtime foi somente leitura via MCP e não incluiu Análise nem Ajuste.
+**Progresso:** A, B e C foram concluídas e arquivadas; seus requisitos duráveis estão em `openspec/specs/`. Todas estão publicadas apenas na branch `test`, sem promoção para `main`; a promoção fica para depois de mais melhorias e validações na versão de teste. A validação de C em runtime foi somente leitura via MCP e não incluiu Análise nem Ajuste. Ao promover, considerar que `main` tem o commit `74524c6` (reversão de uma promoção anterior) que `test` não tem; verificar o que ele reverteu antes de integrar.
 
 1. **`sheet-detector-and-log` (A, concluída e arquivada):** fundação com detector de folha unificado e log estruturado.
 2. **`unified-live-report` (B, concluída e arquivada):** modelo único por funcionário (`27-modelo-relatorio.js`), Análise e Ajuste coexistindo, botão Relatório sempre disponível com janela ao vivo (`60-relatorios.js`), frações de progresso (`movidas/(movidas+presas)`), cores por estado, colunas abertas de irregularidade, indicadores no topo com filtros rápidos e persistência na sessão.
 3. **`irregularity-export` (C, concluída e arquivada):** texto copiável por pessoa e pela lista visível do time, com os dias de cada irregularidade; ícone por linha e janela "Exportar irregularidades" que respeita filtros e extremos.
 
 Decisões de produto já tomadas para B e C: a fração usa a Análise como denominador e o Ajuste como numerador, e Ajustar repetido acumula sobre a mesma linha de base; uma nova Análise volta ao valor inteiro.
+
+## Pendências conhecidas
+
+- **Promoção para `main`:** adiada por decisão do responsável; ainda há melhorias e validações previstas na versão de teste. Ver a observação sobre o commit `74524c6` na Etapa 5.
+- **Keepalive (`iniciarKeepAlive`):** hoje apenas faz um `GET` na própria página do WebPonto a cada 2 min. Segundo o responsável, a sessão do MyWay depende de uma página Oracle e, quando ela cai, tudo cai junto; o keepalive atual não cobre essa dependência. A ser investigado e tratado como mudança própria.
+- **Timeout de `popup-readiness` no Ajuste:** ocorreu uma vez na Fase 3 (parada de segurança, sem gravação). Em observação; se voltar, investigar e considerar registrar no log o caminho e o estado do popup no momento do timeout.
 
 ## Princípios para a execução
 
