@@ -199,3 +199,88 @@ test('1.6: Persistencia e recuperacao de execucao interrompida', () => {
     assert.equal(estado.execs.analise.status, 'interrompida');
     assert.equal(m2.AF.modelo.obterDadosFunc('ANA').folgas.texto, '2');
 });
+
+test('Ajuste apos Analise mantem as irregularidades (lista de dias do detector, nao so o total)', () => {
+    const { AF } = loadModelo();
+    AF.modelo.iniciarExecucao('analise', ['ANA']);
+    AF.modelo.registrarAnalise('ANA', {
+        folgas: 2, irregs: 4, interj: 1, britanica: 3,
+        dias: { semES: [{ data: '08/09/2026' }], interj: [{ data: '05/09/2026' }], britanica: [{ data: '02/09/2026' }] },
+        naoPreenchida: { avaliada: true, flag: true, pctNaoPreenchida: 40, criterios: ['fracao'], visiveis: 20, preenchidos: 12 },
+        HE: '01:00', HEF: '00:00', HEC: '-02:00'
+    });
+
+    // Formato real enviado por 40-fases: {total, dias}
+    AF.modelo.iniciarExecucao('ajuste', null);
+    AF.modelo.registrarAjuste('ANA', {
+        movidas: 2, presas: [], cod47Conv: 0, cod47Rest: 0,
+        leitura: {
+            semES: { total: 4, dias: [{ data: '08/09/2026' }] },
+            interj: { total: 1, dias: [{ data: '05/09/2026' }] },
+            britanica: { total: 3, dias: [{ data: '02/09/2026' }] },
+            naoPreenchida: { avaliada: true, flag: true, pctNaoPreenchida: 40, criterios: ['fracao'], visiveis: 20, preenchidos: 12 },
+            HE: '01:00', HEF: '00:00', HEC: '-02:00'
+        }
+    });
+
+    const d = AF.modelo.obterDadosFunc('ANA');
+    assert.equal(d.semES.total, 4);
+    assert.equal(d.interj.total, 1);
+    assert.equal(d.britanica.total, 3);
+    assert.equal(d.naoPreenchida.texto, '40%');
+    assert.equal(d.HEC, '-02:00');
+});
+
+test('o modelo tambem aceita a lista de dias pura (array) sem perder o total', () => {
+    const { AF } = loadModelo();
+    AF.modelo.iniciarExecucao('ajuste', ['ANA']);
+    AF.modelo.registrarAjuste('ANA', {
+        movidas: 0, presas: [],
+        leitura: {
+            semES: [{ data: '08/09/2026' }, { data: '09/09/2026' }],
+            interj: [],
+            britanica: [{ data: '02/09/2026' }, { data: '10/09/2026' }, { data: '15/09/2026' }],
+            HE: '00:00', HEF: '00:00', HEC: '00:00'
+        }
+    });
+    const d = AF.modelo.obterDadosFunc('ANA');
+    assert.equal(d.semES.total, 2);
+    assert.equal(d.interj.total, 0);
+    assert.equal(d.britanica.total, 3);
+    assert.equal(plain(d.britanica.dias).length, 3);
+});
+
+test('folha sem marcacoes mostra "-" em todas as colunas, na Analise e no Ajuste', () => {
+    const { AF } = loadModelo();
+    AF.modelo.iniciarExecucao('analise', ['VAZIA']);
+    AF.modelo.registrarSemMarcacoes('VAZIA', 'analise');
+    AF.modelo.iniciarExecucao('ajuste', null);
+    AF.modelo.registrarSemMarcacoes('VAZIA', 'ajuste');
+
+    const d = AF.modelo.obterDadosFunc('VAZIA');
+    assert.equal(d.processado, true);
+    assert.equal(d.vazia, true);
+    assert.equal(d.folgas.texto, '-');
+    assert.equal(d.cod47.texto, '-');
+    assert.equal(d.semES.total, null);
+    assert.equal(d.interj.total, null);
+    assert.equal(d.britanica.total, null);
+    assert.equal(d.naoPreenchida.texto, '-');
+    assert.equal(d.HE, null);
+    assert.equal(d.HEF, null);
+    assert.equal(d.HEC, null);
+});
+
+test('folha sem marcacoes nao entra nos indicadores, nos filtros nem no TSV', () => {
+    const { AF } = loadModelo();
+    AF.modelo.iniciarExecucao('analise', ['VAZIA', 'ANA']);
+    AF.modelo.registrarSemMarcacoes('VAZIA', 'analise');
+    AF.modelo.registrarAnalise('ANA', { folgas: 3, irregs: 2, HE: '01:00' });
+
+    const resumo = AF.modelo.resumo();
+    assert.equal(resumo.folgas.pendentes, 3);
+    assert.equal(resumo.irregularidades.semES.funcs, 1);
+    assert.deepEqual(plain(AF.modelo.filtrar('pendentes')), ['ANA']);
+    assert.deepEqual(plain(AF.modelo.filtrar('semES')), ['ANA']);
+    assert.doesNotMatch(AF.modelo.tsv(), /VAZIA/);
+});

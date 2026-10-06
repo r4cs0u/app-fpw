@@ -97,6 +97,13 @@
         }
     };
 
+    // Aceita a lista de dias (array de strings ou de {data}) ou o objeto {total, dias}.
+    function normalizarOcorrencias(v) {
+        if (v === null || v === undefined) return { total: 0, dias: [] };
+        if (Array.isArray(v)) return { total: v.length, dias: v };
+        return { total: v.total != null ? v.total : (v.dias ? v.dias.length : 0), dias: v.dias || [] };
+    }
+
     // ── Inicialização de funcionário ────────────────────────────────────
 
     function obterOuCriarFunc(nome) {
@@ -192,9 +199,9 @@
         f.leitura = {
             ts: Date.now(),
             origem: 'analise',
-            semES: dados.dias && dados.dias.semES ? { total: dados.irregs || 0, dias: dados.dias.semES } : { total: dados.irregs || 0, dias: [] },
-            interj: dados.dias && dados.dias.interj ? { total: dados.interj || 0, dias: dados.dias.interj } : { total: dados.interj || 0, dias: [] },
-            britanica: dados.dias && dados.dias.britanica ? { total: dados.britanica || 0, dias: dados.dias.britanica } : { total: dados.britanica || 0, dias: [] },
+            semES: { total: dados.irregs || 0, dias: (dados.dias && dados.dias.semES) || [] },
+            interj: { total: dados.interj || 0, dias: (dados.dias && dados.dias.interj) || [] },
+            britanica: { total: dados.britanica || 0, dias: (dados.dias && dados.dias.britanica) || [] },
             naoPreenchida: dados.naoPreenchida || { avaliada: false, flag: false, pctNaoPreenchida: 0, criterios: [], visiveis: 0, preenchidos: 0 },
             HE: dados.HE || '00:00',
             HEF: dados.HEF || '00:00',
@@ -225,9 +232,9 @@
             f.leitura = {
                 ts: Date.now(),
                 origem: 'ajuste',
-                semES: dados.leitura.semES || { total: 0, dias: [] },
-                interj: dados.leitura.interj || { total: 0, dias: [] },
-                britanica: dados.leitura.britanica || { total: 0, dias: [] },
+                semES: normalizarOcorrencias(dados.leitura.semES),
+                interj: normalizarOcorrencias(dados.leitura.interj),
+                britanica: normalizarOcorrencias(dados.leitura.britanica),
                 naoPreenchida: dados.leitura.naoPreenchida || { avaliada: false, flag: false, pctNaoPreenchida: 0, criterios: [], visiveis: 0, preenchidos: 0 },
                 HE: dados.leitura.HE || '00:00',
                 HEF: dados.leitura.HEF || '00:00',
@@ -295,6 +302,25 @@
 
         var vazia = !!f.vazia;
         var parcial = !!(f.ajuste && f.ajuste.parcial);
+
+        // Folha sem marcações: foi lida, mas não há dados; todas as colunas mostram '-'.
+        if (vazia) {
+            return {
+                nome: nome,
+                processado: true,
+                vazia: true,
+                parcial: false,
+                folgas: { texto: '-', estado: 'nao-processado', num: 0, den: 0, presas: 0, presasDetalhe: [] },
+                cod47: { texto: '-', estado: 'nao-processado', num: 0, den: 0, rest: 0, dias: [] },
+                semES: { total: null, dias: [] },
+                interj: { total: null, dias: [] },
+                britanica: { total: null, dias: [] },
+                naoPreenchida: { texto: '-', pct: null, sinalizada: false, avaliada: false, criterios: [], visiveis: 0, preenchidos: 0 },
+                HE: null,
+                HEF: null,
+                HEC: null
+            };
+        }
 
         // Folgas
         var folgasInfo = { texto: '-', estado: 'zero', num: 0, den: 0, presas: 0, presasDetalhe: [] };
@@ -606,7 +632,7 @@
         var nomes = estado.ordem.length ? estado.ordem : Object.keys(estado.funcs);
         nomes.forEach(function (nome) {
             var f = AF.modelo.obterDadosFunc(nome);
-            if (!f.processado) return;
+            if (!f.processado || f.vazia) return;
 
             var fTexto = f.folgas.texto;
             if (fTexto.indexOf('/') >= 0) fTexto = "'" + fTexto;

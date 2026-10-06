@@ -569,9 +569,9 @@
                 cod47Conv: linhas47,
                 cod47Rest: contagensDepois.cod47 || 0,
                 leitura: {
-                    semES: det ? det.dias.semES : { total: contagensDepois.semES, dias: [] },
-                    interj: det ? det.dias.interj : { total: contagensDepois.interj, dias: [] },
-                    britanica: det ? det.dias.britanica : { total: contagensDepois.britanica, dias: [] },
+                    semES: det ? { total: det.contagens.semES, dias: det.dias.semES } : { total: contagensDepois.semES, dias: [] },
+                    interj: det ? { total: det.contagens.interj, dias: det.dias.interj } : { total: contagensDepois.interj, dias: [] },
+                    britanica: det ? { total: det.contagens.britanica, dias: det.dias.britanica } : { total: contagensDepois.britanica, dias: [] },
                     naoPreenchida: det ? det.naoPreenchida : null,
                     HE: extras.HE,
                     HEF: extras.HEF,

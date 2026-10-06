@@ -4,6 +4,18 @@ Resumir o relatório do time em indicadores gerais no topo da janela e permitir 
 
 ## ADDED Requirements
 
+### Requirement: Indicadores agrupados em três linhas temáticas
+O resumo SHALL ser apresentado em três grupos, cada um em uma linha própria e identificado por título e cor: **Folgas** (tons de verde) na primeira linha, **Irregularidades** (tons de vermelho) na segunda e **Hora Extra** (tons de azul) na terceira. Cada grupo SHALL conter caixas menores com os seus indicadores. O grupo Folgas SHALL conter **Movim.** e **Presas**. O grupo Irregularidades SHALL conter **Sem Entrada/Saída**, **Interjornada**, **Marc. Britânicas** e **Folhas não Preenchidas**. O grupo Hora Extra SHALL conter **100% (Acima das 10h)**, **100% (Feriado)** e **70% (Compensáveis)**, correspondentes a HE 100%, HEF 100% e HEC 70%.
+
+#### Scenario: Três linhas na ordem esperada
+- **WHEN** a janela do relatório é aberta
+- **THEN** a primeira linha de indicadores SHALL ser Folgas, a segunda Irregularidades e a terceira Hora Extra
+- **AND** cada linha SHALL usar a cor do seu tema
+
+#### Scenario: Conteúdo de cada grupo
+- **WHEN** o resumo é exibido
+- **THEN** Folgas SHALL ter Movim. e Presas, Irregularidades SHALL ter os quatro tipos e Hora Extra SHALL ter as três caixas com os rótulos definidos
+
 ### Requirement: Indicador de folgas movimentadas, pendentes e presas
 O resumo SHALL mostrar o total de folgas movimentadas sobre o total de folgas considerado, em fração, o número de folgas ainda pendentes de movimentação (de funcionários apenas analisados) e o número de folgas presas. O total considerado SHALL ser a soma das movimentadas, das pendentes e das presas. As folgas movimentadas SHALL somar o numerador de cada funcionário ajustado, as presas SHALL somar as presas dos funcionários ajustados e as pendentes SHALL somar as folgas a movimentar dos funcionários analisados e ainda não ajustados.
 
@@ -48,7 +60,7 @@ O resumo SHALL mostrar, para HE 100%, HEF 100% e HEC 70%, o total, o mínimo e o
 - **THEN** o total SHALL ser 00:00 e o mínimo e o máximo SHALL aparecer como `-`
 
 ### Requirement: Filtro da tabela por indicador
-Clicar em um indicador de folgas pendentes, de folgas presas ou de qualquer tipo de irregularidade SHALL filtrar a tabela, mostrando somente os funcionários que compõem aquele indicador. Clicar novamente no mesmo indicador SHALL limpar o filtro, e clicar em outro indicador SHALL substituir o filtro ativo. O indicador ativo SHALL ser destacado. Os valores do resumo SHALL continuar refletindo o time inteiro enquanto a tabela estiver filtrada, e o filtro SHALL permanecer quando a tabela for atualizada.
+Clicar em um indicador de folgas pendentes (a caixa Movim., que exibe também o número de pendentes), de folgas presas ou de qualquer tipo de irregularidade SHALL filtrar a tabela, mostrando somente os funcionários que compõem aquele indicador. Clicar novamente no mesmo indicador SHALL limpar o filtro, e clicar em outro indicador SHALL substituir o filtro ativo. O indicador ativo SHALL ser destacado. Os valores do resumo SHALL continuar refletindo o time inteiro enquanto a tabela estiver filtrada, e o filtro SHALL permanecer quando a tabela for atualizada.
 
 #### Scenario: Filtrar por irregularidade
 - **WHEN** o usuário clica no indicador de Marcações britânicas

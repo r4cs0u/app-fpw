@@ -86,6 +86,10 @@ A tabela SHALL mostrar uma coluna para cada tipo de irregularidade: Sem Entrada/
 - **WHEN** o Ajuste lê uma folha depois da Análise e a contagem de uma irregularidade mudou
 - **THEN** a coluna SHALL mostrar o valor da leitura mais recente
 
+#### Scenario: Ajuste preserva as irregularidades da folha
+- **WHEN** a Análise leu irregularidades de um funcionário e em seguida o Ajuste é executado sobre a mesma folha
+- **THEN** as colunas de irregularidade SHALL continuar mostrando valores (os da leitura do Ajuste) e SHALL NOT voltar a `-`
+
 ### Requirement: Relatório sempre disponível e atualizado ao vivo
 O botão de relatório do painel SHALL estar habilitado a qualquer momento, inclusive antes de qualquer execução e durante uma execução, e SHALL abrir a janela do relatório. A janela SHALL refletir o modelo atual e SHALL se atualizar enquanto aberta, sem exigir reabertura nem a conclusão da execução, preservando a ordenação, o filtro e a linha selecionada. A janela SHALL indicar qual funcionário está sendo processado quando houver execução em andamento. Abrir a janela e atualizá-la SHALL ser somente leitura e SHALL NOT interromper nem alterar a execução.
 
@@ -117,6 +121,8 @@ A tabela SHALL listar todos os funcionários do seletor da sessão atual desde q
 #### Scenario: Folha sem marcações
 - **WHEN** a página de um funcionário informa que não há marcações
 - **THEN** a linha SHALL indicar sem marcações e SHALL NOT contar como pendência
+- **AND** todas as colunas de dados dessa linha SHALL mostrar `-`, na Análise e no Ajuste, e nunca `0`
+- **AND** a linha SHALL NOT entrar nos indicadores, nos filtros nem no texto copiado
 
 #### Scenario: Ajuste interrompido
 - **WHEN** o Ajuste é interrompido durante a folha de um funcionário

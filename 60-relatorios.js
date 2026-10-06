@@ -72,14 +72,20 @@
             + '.hdr-row1{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}'
             + '.hdr-title{font-size:14px;font-weight:700;display:flex;align-items:center;gap:8px}'
             + '.hdr-actions{display:flex;align-items:center;gap:8px}'
-            + '.cards-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;padding:10px 16px;background:var(--surface2);border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto}'
-            + '.card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:6px;padding:8px 10px;display:flex;flex-direction:column;gap:3px;cursor:pointer;transition:border-color .15s,background .15s;user-select:none}'
-            + '.card:hover{border-color:var(--blue)}'
-            + '.card.card-active{border-color:var(--blue);background:rgba(59,130,246,.12);box-shadow:0 0 0 1px var(--blue)}'
-            + '.card-static{cursor:default}.card-static:hover{border-color:var(--card-border)}'
-            + '.card-title{font-size:10px;font-weight:600;text-transform:uppercase;color:var(--text-faint);letter-spacing:.04em;display:flex;justify-content:space-between}'
-            + '.card-val{font-size:16px;font-weight:700;color:var(--text);line-height:1.2}'
-            + '.card-sub{font-size:10px;color:var(--text-muted);display:flex;gap:6px}'
+            + '.cards-grid{display:flex;flex-direction:column;gap:8px;padding:10px 16px;max-height:46vh;overflow-y:auto;background:var(--surface2);border-bottom:1px solid var(--border);flex-shrink:0}'
+            + '.grp{width:100%;border:1px solid var(--grp-border);background:var(--grp-bg);border-radius:8px;padding:8px 10px;display:flex;flex-direction:row;align-items:stretch;gap:12px}'
+            + '.grp-title{flex:0 0 110px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--grp-fg);display:flex;align-items:center}'
+            + '.grp-items{flex:1;display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:6px}'
+            + '.grp-green{--grp-bg:rgba(34,197,94,.06);--grp-border:rgba(34,197,94,.28);--grp-fg:#4ade80;--card-bg:rgba(34,197,94,.12)}'
+            + '.grp-red{--grp-bg:rgba(239,68,68,.06);--grp-border:rgba(239,68,68,.28);--grp-fg:#f87171;--card-bg:rgba(239,68,68,.12)}'
+            + '.grp-blue{--grp-bg:rgba(59,130,246,.06);--grp-border:rgba(59,130,246,.28);--grp-fg:#60a5fa;--card-bg:rgba(59,130,246,.12)}'
+            + '.card{background:var(--card-bg);border:1px solid var(--grp-border);border-radius:6px;padding:6px 8px;display:flex;flex-direction:column;gap:2px;cursor:pointer;transition:border-color .15s,box-shadow .15s;user-select:none}'
+            + '.card:hover{border-color:var(--grp-fg)}'
+            + '.card.card-active{border-color:var(--grp-fg);box-shadow:0 0 0 1px var(--grp-fg)}'
+            + '.card-static{cursor:default}.card-static:hover{border-color:var(--grp-border)}'
+            + '.card-title{font-size:10px;font-weight:600;color:var(--text-muted);display:flex;justify-content:space-between;gap:4px}'
+            + '.card-val{font-size:17px;font-weight:700;color:var(--text);line-height:1.2}'
+            + '.card-sub{font-size:10px;color:var(--text-muted);display:flex;flex-wrap:wrap;gap:2px 8px}'
             + '.tbl-wrap{flex:1;overflow:auto}'
             + 'table{width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed}'
             + 'thead th{background:var(--tbl-head);color:var(--tbl-head-txt);font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.05em;padding:6px 10px;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:5;user-select:none;text-align:right}'
@@ -136,58 +142,61 @@
             + '</div></body></html>';
     };
 
-    // ── Renderização dos Cards (Big Numbers) ──────────────────────────────
+    // ── Renderização dos Indicadores (3 caixas temáticas) ─────────────────
 
     AF.relatorios.gerarCardsHTML = function (resumo, filtroAtivo) {
-        var h = '';
-
-        function card(id, titulo, valor, sub, clickavel, extraClass) {
-            var ativo = filtroAtivo === id;
-            var cls = 'card ' + (clickavel ? '' : 'card-static ') + (ativo ? 'card-active ' : '') + (extraClass || '');
-            var dataAttr = clickavel ? ' data-filtro="' + id + '"' : '';
-            return '<div class="' + cls + '"' + dataAttr + '>'
-                + '<div class="card-title"><span>' + escaparHTML(titulo) + '</span>' + (ativo ? '<span style="color:var(--blue)">●</span>' : '') + '</div>'
+        function card(id, titulo, valor, sub, tip) {
+            var clicavel = !!id;
+            var ativo = clicavel && filtroAtivo === id;
+            var cls = 'card ' + (clicavel ? '' : 'card-static ') + (ativo ? 'card-active' : '');
+            var dataAttr = clicavel ? ' data-filtro="' + id + '"' : '';
+            var titleAttr = tip ? ' title="' + escaparHTML(tip) + '"' : '';
+            return '<div class="' + cls + '"' + dataAttr + titleAttr + '>'
+                + '<div class="card-title"><span>' + escaparHTML(titulo) + '</span>' + (ativo ? '<span style="color:var(--grp-fg)">●</span>' : '') + '</div>'
                 + '<div class="card-val">' + valor + '</div>'
                 + (sub ? '<div class="card-sub">' + sub + '</div>' : '')
                 + '</div>';
         }
 
-        // Folgas
-        var fMov = resumo.folgas.fracaoTexto;
-        var subFolgas = '<span title="Folgas pendentes de movimentação">Pend: ' + resumo.folgas.pendentes + '</span>'
-                      + '<span title="Folgas presas" style="color:' + (resumo.folgas.presas > 0 ? 'var(--orange)' : 'inherit') + '">Presas: ' + resumo.folgas.presas + '</span>';
-        h += card('presas', 'Folgas Movimentadas', fMov, subFolgas, true);
-
-        // Irregularidades
-        h += card('semES', 'Sem Entrada/Saída', String(resumo.irregularidades.semES.total),
-            '<span>' + resumo.irregularidades.semES.funcs + ' func.</span>', true);
-
-        h += card('interj', 'Interjornada', String(resumo.irregularidades.interj.total),
-            '<span>' + resumo.irregularidades.interj.funcs + ' func.</span>', true);
-
-        h += card('britanica', 'Marc. Britânicas', String(resumo.irregularidades.britanica.total),
-            '<span>' + resumo.irregularidades.britanica.funcs + ' func.</span>', true);
-
-        h += card('naoPreenchida', 'Folhas Não Preenchidas', String(resumo.irregularidades.naoPreenchida.total),
-            '<span>' + resumo.irregularidades.naoPreenchida.funcs + ' folhas</span>', true);
-
-        // Horas Extras (estáticos com tooltip)
-        function subHora(o) {
-            if (o.min === '-' && o.max === '-') return '<span>Nenhum saldo</span>';
-            var tMin = o.minNome ? ' title="Mínimo: ' + escaparHTML(o.minNome) + '"' : '';
-            var tMax = o.maxNome ? ' title="Máximo: ' + escaparHTML(o.maxNome) + '"' : '';
-            return '<span' + tMin + '>Mín: ' + o.min + '</span><span' + tMax + '>Máx: ' + o.max + '</span>';
+        function grupo(cor, titulo, cards) {
+            return '<div class="grp grp-' + cor + '"><div class="grp-title">' + escaparHTML(titulo) + '</div>'
+                + '<div class="grp-items">' + cards + '</div></div>';
         }
 
-        h += card(null, 'HE 100%', resumo.he.total, subHora(resumo.he), false);
-        h += card(null, 'HEF 100%', resumo.hef.total, subHora(resumo.hef), false);
+        function subMinMax(o, rotulo) {
+            if (!o || (o.min === '-' && o.max === '-')) return '<span>' + (rotulo || '') + 'sem saldo</span>';
+            var tMin = o.minNome ? ' title="Mínimo: ' + escaparHTML(o.minNome) + '"' : '';
+            var tMax = o.maxNome ? ' title="Máximo: ' + escaparHTML(o.maxNome) + '"' : '';
+            return '<span' + tMin + '>' + (rotulo || '') + 'mín ' + escaparHTML(o.min) + '</span>'
+                + '<span' + tMax + '>máx ' + escaparHTML(o.max) + '</span>';
+        }
 
-        var subHec = '<span style="color:var(--green)">+' + resumo.hecPos.total + '</span> / <span style="color:var(--red)">' + resumo.hecNeg.total + '</span>';
-        h += card(null, 'HEC 70%', subHec, subHora(resumo.hecNeg), false);
+        var fol = resumo.folgas;
+        var irr = resumo.irregularidades;
 
-        return h;
+        var gFolgas = grupo('green', 'Folgas',
+            card('pendentes', 'Movim.', escaparHTML(fol.fracaoTexto),
+                '<span>' + fol.pendentes + ' pendente(s)</span>', 'Movimentadas / total considerado. Clique para filtrar quem ainda tem folga pendente.')
+            + card('presas', 'Presas', String(fol.presas), '', 'Folgas que permaneceram presas. Clique para filtrar.')
+        );
+
+        var gIrreg = grupo('red', 'Irregularidades',
+            card('semES', 'Sem Entrada/Saída', String(irr.semES.total), '<span>' + irr.semES.funcs + ' func.</span>')
+            + card('interj', 'Interjornada', String(irr.interj.total), '<span>' + irr.interj.funcs + ' func.</span>')
+            + card('britanica', 'Marc. Britânicas', String(irr.britanica.total), '<span>' + irr.britanica.funcs + ' func.</span>')
+            + card('naoPreenchida', 'Folhas não Preenchidas', String(irr.naoPreenchida.total), '<span>' + irr.naoPreenchida.funcs + ' folha(s)</span>')
+        );
+
+        var hecVal = '<span>+' + escaparHTML(resumo.hecPos.total) + '</span> <span style="color:var(--text-faint)">/</span> <span>' + escaparHTML(resumo.hecNeg.total) + '</span>';
+        var gHoras = grupo('blue', 'Hora Extra',
+            card(null, '100% (Acima das 10h)', escaparHTML(resumo.he.total), subMinMax(resumo.he))
+            + card(null, '100% (Feriado)', escaparHTML(resumo.hef.total), subMinMax(resumo.hef))
+            + card(null, '70% (Compensáveis)', hecVal,
+                subMinMax(resumo.hecPos, '+ ') + subMinMax(resumo.hecNeg, '− '))
+        );
+
+        return gFolgas + gIrreg + gHoras;
     };
-
     // ── Renderização do Cabeçalho da Tabela ───────────────────────────────
 
     AF.relatorios.gerarTheadHTML = function (sortCol, sortDir) {
