@@ -1,0 +1,21 @@
+# Tasks
+
+## 1. Caracterizar o comportamento atual
+
+- [ ] 1.1 Criar `tests/regras-folha.test.js` com um carregador de módulos e DOM/mapa sintéticos, e escrever testes de caracterização que rodam o código atual de `AF.analisar.contarFolgas`, `coletarDiasCod47`, `somarHorasExtras` e `lerSaldoHEC` sem substituí-los. Casos: folgas com e sem ausência/feriado na semana, folga fora do mês alvo, folgas ocultas e fora do mês com ausência no mês; 47 no mês alvo, na semana de transição e fora do escopo, com `somenteMesAlvo`; horas de código 2 e 27, com asterisco e segundos, fora do mês, sem campo de data e valor inválido; saldo positivo, negativo, com asterisco, vazio e inválido, e erro de leitura. Verificação: `node --test tests/regras-folha.test.js` passa sobre o código ainda inalterado, e nenhum dado de funcionário ou de folha real aparece nos fixtures.
+
+## 2. Extrair as regras puras
+
+- [ ] 2.1 Criar `37-regras-folha.js` com `AF.regras.contarFolgasAMovimentar(mapa, alvo)` e `AF.regras.selecionarDiasCod47(campos, alvo, opcoes)`, sem DOM, frames, popups nem gravação, movendo a lógica de `contarFolgas` e do filtro de `coletarDiasCod47`. Verificação: `node --check 37-regras-folha.js` e testes diretos das duas funções com entradas simples, incluindo a ordem preservada e `somenteMesAlvo`.
+- [ ] 2.2 Acrescentar `AF.regras.somarHorasExtras(lancamentos, alvo)` e `AF.regras.interpretarSaldoHEC(texto)`, movendo a soma, a formatação `HH:MM` e a interpretação do saldo, com os mesmos valores de fallback. Verificação: testes diretos cobrindo `temData` verdadeiro e falso, asterisco, segundos, código diferente de 2 e 27, saldo negativo e texto inválido.
+- [ ] 2.3 Fazer `contarFolgas`, `coletarDiasCod47`, `somarHorasExtras` e `lerSaldoHEC` em `50-analisar.js` apenas lerem a página, montarem a entrada e delegarem a `AF.regras`, preservando nomes, argumentos, resultados e o `try/catch` com fallback; não alterar `processarFase4` nem outro caminho de gravação. Verificação: os testes de caracterização da tarefa 1.1 passam sem nenhuma alteração, `tests/analise.test.js` continua passando e `git diff` mostra `40-fases.js` intacto.
+
+## 3. Integrar e documentar
+
+- [ ] 3.1 Registrar `37-regras-folha.js` em `99-main.user.js` logo após `35-planejamento.js` (antes de `40-fases.js` e `50-analisar.js`) e subir a versão de teste para `9.11-test` em `99-main.user.js` e `00-core.js`; atualizar `tests/modules.test.js` (ordem de carregamento e versão). Verificação: `node --test tests/modules.test.js` e `node --check 99-main.user.js` passam.
+- [ ] 3.2 Atualizar `SSD.md` (mapa de módulos e fronteira entre leitura da página e regras) e `ROADMAP.md` (progresso da Etapa 3, indicando que a Fase 4 e demais caminhos de gravação seguem fora). Verificação: a ordem documentada coincide com `99-main.user.js` e `git diff --check` não reporta problemas.
+
+## 4. Integração e publicação
+
+- [ ] 4.1 Executar `node --test` completo e `node --check` nos arquivos alterados. Verificação: todos os testes passam, incluindo os 172 existentes, sem falhas.
+- [ ] 4.2 Publicar na branch `test` e seguir o procedimento do `AGENT.md` para quando `99-main.user.js` muda: abrir o link de instalação da branch `test`, aguardar a confirmação do usuário de que atualizou o Tampermonkey e só então recarregar o MyWay. Validar em modo somente leitura via MCP, sem Analisar, Ajustar, gravar nem aprovar: versão `9.11-test`, `AF.regras` carregado, `AF.analisar` delegando e painel inicializado, sem registrar dados de funcionários. Verificação: os módulos remotos respondem HTTP 200 e o resultado técnico fica registrado no `ROADMAP.md` ou na change.

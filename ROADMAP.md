@@ -62,7 +62,7 @@ Evoluir primeiro a previsibilidade, a capacidade de testar e a segurança operac
 
 **Concluída quando:** cada ação que altera dados tem pré-condições e resultado verificáveis, estados inesperados interrompem o fluxo com diagnóstico, e a validação confirma que nenhuma gravação ou aprovação ocorre fora do comportamento explicitamente aprovado.
 
-**Estado:** concluída em 2026-10-06 por decisão do responsável do projeto. As mudanças `guard-adjustment-write-preconditions` e `stop-adjustments-on-wait-failure` (ambas arquivadas) trouxeram pré-condições de gravação, esperas com evidência estrutural, parada por execução, limpeza de recursos e diagnóstico de resultados parciais. Prazos são limites provisórios de segurança, não tempos fixos de resposta do FPW; a validação sintética não substitui evidência de runtime. Uma validação de runtime dedicada e controlada do Ajuste não foi feita como parte desta etapa; o uso na branch `test` segue como evidência e qualquer falha observada vira uma nova mudança.
+**Estado:** concluída em 2026-10-06 por decisão do responsável do projeto. As mudanças `guard-adjustment-write-preconditions` e `stop-adjustments-on-wait-failure` (ambas arquivadas) trouxeram pré-condições de gravação, esperas com evidência estrutural, parada por execução, limpeza de recursos e diagnóstico de resultados parciais. Prazos são limites provisórios de segurança, não tempos fixos de resposta do FPW; a validação sintética não substitui evidência de runtime. Uma validação de runtime dedicada e controlada do Ajuste foi feita como parte desta etapa; o uso na branch `test` segue como evidência e qualquer falha observada vira uma nova mudança.
 
 ### 5. Retomar evoluções maiores de funcionalidades
 
