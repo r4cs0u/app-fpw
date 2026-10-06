@@ -21,13 +21,15 @@ Ele não substitui a decisão final do usuário, mas ajuda a acelerar o fluxo de
 
 - Análise automatizada do mês em questão;
 - Leitura da estrutura da folha de ponto diretamente na página do WebPonto;
-- Detecção de irregularidades e itens pendentes;
+- Detecção de irregularidades e itens pendentes com contagem de dias;
 - Ajuste automático de folgas e deslocamentos de registros;
 - Correção de ocorrências do código 47 para 48 quando aplicável;
-- Geração de relatórios detalhados com dados consolidados;
+- Relatório unificado ao vivo: sempre disponível, com frações de progresso, cores por estado e colunas abertas de irregularidade;
+- Resumo em indicadores (big numbers) com filtros rápidos por clique;
+- Janela de log estruturado acessível dentro e fora do relatório;
 - Painel visual com botões para analisar, ajustar e acompanhar o status da execução;
 - Log e notificações visuais para acompanhar o progresso da operação;
-- Suporte a relatórios exportáveis para revisão posterior.
+- Suporte a relatórios exportáveis (TSV) para revisão posterior.
 
 ## Como funciona
 

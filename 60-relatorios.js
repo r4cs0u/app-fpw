@@ -4,774 +4,553 @@
     var AF = window.AutomacaoFolha;
     AF.relatorios = AF.relatorios || {};
 
-    // ── Utilitário: formatar minutos em HH:MM ──────────────────────
-
-    function fmtMin(t) {
-        return String(Math.floor(t / 60)).padStart(2, '0') + ':' + String(t % 60).padStart(2, '0');
-    }
-
-    // ── Normalizar hora: garante formato HH:MM ─────────────────────
-
-    function normHora(v) {
-        var s = String(v || '00:00').trim();
-        var neg = s.charAt(0) === '-';
-        var base = neg ? s.slice(1) : s;
-        var partes = base.split(':');
-        var h   = (partes[0] || '00').padStart(2, '0');
-        var min = (partes[1] || '00').padStart(2, '0');
-        return (neg ? '-' : '') + h + ':' + min;
-    }
-
-    // ── Escapar para Excel: prefixo ' em valores negativos ───────────
-
-    function xls(v) {
-        var s = String(v);
-        return s.charAt(0) === '-' ? "'" + s : s;
-    }
-
-    // ── Abreviar nome ─────────────────────────────────────────────
-
-    function abrevNome(nome) {
-        var clean = nome.replace(/\s+\d+$/, '');
-        var parts = clean.split(' ');
-        if (parts.length <= 2) return parts.join(' ');
-        var skip = ['DE', 'DA', 'DO', 'DOS', 'DAS', 'E'];
-        var primeiro = parts[0];
-        var ultimo   = parts[parts.length - 1];
-        var meio = parts.slice(1, -1).map(function (p) {
-            return skip.indexOf(p) >= 0 ? p : p.charAt(0) + '.';
-        }).join(' ');
-        return primeiro + ' ' + meio + ' ' + ultimo;
-    }
+    var janelaRelatorio = null;
+    var intervaloJanela = null;
+    var ultimoVersaoJanela = -1;
+    var estadoVisao = {
+        col: 'nome',
+        dir: 1,
+        filtro: null,
+        selecionado: null
+    };
 
     function escaparHTML(valor) {
         var entidades = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
-        return String(valor).replace(/[&<>"']/g, function (caractere) {
+        return String(valor == null ? '' : valor).replace(/[&<>"']/g, function (caractere) {
             return entidades[caractere];
         });
     }
-
-    // ── Habilitar botão copiar ─────────────────────────────────
-
-    AF.relatorios.habilitarCopiar = function (titulo) {
-        try {
-            var btn = AF.core.getDocC().getElementById('btn-copiar');
-            if (btn) { btn.disabled = false; btn.title = titulo || 'Relatório'; }
-        } catch (e) {}
-    };
-
-    // ── Normalização para ordenação ──────────────────────────────
 
     function normSort(s) {
         return (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
     }
 
-    // ── Relatório do Executar (40-fases) — TSV ─────────────────────
+    function abrevNome(nome) {
+        var clean = String(nome || '').replace(/\s+\d+$/, '').trim();
+        var parts = clean.split(' ');
+        if (parts.length <= 2) return clean;
+        var skip = ['DE', 'DA', 'DO', 'DOS', 'DAS', 'E'];
+        var primeiro = parts[0];
+        var ultimo   = parts[parts.length - 1];
+        var meio = parts.slice(1, -1).map(function (p) {
+            return skip.indexOf(p.toUpperCase()) >= 0 ? p : p.charAt(0) + '.';
+        }).join(' ');
+        return primeiro + ' ' + meio + ' ' + ultimo;
+    }
+
+    // ── Habilitar botão copiar (mantido para compor o status no painel) ────
+
+    AF.relatorios.habilitarCopiar = function (titulo) {
+        try {
+            var btn = AF.core.getDocC().getElementById('btn-copiar');
+            if (btn) {
+                btn.disabled = false;
+                btn.title = titulo || 'Relatório';
+            }
+        } catch (e) {}
+    };
+
+    // ── Geração de HTML puro para componentes da janela ──────────────────
+
+    AF.relatorios.gerarEsqueletoHTML = function () {
+        return '<!DOCTYPE html><html lang="pt-BR" data-theme="dark"><head><meta charset="UTF-8">'
+            + '<title>FPW — Relatório Unificado</title>'
+            + '<link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,600,700&display=swap" rel="stylesheet">'
+            + '<style>'
+            + ':root,[data-theme="dark"]{'
+            + '--bg:#0f1117;--surface:#161b22;--surface2:#0d1117;--border:rgba(255,255,255,.08);'
+            + '--text:#e2e8f0;--text-muted:#94a3b8;--text-faint:#64748b;--hdr-bg:#0d1117;'
+            + '--tbl-head:#0d1117;--tbl-head-txt:#94a3b8;--tbl-row-hover:rgba(255,255,255,.04);'
+            + '--tbl-row-active:rgba(59,130,246,.15);--tbl-row-active-outline:rgba(59,130,246,.35);'
+            + '--card-bg:#161b22;--card-border:rgba(255,255,255,.10);--card-active-border:#3b82f6;'
+            + '--blue:#3b82f6;--orange:#f97316;--red:#ef4444;--green:#22c55e;'
+            + '}'
+            + '*{box-sizing:border-box;margin:0;padding:0}'
+            + 'html,body{background:var(--bg);color:var(--text);font-family:"Satoshi","Inter",sans-serif;font-size:12px;height:100%;overflow:hidden}'
+            + '.frame{display:flex;flex-direction:column;height:100vh;overflow:hidden}'
+            + '.hdr{background:var(--hdr-bg);border-bottom:1px solid var(--border);padding:10px 16px;flex-shrink:0}'
+            + '.hdr-row1{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}'
+            + '.hdr-title{font-size:14px;font-weight:700;display:flex;align-items:center;gap:8px}'
+            + '.hdr-actions{display:flex;align-items:center;gap:8px}'
+            + '.cards-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;padding:10px 16px;background:var(--surface2);border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto}'
+            + '.card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:6px;padding:8px 10px;display:flex;flex-direction:column;gap:3px;cursor:pointer;transition:border-color .15s,background .15s;user-select:none}'
+            + '.card:hover{border-color:var(--blue)}'
+            + '.card.card-active{border-color:var(--blue);background:rgba(59,130,246,.12);box-shadow:0 0 0 1px var(--blue)}'
+            + '.card-static{cursor:default}.card-static:hover{border-color:var(--card-border)}'
+            + '.card-title{font-size:10px;font-weight:600;text-transform:uppercase;color:var(--text-faint);letter-spacing:.04em;display:flex;justify-content:space-between}'
+            + '.card-val{font-size:16px;font-weight:700;color:var(--text);line-height:1.2}'
+            + '.card-sub{font-size:10px;color:var(--text-muted);display:flex;gap:6px}'
+            + '.tbl-wrap{flex:1;overflow:auto}'
+            + 'table{width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed}'
+            + 'thead th{background:var(--tbl-head);color:var(--tbl-head-txt);font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.05em;padding:6px 10px;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:5;user-select:none;text-align:right}'
+            + 'thead th:first-child{text-align:left;width:180px}'
+            + 'thead th[data-col]{cursor:pointer}'
+            + 'thead th.sort-active{color:var(--blue)}'
+            + 'tbody tr{cursor:pointer;transition:background .1s}'
+            + 'tbody tr:hover{background:var(--tbl-row-hover)}'
+            + 'tbody tr.active-row{background:var(--tbl-row-active)!important;outline:1px solid var(--tbl-row-active-outline)}'
+            + 'tbody tr.row-unread{opacity:.45}'
+            + 'tbody tr.row-processing{background:rgba(59,130,246,.08);font-weight:500}'
+            + 'td{padding:5px 10px;text-align:right;border-bottom:1px solid var(--border);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
+            + 'td:first-child{text-align:left}'
+            + '.cell-chip{display:inline-block;padding:1px 6px;border-radius:4px;font-weight:600;font-size:11px}'
+            + '.chip-blue{background:rgba(59,130,246,.15);color:#93c5fd}'
+            + '.chip-orange{background:rgba(249,115,22,.15);color:#fdba74}'
+            + '.chip-red{background:rgba(239,68,68,.18);color:#fca5a5}'
+            + '.chip-zero{color:var(--text-faint)}'
+            + '.chip-dash{color:var(--text-faint)}'
+            + '.badge{font-size:9px;padding:1px 5px;border-radius:99px;font-weight:600;margin-left:4px;vertical-align:middle}'
+            + '.badge-parcial{background:rgba(249,115,22,.2);color:#fdba74}'
+            + '.badge-vazia{background:rgba(148,163,184,.15);color:#94a3b8}'
+            + '.badge-proc{background:rgba(59,130,246,.25);color:#93c5fd;animation:pulse 1.5s infinite}'
+            + '@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}'
+            + '.action-bar{display:flex;align-items:center;justify-content:space-between;padding:7px 14px;background:var(--surface2);border-top:1px solid var(--border);flex-shrink:0}'
+            + '.btn{display:inline-flex;align-items:center;gap:5px;border:none;border-radius:5px;padding:5px 12px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit}'
+            + '.btn-blue{background:#3b82f6;color:#fff}.btn-blue:hover{filter:brightness(1.15)}.btn-blue.ok{background:#22c55e}'
+            + '.btn-gray{background:rgba(255,255,255,.08);color:var(--text);border:1px solid var(--border)}.btn-gray:hover{background:rgba(255,255,255,.14)}'
+            + '.notice-bar{display:none;background:#7c2d12;color:#ffedd5;padding:4px 12px;font-size:11px;text-align:center}'
+            + '</style></head><body>'
+            + '<div class="frame">'
+            + '<div class="hdr">'
+            +   '<div class="hdr-row1">'
+            +     '<div class="hdr-title" id="fpw-hdr-title">📊 Relatório do Time</div>'
+            +     '<div class="hdr-actions">'
+            +       '<button class="btn btn-gray" id="btn-janela-log" title="Abrir janela de log completo">📜 Log</button>'
+            +       '<button class="btn btn-blue" id="btn-janela-copiar">📋 Copiar TSV</button>'
+            +     '</div>'
+            +   '</div>'
+            +   '<div id="fpw-hdr-meta" style="font-size:11px;color:var(--text-muted);display:flex;gap:16px;"></div>'
+            + '</div>'
+            + '<div class="notice-bar" id="fpw-notice-bar"></div>'
+            + '<div class="cards-grid" id="fpw-cards-grid"></div>'
+            + '<div class="tbl-wrap">'
+            +   '<table id="fpw-table">'
+            +     '<thead><tr id="fpw-thead-tr"></tr></thead>'
+            +     '<tbody id="fpw-tbody"></tbody>'
+            +   '</table>'
+            + '</div>'
+            + '<div class="action-bar">'
+            +   '<span style="font-size:11px;color:var(--text-faint);" id="fpw-status-hint">👆 Clique na linha para navegar no FPW • Clique nos cards para filtrar</span>'
+            +   '<span style="font-size:11px;color:var(--text-muted);" id="fpw-rodape-contagem"></span>'
+            + '</div>'
+            + '</div></body></html>';
+    };
+
+    // ── Renderização dos Cards (Big Numbers) ──────────────────────────────
+
+    AF.relatorios.gerarCardsHTML = function (resumo, filtroAtivo) {
+        var h = '';
+
+        function card(id, titulo, valor, sub, clickavel, extraClass) {
+            var ativo = filtroAtivo === id;
+            var cls = 'card ' + (clickavel ? '' : 'card-static ') + (ativo ? 'card-active ' : '') + (extraClass || '');
+            var dataAttr = clickavel ? ' data-filtro="' + id + '"' : '';
+            return '<div class="' + cls + '"' + dataAttr + '>'
+                + '<div class="card-title"><span>' + escaparHTML(titulo) + '</span>' + (ativo ? '<span style="color:var(--blue)">●</span>' : '') + '</div>'
+                + '<div class="card-val">' + valor + '</div>'
+                + (sub ? '<div class="card-sub">' + sub + '</div>' : '')
+                + '</div>';
+        }
+
+        // Folgas
+        var fMov = resumo.folgas.fracaoTexto;
+        var subFolgas = '<span title="Folgas pendentes de movimentação">Pend: ' + resumo.folgas.pendentes + '</span>'
+                      + '<span title="Folgas presas" style="color:' + (resumo.folgas.presas > 0 ? 'var(--orange)' : 'inherit') + '">Presas: ' + resumo.folgas.presas + '</span>';
+        h += card('presas', 'Folgas Movimentadas', fMov, subFolgas, true);
+
+        // Irregularidades
+        h += card('semES', 'Sem Entrada/Saída', String(resumo.irregularidades.semES.total),
+            '<span>' + resumo.irregularidades.semES.funcs + ' func.</span>', true);
+
+        h += card('interj', 'Interjornada', String(resumo.irregularidades.interj.total),
+            '<span>' + resumo.irregularidades.interj.funcs + ' func.</span>', true);
+
+        h += card('britanica', 'Marc. Britânicas', String(resumo.irregularidades.britanica.total),
+            '<span>' + resumo.irregularidades.britanica.funcs + ' func.</span>', true);
+
+        h += card('naoPreenchida', 'Folhas Não Preenchidas', String(resumo.irregularidades.naoPreenchida.total),
+            '<span>' + resumo.irregularidades.naoPreenchida.funcs + ' folhas</span>', true);
+
+        // Horas Extras (estáticos com tooltip)
+        function subHora(o) {
+            if (o.min === '-' && o.max === '-') return '<span>Nenhum saldo</span>';
+            var tMin = o.minNome ? ' title="Mínimo: ' + escaparHTML(o.minNome) + '"' : '';
+            var tMax = o.maxNome ? ' title="Máximo: ' + escaparHTML(o.maxNome) + '"' : '';
+            return '<span' + tMin + '>Mín: ' + o.min + '</span><span' + tMax + '>Máx: ' + o.max + '</span>';
+        }
+
+        h += card(null, 'HE 100%', resumo.he.total, subHora(resumo.he), false);
+        h += card(null, 'HEF 100%', resumo.hef.total, subHora(resumo.hef), false);
+
+        var subHec = '<span style="color:var(--green)">+' + resumo.hecPos.total + '</span> / <span style="color:var(--red)">' + resumo.hecNeg.total + '</span>';
+        h += card(null, 'HEC 70%', subHec, subHora(resumo.hecNeg), false);
+
+        return h;
+    };
+
+    // ── Renderização do Cabeçalho da Tabela ───────────────────────────────
+
+    AF.relatorios.gerarTheadHTML = function (sortCol, sortDir) {
+        var colunas = [
+            { id: 'nome', label: 'Nome', align: 'left' },
+            { id: 'folgas', label: 'Folgas', align: 'right' },
+            { id: 'cod47', label: 'Cód 47', align: 'right' },
+            { id: 'semES', label: 'Sem E/S', align: 'right' },
+            { id: 'interj', label: 'Interj.', align: 'right' },
+            { id: 'britanica', label: 'Britânicas', align: 'right' },
+            { id: 'naoPreenchida', label: '% Não Preench.', align: 'right' },
+            { id: 'he', label: 'HE 100%', align: 'right' },
+            { id: 'hef', label: 'HEF 100%', align: 'right' },
+            { id: 'hec', label: 'HEC 70%', align: 'right' }
+        ];
+
+        var h = '';
+        for (var i = 0; i < colunas.length; i++) {
+            var c = colunas[i];
+            var ativo = sortCol === c.id;
+            var seta = ativo ? (sortDir === 1 ? ' ↑' : ' ↓') : '';
+            var cls = ativo ? ' class="sort-active"' : '';
+            h += '<th data-col="' + c.id + '"' + cls + ' style="text-align:' + c.align + '">'
+                + escaparHTML(c.label) + '<span style="opacity:.6;font-size:9px;">' + seta + '</span></th>';
+        }
+        return h;
+    };
+
+    // ── Renderização das Linhas da Tabela ─────────────────────────────────
+
+    function formatarTooltipFolgas(f) {
+        if (!f.folgas.presasDetalhe || !f.folgas.presasDetalhe.length) return '';
+        var t = 'Folgas presas: ' + f.folgas.presasDetalhe.map(function (p) {
+            return (p.dataFolga || p.data) + ' (' + (p.motivo || 'fase ' + p.fase) + ')';
+        }).join('; ');
+        return ' title="' + escaparHTML(t) + '"';
+    }
+
+    function formatarTooltipDias(dias, titulo) {
+        if (!dias || !dias.length) return '';
+        var lista = dias.map(function (d) { return typeof d === 'string' ? d : d.data; });
+        return ' title="' + escaparHTML(titulo + ': ' + lista.join(', ')) + '"';
+    }
+
+    function formatarTooltipNaoPreenchida(np) {
+        if (!np.avaliada) return '';
+        var t = 'Dias visíveis: ' + np.visiveis + ', preenchidos: ' + np.preenchidos;
+        if (np.criterios && np.criterios.length) {
+            t += ' (Critério: ' + np.criterios.join(', ') + ')';
+        }
+        return ' title="' + escaparHTML(t) + '"';
+    }
+
+    AF.relatorios.gerarTbodyHTML = function (nomes, atualEmExecucao, selecionado) {
+        var h = '';
+
+        for (var j = 0; j < nomes.length; j++) {
+            var nome = nomes[j];
+            var d = AF.modelo.obterDadosFunc(nome);
+            var ehAtual = atualEmExecucao && atualEmExecucao === nome;
+            var ehSel = selecionado && selecionado === nome;
+
+            var trCls = [];
+            if (!d.processado) trCls.push('row-unread');
+            if (ehAtual) trCls.push('row-processing');
+            if (ehSel) trCls.push('active-row');
+
+            var badges = '';
+            if (ehAtual) badges += '<span class="badge badge-proc">processando</span>';
+            if (d.parcial) badges += '<span class="badge badge-parcial">parcial</span>';
+            if (d.vazia) badges += '<span class="badge badge-vazia">s/ marcações</span>';
+
+            // Chips de folgas e cod47
+            var chipF = d.folgas.texto === '-' ? '<span class="chip-dash">-</span>' :
+                (d.folgas.estado === 'concluida' ? '<span class="cell-chip chip-blue">' + d.folgas.texto + '</span>' :
+                (d.folgas.estado === 'atencao' ? '<span class="cell-chip chip-orange"' + formatarTooltipFolgas(d) + '>' + d.folgas.texto + '</span>' :
+                (d.folgas.estado === 'pendente' ? '<span class="cell-chip chip-blue">' + d.folgas.texto + '</span>' :
+                '<span class="chip-zero">0</span>')));
+
+            var chipC = d.cod47.texto === '-' ? '<span class="chip-dash">-</span>' :
+                (d.cod47.estado === 'concluida' ? '<span class="cell-chip chip-blue">' + d.cod47.texto + '</span>' :
+                (d.cod47.estado === 'atencao' ? '<span class="cell-chip chip-orange">' + d.cod47.texto + '</span>' :
+                (d.cod47.estado === 'pendente' ? '<span class="cell-chip chip-blue">' + d.cod47.texto + '</span>' :
+                '<span class="chip-zero">0</span>')));
+
+            // Irregularidades
+            function chipIrreg(val, dias, tit) {
+                if (val === null || val === undefined) return '<span class="chip-dash">-</span>';
+                if (!val) return '<span class="chip-zero">0</span>';
+                return '<span class="cell-chip chip-red"' + formatarTooltipDias(dias, tit) + '>' + val + '</span>';
+            }
+
+            var chipNP = d.naoPreenchida.texto === '-' ? '<span class="chip-dash">-</span>' :
+                '<span class="cell-chip chip-red"' + formatarTooltipNaoPreenchida(d.naoPreenchida) + '>' + d.naoPreenchida.texto + '</span>';
+
+            // Horas
+            function cellHora(v) {
+                if (!v) return '<span class="chip-dash">-</span>';
+                if (v === '00:00') return '<span class="chip-zero">00:00</span>';
+                var neg = String(v).charAt(0) === '-';
+                return '<span style="color:' + (neg ? 'var(--red)' : 'var(--green)') + ';font-weight:600">' + escaparHTML(v) + '</span>';
+            }
+
+            h += '<tr class="' + trCls.join(' ') + '" data-nome="' + escaparHTML(nome) + '">'
+                + '<td title="' + escaparHTML(nome) + '">' + escaparHTML(abrevNome(nome)) + badges + '</td>'
+                + '<td>' + chipF + '</td>'
+                + '<td>' + chipC + '</td>'
+                + '<td>' + chipIrreg(d.semES.total, d.semES.dias, 'Sem Entrada/Saída') + '</td>'
+                + '<td>' + chipIrreg(d.interj.total, d.interj.dias, 'Interjornada') + '</td>'
+                + '<td>' + chipIrreg(d.britanica.total, d.britanica.dias, 'Marcação Britânica') + '</td>'
+                + '<td>' + chipNP + '</td>'
+                + '<td>' + cellHora(d.HE) + '</td>'
+                + '<td>' + cellHora(d.HEF) + '</td>'
+                + '<td>' + cellHora(d.HEC) + '</td>'
+                + '</tr>';
+        }
+        return h;
+    };
+
+    // ── Condutor da Janela Viva ──────────────────────────────────────────
+
+    function atualizarJanelaDOM(win, forcar) {
+        if (!win || win.closed) return;
+        var est = AF.modelo.obterEstado();
+        if (!forcar && est.versao === ultimoVersaoJanela) return;
+        ultimoVersaoJanela = est.versao;
+
+        try {
+            var doc = win.document;
+
+            // Metadados no topo
+            var metaEl = doc.getElementById('fpw-hdr-meta');
+            if (metaEl) {
+                var totalOrdem = est.ordem.length;
+                var proc = 0;
+                est.ordem.forEach(function (n) { if (AF.modelo.obterDadosFunc(n).processado) proc++; });
+                metaEl.innerHTML = '<span><b>Mês:</b> ' + (est.mes || 'Não definido') + '</span>'
+                    + '<span><b>Processados:</b> ' + proc + ' / ' + totalOrdem + '</span>';
+            }
+
+            // Cards de Resumo
+            var resumo = AF.modelo.resumo();
+            var cardsGrid = doc.getElementById('fpw-cards-grid');
+            if (cardsGrid) {
+                cardsGrid.innerHTML = AF.relatorios.gerarCardsHTML(resumo, estadoVisao.filtro);
+                // Bind clique dos cards
+                cardsGrid.querySelectorAll('.card[data-filtro]').forEach(function (c) {
+                    c.onclick = function () {
+                        var f = this.getAttribute('data-filtro');
+                        estadoVisao.filtro = estadoVisao.filtro === f ? null : f;
+                        atualizarJanelaDOM(win, true);
+                    };
+                });
+            }
+
+            // Thead
+            var theadTr = doc.getElementById('fpw-thead-tr');
+            if (theadTr) {
+                theadTr.innerHTML = AF.relatorios.gerarTheadHTML(estadoVisao.col, estadoVisao.dir);
+                theadTr.querySelectorAll('th[data-col]').forEach(function (th) {
+                    th.onclick = function () {
+                        var col = this.getAttribute('data-col');
+                        if (estadoVisao.col === col) {
+                            estadoVisao.dir *= -1;
+                        } else {
+                            estadoVisao.col = col;
+                            estadoVisao.dir = col === 'nome' ? 1 : -1;
+                        }
+                        atualizarJanelaDOM(win, true);
+                    };
+                });
+            }
+
+            // Tbody
+            var nomesFiltrados = AF.modelo.filtrar(estadoVisao.filtro);
+            var nomesOrdenados = AF.modelo.ordenar(nomesFiltrados, estadoVisao.col, estadoVisao.dir);
+            var tbody = doc.getElementById('fpw-tbody');
+            if (tbody) {
+                tbody.innerHTML = AF.relatorios.gerarTbodyHTML(nomesOrdenados, est.atual, estadoVisao.selecionado);
+                // Bind clique nas linhas
+                tbody.querySelectorAll('tr[data-nome]').forEach(function (tr) {
+                    tr.onclick = function () {
+                        var nome = this.getAttribute('data-nome');
+                        estadoVisao.selecionado = nome;
+                        doc.querySelectorAll('tr.active-row').forEach(function (r) { r.classList.remove('active-row'); });
+                        this.classList.add('active-row');
+
+                        // Navegação no seletor da página principal
+                        var notice = doc.getElementById('fpw-notice-bar');
+                        if (AF.estado && AF.estado.rodando) {
+                            if (notice) {
+                                notice.style.display = 'block';
+                                notice.textContent = 'A navegação entre funcionários está bloqueada durante a execução.';
+                                setTimeout(function () { notice.style.display = 'none'; }, 3000);
+                            }
+                            return;
+                        }
+                        if (notice) notice.style.display = 'none';
+
+                        try {
+                            var f0 = window.top.frames[0];
+                            var docC = f0.document;
+                            var sel = docC.getElementById('lstNome') || docC.querySelector('select[name=lstNome]');
+                            if (!sel) return;
+                            var nn = normSort(nome);
+                            for (var i = 0; i < sel.options.length; i++) {
+                                if (normSort(sel.options[i].text) === nn) {
+                                    sel.selectedIndex = i;
+                                    try { f0.AjustaCodEmpresaEmpregado(docC.yourform.lstNome, docC.yourform.CodEmpresaEmpregado); } catch (e) {}
+                                    try { f0.AtualizaFuncionario(); } catch (e) {
+                                        sel.dispatchEvent(new Event('change', { bubbles: true }));
+                                    }
+                                    break;
+                                }
+                            }
+                        } catch (eNaveg) {}
+                    };
+                });
+            }
+
+            // Rodapé
+            var rodape = doc.getElementById('fpw-rodape-contagem');
+            if (rodape) {
+                rodape.textContent = 'Exibindo ' + nomesOrdenados.length + ' de ' + est.ordem.length + ' funcionários'
+                    + (estadoVisao.filtro ? ' (Filtro ativo: ' + estadoVisao.filtro + ')' : '');
+            }
+
+        } catch (eDOM) {
+            console.error('[FPW] Erro ao atualizar DOM da janela de relatório:', eDOM);
+        }
+    }
+
+    function copiarTSV(win) {
+        var texto = AF.modelo.tsv();
+        var btn = win.document.getElementById('btn-janela-copiar');
+        if (win.navigator && win.navigator.clipboard && win.navigator.clipboard.writeText) {
+            win.navigator.clipboard.writeText(texto).then(function () {
+                if (btn) {
+                    btn.classList.add('ok');
+                    btn.textContent = '✓ Copiado!';
+                    setTimeout(function () { btn.classList.remove('ok'); btn.textContent = '📋 Copiar TSV'; }, 2000);
+                }
+            }).catch(function () { alert('Falha ao copiar.'); });
+        } else {
+            alert('Área de transferência indisponível.');
+        }
+    }
+
+    AF.relatorios.abrirJanela = function () {
+        if (janelaRelatorio && !janelaRelatorio.closed) {
+            try { janelaRelatorio.focus(); } catch (e) {}
+            atualizarJanelaDOM(janelaRelatorio, true);
+            return janelaRelatorio;
+        }
+
+        var win = window.open('', 'fpw-relatorio', 'width=1100,height=750,left=60,top=40,resizable=yes,scrollbars=yes');
+        if (!win) {
+            if (AF.log && typeof AF.log.registrar === 'function') {
+                AF.log.registrar('Popup do relatório bloqueado pelo navegador.', '#f87171');
+            }
+            return null;
+        }
+
+        janelaRelatorio = win;
+        ultimoVersaoJanela = -1;
+
+        win.document.open();
+        win.document.write(AF.relatorios.gerarEsqueletoHTML());
+        win.document.close();
+
+        // Botões estáticos do cabeçalho
+        var btnLog = win.document.getElementById('btn-janela-log');
+        if (btnLog) {
+            btnLog.onclick = function () {
+                if (AF.log && typeof AF.log.abrirJanela === 'function') {
+                    AF.log.abrirJanela();
+                }
+            };
+        }
+
+        var btnCopiar = win.document.getElementById('btn-janela-copiar');
+        if (btnCopiar) {
+            btnCopiar.onclick = function () { copiarTSV(win); };
+        }
+
+        atualizarJanelaDOM(win, true);
+
+        if (typeof setInterval === 'function') {
+            if (intervaloJanela) clearInterval(intervaloJanela);
+            intervaloJanela = setInterval(function () {
+                if (!janelaRelatorio || janelaRelatorio.closed) {
+                    clearInterval(intervaloJanela);
+                    intervaloJanela = null;
+                    return;
+                }
+                atualizarJanelaDOM(janelaRelatorio, false);
+            }, 1000);
+        }
+
+        return win;
+    };
+
+    // Stubs para retrocompatibilidade
+    AF.relatorios.gerarAnalise = function (stats, lista, nomeMesStr, tempoMs, cancelado) {
+        var T = '\t';
+        var rel = 'RELATORIO DE ANALISE\n';
+        for (var i = 0; i < (lista || []).length; i++) {
+            var re = lista[i];
+            if (re.lido) {
+                rel += (re.nome || '').trim() + T + (re.folgas || 0) + T + (re.cod47 || 0) + T + (re.irregs || 0) + T + (re.interj || 0) + T + (re.HE || '00:00') + T + (re.HEF || '00:00') + T + (re.HEC || '00:00') + '\n';
+            }
+        }
+        AF.estado.relatorio = rel;
+        AF.estado.textoCopiavel = rel;
+        AF.estado.relatorioLista = (lista || []).slice();
+        if (AF.log && typeof AF.log.eventosDaExecucao === 'function') {
+            AF.estado.relatorioLog = AF.log.eventosDaExecucao();
+        } else {
+            AF.estado.relatorioLog = (AF.estado.logBuffer || []).slice();
+        }
+    };
 
     AF.relatorios.gerarFolgas = function (relStats, relLista, tempoMs, cancelado, diagnostico) {
-        var tempoTotal = Math.round(tempoMs / 1000);
-        var minutos    = Math.floor(tempoTotal / 60);
-        var segundos   = tempoTotal % 60;
-
+        var T = '\t';
         var rel = 'RELATORIO DE AJUSTE\n';
-        rel += 'Status: '                    + (cancelado ? 'INTERROMPIDO' : 'CONCLUIDO') + '\n';
+        rel += 'Status: ' + (cancelado ? 'INTERROMPIDO' : 'CONCLUIDO') + '\n';
         if (cancelado && diagnostico) {
             var detalhe = typeof diagnostico === 'string' ? diagnostico :
                 (diagnostico.stage + ': ' + diagnostico.reason +
                     (diagnostico.unconfirmed ? ' (resultado nao confirmado)' : ''));
             rel += 'Motivo da interrupcao: ' + detalhe + '\n';
         }
-        rel += 'Gerado em: '                 + new Date().toLocaleString('pt-BR') + '\n';
-        rel += 'Tempo total: '               + minutos + 'min ' + segundos + 's\n';
-        rel += 'Folhas processadas: '        + relStats.totalFolhas + '\n';
-        rel += 'Folhas sem marcacoes: '      + relStats.semMarcacoes + '\n';
-        rel += 'Folgas Mov.: '               + relStats.folgasAlteradas + '\n';
-        rel += 'Cod 47 Ajust.: '             + relStats.linhas47 + '\n';
-        rel += 'Folgas Presas: '             + relStats.folgasNaoAlteradas + '\n';
-        rel += 'Irregularidades restantes: ' + relStats.irregsRestantes + '\n';
-        rel += 'Interjornadas restantes: '   + relStats.interjRestantes + '\n\n';
-
-        var T = '\t';
-        rel += 'Nome' + T + 'Folgas Mov.' + T + 'Cod 47 Ajust.' + T + 'Presas' + T + 'Irregularidades' + T + 'Interjornada' + T + 'HE100%' + T + 'HEF100%' + T + 'HEC70%' + '\n';
-
-        for (var ri = 0; ri < relLista.length; ri++) {
-            var re = relLista[ri];
-            if (!re.lido && !re.parcial) continue;
-            if (re.pulada) continue;
-            if (re.parcial) {
-                rel += re.nome.trim() + T
-                    + (re.folgasAlteradas || 0) + T
-                    + '' + T
-                    + (re.folgasSemAlteracao || 0) + T
-                    + '' + T + '' + T + '' + T + '' + T + '\n';
-                continue;
+        for (var i = 0; i < (relLista || []).length; i++) {
+            var r = relLista[i];
+            if (r.parcial) {
+                rel += (r.nome || '').trim() + T + (r.folgasAlteradas || 0) + T + T + (r.folgasSemAlteracao || 0) + '\n';
+            } else if (r.lido) {
+                rel += (r.nome || '').trim() + T + (r.folgasAlteradas || 0) + T + (r.linhas47 || 0) + T + (r.folgasSemAlteracao || 0) + T + (r.irregs || 0) + T + (r.interj || 0) + T + (r.HE || '00:00') + T + (r.HEF || '00:00') + T + (r.HEC || '00:00') + '\n';
             }
-            var he  = normHora(re.HE);
-            var hef = normHora(re.HEF);
-            var hec = normHora(re.HEC);
-            var temAlgo = re.folgasAlteradas || re.folgasSemAlteracao || re.linhas47 ||
-                          re.irregs || re.interj || he !== '00:00' || hef !== '00:00';
-            if (!temAlgo) continue;
-            rel += re.nome.trim()        + T
-                +  re.folgasAlteradas    + T
-                +  re.linhas47           + T
-                +  re.folgasSemAlteracao + T
-                +  re.irregs             + T
-                +  re.interj             + T
-                +  xls(he)               + T
-                +  xls(hef)              + T
-                +  xls(hec)              + '\n';
         }
-
-        AF.estado.relatorio     = rel;
-        AF.estado.textoCopiavel = rel.replace(/\n/g, '\r\n');
-
-        // ── listaJanela: usa relLista já ordenado (vem ordenado de 40-fases) ──
+        AF.estado.relatorio = rel;
+        AF.estado.textoCopiavel = rel;
+        AF.estado.relatorioMeta = {
+            titulo: 'Relatório de Ajuste',
+            status: cancelado ? 'INTERROMPIDO' : 'CONCLUÍDO',
+            folhas: (relStats && relStats.totalFolhas) || 0
+        };
         var listaJanela = [];
-        for (var ji = 0; ji < relLista.length; ji++) {
-            var jr = relLista[ji];
-            if (!jr.nome || !jr.nome.trim()) continue;
-            var foiLido = jr.lido === true && !jr.pulada;
-            var parcial = jr.parcial === true && !jr.pulada;
-            var jhe  = foiLido ? normHora(jr.HE)  : null;
-            var jhef = foiLido ? normHora(jr.HEF) : null;
-            var jhec = foiLido ? normHora(jr.HEC) : null;
+        for (var j = 0; j < (relLista || []).length; j++) {
+            var item = relLista[j];
             listaJanela.push({
-                nome:   jr.nome.trim(),
-                folgas: foiLido || parcial ? (jr.folgasAlteradas != null ? jr.folgasAlteradas : 0) : null,
-                cod47:  foiLido ? (jr.linhas47 != null ? jr.linhas47 : 0) : null,
-                presas: foiLido || parcial ? (jr.folgasSemAlteracao != null ? jr.folgasSemAlteracao : 0) : null,
-                irregs: foiLido ? (jr.irregs             != null ? jr.irregs             : 0) : null,
-                interj: foiLido ? (jr.interj             != null ? jr.interj             : 0) : null,
-                he: jhe, hef: jhef, hec: jhec,
-                lido: foiLido,
-                parcial: parcial,
-                britanica: foiLido ? (jr.britanica != null ? jr.britanica : 0) : null,
-                naoPreenchida: foiLido ? (jr.naoPreenchida || null) : null,
-                dias: foiLido ? (jr.dias || null) : null
+                nome: item.nome,
+                folgas: item.folgasAlteradas != null ? item.folgasAlteradas : 0,
+                presas: item.folgasSemAlteracao != null ? item.folgasSemAlteracao : 0,
+                lido: !!item.lido,
+                parcial: !!item.parcial,
+                britanica: item.britanica != null ? item.britanica : null,
+                naoPreenchida: item.naoPreenchida || null,
+                dias: item.dias || null
             });
         }
-
         AF.estado.relatorioLista = listaJanela;
-        AF.estado.relatorioTipo  = 'execucao';
-        AF.estado.relatorioMeta  = {
-            titulo:  'Relatório de Ajuste',
-            status:  cancelado ? 'INTERROMPIDO' : 'CONCLUÍDO',
-            diagnostico: cancelado ? diagnostico || null : null,
-            folhas:  relStats.totalFolhas,
-            tempo:   minutos + 'min ' + segundos + 's',
-            gerado:  new Date().toLocaleString('pt-BR')
-        };
-        AF.estado.relatorioLog = logDaExecucaoAtual();
-
-        AF.relatorios.habilitarCopiar('Relatório de Ajuste');
-
-        AF.core.log('──────────────────', '#374151');
-        AF.core.log('RELATORIO DE AJUSTE', '#f9fafb');
-        AF.core.log('Tempo: ' + minutos + 'min ' + segundos + 's', '#0043ff');
-        AF.core.log('Folgas Mov.: ' + relStats.folgasAlteradas + ' | Cod 47 Ajust.: ' + relStats.linhas47 + ' | Presas: ' + relStats.folgasNaoAlteradas, '#0043ff');
-        AF.core.log('Irregularidades: ' + relStats.irregsRestantes + ' | Interjornada: ' + relStats.interjRestantes, '#0043ff');
-        AF.core.log('──────────────────', '#374151');
-        AF.core.log('Relatorio pronto.', '#02ab19');
     };
 
-    // ── Relatório do Analisar (50-analisar) — TSV ───────────────────
-
-    AF.relatorios.gerarAnalise = function (stats, lista, nomeMesStr, tempoMs, cancelado) {
-        var tempoTotal = Math.round(tempoMs / 1000);
-        var min = Math.floor(tempoTotal / 60);
-        var seg = tempoTotal % 60;
-
-        var totalHEstr  = fmtMin(stats.HEmin);
-        var totalHEFstr = fmtMin(stats.HEFmin);
-
-        var rel = 'RELATORIO DE ANALISE - ' + nomeMesStr + '\n';
-        rel += 'Status: '               + (cancelado ? 'INTERROMPIDO' : 'CONCLUIDO') + '\n';
-        rel += 'Gerado em: '            + new Date().toLocaleString('pt-BR') + '\n';
-        rel += 'Tempo total: '          + min + 'min ' + seg + 's\n';
-        rel += 'Folhas analisadas: '    + (stats.totalFolhas + stats.vazias) + '\n';
-        rel += 'Folhas sem marcacoes: ' + stats.vazias + '\n';
-        rel += 'Total Folgas p/ Mov.: '      + stats.folgasMoviveis + '\n';
-        rel += 'Total Cod 47 p/ Ajustar: '   + stats.cod47 + '\n';
-        rel += 'Total Irregularidades: '     + stats.irregs + '\n';
-        rel += 'Total Interjornada: '        + stats.interj + '\n';
-        rel += 'Total HE100%: '              + totalHEstr + '\n';
-        rel += 'Total HEF100%: '             + totalHEFstr + '\n\n';
-
-        var T = '\t';
-        rel += 'Nome' + T + 'Folgas p/ Mov.' + T + 'Cod 47 p/ Ajustar' + T + 'Irregularidades' + T + 'Interjornada' + T + 'HE100%' + T + 'HEF100%' + T + 'HEC70%' + '\n';
-
-        for (var ri = 0; ri < lista.length; ri++) {
-            var re = lista[ri];
-            if (!re.nome || !re.nome.trim()) continue;
-            if (!re.lido) continue;
-            var folgas = re.folgas != null ? re.folgas : 0;
-            var irregs = re.irregs != null ? re.irregs : 0;
-            var interj = re.interj != null ? re.interj : 0;
-            var cod47  = re.cod47  != null ? re.cod47  : 0;
-            var he     = normHora(re.HE);
-            var hef    = normHora(re.HEF);
-            var hec    = normHora(re.HEC);
-            rel += re.nome.trim() + T + folgas + T + cod47 + T + irregs + T + interj + T + xls(he) + T + xls(hef) + T + xls(hec) + '\n';
-        }
-
-        AF.estado.relatorio     = rel;
-        AF.estado.textoCopiavel = rel.replace(/\n/g, '\r\n');
-
-        // ── listaJanela: TODOS os nomes, ordenados, com lido=false onde não foi analisado ──
-        var listaJanela = [];
-        for (var ji = 0; ji < lista.length; ji++) {
-            var jr = lista[ji];
-            if (!jr.nome || !jr.nome.trim()) continue;
-            var foiLido = jr.lido !== false;
-            listaJanela.push({
-                nome:   jr.nome.trim(),
-                folgas: foiLido && jr.folgas != null ? jr.folgas : (foiLido ? 0 : null),
-                cod47:  foiLido && jr.cod47  != null ? jr.cod47  : (foiLido ? 0 : null),
-                presas: null,
-                irregs: foiLido && jr.irregs != null ? jr.irregs : (foiLido ? 0 : null),
-                interj: foiLido && jr.interj != null ? jr.interj : (foiLido ? 0 : null),
-                he:  foiLido ? normHora(jr.HE)  : null,
-                hef: foiLido ? normHora(jr.HEF) : null,
-                hec: foiLido ? normHora(jr.HEC) : null,
-                lido: foiLido,
-                britanica: foiLido ? (jr.britanica != null ? jr.britanica : 0) : null,
-                naoPreenchida: foiLido ? (jr.naoPreenchida || null) : null,
-                dias: foiLido ? (jr.dias || null) : null
-            });
-        }
-        // ordenação alfabética inicial (sem acentos)
-        listaJanela.sort(function (a, b) {
-            return normSort(a.nome) < normSort(b.nome) ? -1 : normSort(a.nome) > normSort(b.nome) ? 1 : 0;
-        });
-
-        AF.estado.relatorioLista = listaJanela;
-        AF.estado.relatorioTipo  = 'analise';
-        AF.estado.relatorioMeta  = {
-            titulo:  'Relatório de Análise — ' + nomeMesStr,
-            status:  cancelado ? 'INTERROMPIDO' : 'CONCLUÍDO',
-            folhas:  stats.totalFolhas + stats.vazias,
-            tempo:   min + 'min ' + seg + 's',
-            gerado:  new Date().toLocaleString('pt-BR')
-        };
-        AF.estado.relatorioLog = logDaExecucaoAtual();
-
-        AF.relatorios.habilitarCopiar('Relatório de Análise');
-
-        AF.core.log('──────────────────', '#374151');
-        AF.core.log('ANALISE CONCLUIDA', '#f9fafb');
-        AF.core.log('Tempo: ' + min + 'min ' + seg + 's', '#0043ff');
-        AF.core.log('Folgas p/ Mov.: ' + stats.folgasMoviveis + ' | Cod 47 p/ Ajustar: ' + stats.cod47 + ' | Irregularidades: ' + stats.irregs + ' | Interjornada: ' + stats.interj, '#0043ff');
-        AF.core.log('HE100%: ' + totalHEstr + ' | HEF100%: ' + totalHEFstr, '#0043ff');
-        AF.core.log('──────────────────', '#374151');
-        AF.core.log('Relatorio pronto.', '#02ab19');
-    };
-
-    // ── Log da execução atual e agrupamento por funcionário ────────
-
-    function logDaExecucaoAtual() {
-        if (AF.log && typeof AF.log.eventosDaExecucao === 'function') {
-            return AF.log.eventosDaExecucao().map(function (e) {
-                return { msg: e.msg, cor: e.cor, func: e.func };
-            });
-        }
-        return (AF.estado.logBuffer || []).slice();
-    }
-
-    function parsearLogPorFuncionario(buffer) {
-        var grupos = [];
-        var indice = {};
-        for (var i = 0; i < buffer.length; i++) {
-            var item = buffer[i];
-            if (!item.func) continue;
-            if (!indice.hasOwnProperty(item.func)) {
-                indice[item.func] = grupos.length;
-                grupos.push({ nome: item.func, linhas: [] });
-            }
-            grupos[indice[item.func]].linhas.push(item);
-        }
-        return grupos;
-    }
-    // ── Gerar HTML da janela ───────────────────────────────────────
-
-    function gerarHTML(lista, meta, tipo, tsv, logBuffer) {
-        var temPressa = tipo === 'execucao';
-
-        // ── escalas de cor ──
-        var maxIrregs = 1, maxInterj = 1, maxFolgas = 1, maxCod47 = 1, maxPressa = 1;
-        for (var i = 0; i < lista.length; i++) {
-            if (lista[i].lido === false && !lista[i].parcial) continue;
-            if ((lista[i].irregs || 0) > maxIrregs) maxIrregs = lista[i].irregs;
-            if ((lista[i].interj || 0) > maxInterj) maxInterj = lista[i].interj;
-            if ((lista[i].folgas || 0) > maxFolgas) maxFolgas = lista[i].folgas;
-            if ((lista[i].cod47  || 0) > maxCod47)  maxCod47  = lista[i].cod47;
-            if (temPressa && (lista[i].presas || 0) > maxPressa) maxPressa = lista[i].presas;
-        }
-
-        // ── Totais incluem apenas folhas lidas e valores confirmados das parciais. ──
-        var heToMin = function (str) {
-            if (str === null || str === undefined) return null;
-            var s = String(str || '00:00').trim().replace(/^'/, '');
-            var neg = s.charAt(0) === '-';
-            var b = neg ? s.slice(1) : s;
-            var p = b.split(':');
-            var m = parseInt(p[0] || 0) * 60 + parseInt(p[1] || 0);
-            return neg ? -m : m;
-        };
-        var minToHe = function (m) {
-            var neg = m < 0, abs = Math.abs(m);
-            return (neg ? '-' : '') + String(Math.floor(abs / 60)).padStart(2, '0') + ':' + String(abs % 60).padStart(2, '0');
-        };
-
-        var tF = 0, tC = 0, tP = 0, tI = 0, tJ = 0, tHE = 0, tHEF = 0, tHECpos = 0, tHECneg = 0;
-        for (var ti = 0; ti < lista.length; ti++) {
-            var d = lista[ti];
-            if (d.lido === false && !d.parcial) continue;
-            tF  += d.folgas || 0;
-            tC  += d.cod47  || 0;
-            tP  += d.presas || 0;
-            tI  += d.irregs || 0;
-            tJ  += d.interj || 0;
-            tHE  += heToMin(d.he)  || 0;
-            tHEF += heToMin(d.hef) || 0;
-            var hecMin = heToMin(d.hec) || 0;
-            if (hecMin >= 0) tHECpos += hecMin; else tHECneg += hecMin;
-        }
-
-        var pressaTh  = temPressa ? '<th data-col=\"presas\" style=\"text-align:right;cursor:pointer\">Presas <span class=\"sort-arrow\" data-col=\"presas\"></span></th>' : '';
-        var pressaTot = temPressa ? '<td style=\"text-align:right;padding:8px 10px\">' + tP + '</td>' : '';
-
-        var statusColor  = meta.status === 'CONCLUÍDO' ? '#22c55e' : '#f97316';
-        var badgeStatus  = '<span style=\"font-size:10px;font-weight:600;padding:2px 8px;border-radius:99px;background:rgba(34,197,94,.12);color:' + statusColor + ';border:1px solid rgba(34,197,94,.2);text-transform:uppercase;letter-spacing:.04em\">' + meta.status + '</span>';
-        var diagnostico = meta.diagnostico;
-        var textoDiagnostico = diagnostico ? (typeof diagnostico === 'string' ? diagnostico :
-            diagnostico.stage + ': ' + diagnostico.reason +
-                (diagnostico.unconfirmed ? ' (resultado nao confirmado)' : '')) : '';
-        var diagnosticoHtml = textoDiagnostico ?
-            '<div style=\"margin-top:8px;color:#fca5a5;font-size:11px\">Interrupcao: ' +
-                escaparHTML(textoDiagnostico) + '</div>' : '';
-
-        var grupos = parsearLogPorFuncionario(logBuffer || []);
-
-        var opcoesSelect = '<option value=\"__todos__\">Todos os funcionários</option>';
-        for (var gi = 0; gi < grupos.length; gi++) {
-            opcoesSelect += '<option value=\"' + gi + '\">' + abrevNome(grupos[gi].nome) + '</option>';
-        }
-
-        var gruposJson      = JSON.stringify(grupos.map(function(g) { return { nome: g.nome, linhas: g.linhas }; }));
-        var logCompletoJson = JSON.stringify(logBuffer || []);
-        var tsvEsc          = JSON.stringify(tsv);
-        var listaJson       = JSON.stringify(lista);
-        var maxJson         = JSON.stringify({ maxIrregs: maxIrregs, maxInterj: maxInterj, maxFolgas: maxFolgas, maxCod47: maxCod47, maxPressa: maxPressa });
-        var hasLog          = grupos.length > 0;
-        var temPressaJs     = temPressa ? 'true' : 'false';
-
-        var hecTotalHtml = '<span style=\"color:#22c55e;font-weight:700\">+' + minToHe(tHECpos) + '</span>'
-                         + '<span style=\"color:var(--text-faint);margin:0 3px\">/</span>'
-                         + '<span style=\"color:#ef4444;font-weight:700\">' + minToHe(tHECneg) + '</span>';
-
-        return '<!DOCTYPE html><html lang=\"pt-BR\" data-theme=\"dark\"><head><meta charset=\"UTF-8\">'
-            + '<title>FPW — ' + meta.titulo + '</title>'
-            + '<link href=\"https://api.fontshare.com/v2/css?f[]=satoshi@400,500,600,700&display=swap\" rel=\"stylesheet\">'
-            + '<style>'
-            + ':root,[data-theme=\"light\"]{'
-            + '--bg:#f8fafc;--surface:#ffffff;--surface2:#f1f5f9;'
-            + '--border:rgba(0,0,0,.09);'
-            + '--text:#0f172a;--text-muted:#334155;--text-faint:#64748b;'
-            + '--hdr-bg:#ffffff;--hdr-border:rgba(0,0,0,.08);'
-            + '--tbl-head:#f1f5f9;--tbl-head-txt:#334155;'
-            + '--tbl-row-hover:rgba(0,0,0,.025);'
-            + '--tbl-row-active:rgba(59,130,246,.08);--tbl-row-active-outline:rgba(59,130,246,.25);'
-            + '--tbl-total-bg:rgba(59,130,246,.05);--tbl-total-border:#3b82f6;--tbl-total-txt:#1e40af;'
-            + '--action-bg:#f8fafc;'
-            + '--log-bg:#f1f5f9;--log-hdr-bg:#ffffff;--log-sel-bg:#f8fafc;--log-sel-border:rgba(0,0,0,.15);'
-            + '--log-empty:#64748b;--log-sep:#cbd5e1;'
-            + '--scroll-thumb:rgba(0,0,0,.12);'
-            + '--cell-dash:#475569;--cell-zero:#475569;'
-            + '--row-name:#0f172a;'
-            + '--th-sort-active:rgba(59,130,246,.15);'
-            + '}'
-            + '[data-theme=\"dark\"]{'
-            + '--bg:#0f1117;--surface:#161b22;--surface2:#0d1117;'
-            + '--border:rgba(255,255,255,.08);'
-            + '--text:#e2e8f0;--text-muted:#94a3b8;--text-faint:#64748b;'
-            + '--hdr-bg:#0d1117;--hdr-border:rgba(255,255,255,.12);'
-            + '--tbl-head:#0d1117;--tbl-head-txt:#94a3b8;'
-            + '--tbl-row-hover:rgba(255,255,255,.04);'
-            + '--tbl-row-active:rgba(59,130,246,.12);--tbl-row-active-outline:rgba(59,130,246,.3);'
-            + '--tbl-total-bg:rgba(59,130,246,.07);--tbl-total-border:#3b82f6;--tbl-total-txt:#3b82f6;'
-            + '--action-bg:#0d1117;'
-            + '--log-bg:#0f1117;--log-hdr-bg:#0d1117;--log-sel-bg:#161b22;--log-sel-border:rgba(255,255,255,.12);'
-            + '--log-empty:#64748b;--log-sep:#1f2937;'
-            + '--scroll-thumb:rgba(255,255,255,.12);'
-            + '--cell-dash:#94a3b8;--cell-zero:#94a3b8;'
-            + '--row-name:#e2e8f0;'
-            + '--th-sort-active:rgba(59,130,246,.18);'
-            + '}'
-            + '*{box-sizing:border-box;margin:0;padding:0}'
-            + 'html,body{background:var(--bg);color:var(--text);font-family:\"Satoshi\",\"Inter\",sans-serif;font-size:12px;height:100%;overflow:hidden;transition:background .2s,color .2s}'
-            + '.frame{display:flex;flex-direction:column;height:100vh;border:1px solid var(--border);border-radius:10px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.15)}'
-            + '.hdr{background:var(--hdr-bg);border-bottom:1px solid var(--hdr-border);padding:10px 16px;flex-shrink:0}'
-            + '.hdr-row1{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px}'
-            + '.hdr-title{font-size:14px;font-weight:700;letter-spacing:-.02em;display:flex;align-items:center;gap:8px;color:var(--text)}'
-            + '.hdr-meta{display:flex;flex-wrap:wrap;gap:4px 20px;font-size:11px;color:var(--text-muted)}'
-            + '.meta-lbl{color:var(--text-faint)}.meta-val{color:var(--text-muted);font-weight:500}.meta-hi{color:#3b82f6;font-weight:700}'
-            + '.body-scroll{flex:1;overflow-y:auto;overflow-x:hidden}'
-            + '.body-scroll::-webkit-scrollbar{width:5px}.body-scroll::-webkit-scrollbar-thumb{background:var(--scroll-thumb);border-radius:99px}'
-            + '.sec{padding:0}'
-            + '.sec-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-faint);padding:10px 16px 4px;border-top:1px solid var(--border)}'
-            + '.tbl-wrap{overflow-x:auto}'
-            + '.tbl-wrap::-webkit-scrollbar{height:4px}.tbl-wrap::-webkit-scrollbar-thumb{background:var(--scroll-thumb);border-radius:99px}'
-            + 'table{width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed}'
-            + 'thead th{background:var(--tbl-head);color:var(--tbl-head-txt);font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.05em;padding:6px 10px;border-bottom:1px solid var(--border);white-space:nowrap;text-align:right;position:sticky;top:0;z-index:5;user-select:none}'
-            + 'thead th[data-col]{cursor:pointer;transition:background .15s}'
-            + 'thead th[data-col]:hover{background:var(--th-sort-active)}'
-            + 'thead th.sort-active{background:var(--th-sort-active);color:#3b82f6}'
-            + 'thead th:first-child{text-align:left;width:180px}'
-            + '.sort-arrow{font-size:9px;margin-left:3px;opacity:.6}'
-            + 'tbody tr:hover{background:var(--tbl-row-hover)}'
-            + 'tbody tr.active-row{background:var(--tbl-row-active)!important;outline:1px solid var(--tbl-row-active-outline)}'
-            + '.row-unread{opacity:.5}'
-            + '.row-total{background:var(--tbl-total-bg)!important;border-top:2px solid var(--tbl-total-border)!important}'
-            + '.row-total td{font-weight:700;color:var(--text)!important;padding:7px 10px;font-size:11px}'
-            + '.row-total td:first-child{color:var(--tbl-total-txt)!important;font-size:10px;text-transform:uppercase;letter-spacing:.05em}'
-            + '.col-nome{padding:5px 10px;color:var(--row-name);font-size:11px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
-            + '.cell-dash{color:var(--cell-dash)}.cell-zero{color:var(--cell-zero)}'
-            + '.action-bar{display:flex;align-items:center;justify-content:space-between;padding:7px 14px;background:var(--action-bg);border-top:1px solid var(--border);flex-shrink:0}'
-            + '.hint{font-size:10px;color:var(--text-faint)}'
-            + '.log-header{display:flex;align-items:center;gap:8px;padding:8px 14px 6px;background:var(--log-hdr-bg);border-top:2px solid var(--border);flex-shrink:0;flex-wrap:nowrap}'
-            + '.log-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);white-space:nowrap}'
-            + 'select.log-sel{background:var(--log-sel-bg);color:var(--text);border:1px solid var(--log-sel-border);border-radius:5px;padding:3px 8px;font-size:11px;font-family:inherit;cursor:pointer;flex:1;min-width:0}'
-            + 'select.log-sel:focus{outline:none;border-color:#3b82f6}'
-            + '.log-box{flex:1;overflow-y:auto;padding:6px 14px 10px;font-size:11px;line-height:1.55;min-height:120px;max-height:260px;background:var(--log-bg)}'
-            + '.log-box::-webkit-scrollbar{width:4px}.log-box::-webkit-scrollbar-thumb{background:var(--scroll-thumb);border-radius:99px}'
-            + '.log-line{margin-top:2px;white-space:pre-wrap;word-break:break-all}'
-            + '.log-sep{color:var(--log-sep);margin:4px 0;font-size:10px;letter-spacing:.03em}'
-            + '.log-empty{color:var(--log-empty);font-style:italic;padding:8px 0}'
-            + '.btn{display:inline-flex;align-items:center;gap:5px;border:none;border-radius:5px;padding:5px 12px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;letter-spacing:.02em;transition:filter .15s}'
-            + '.btn-blue{background:#3b82f6;color:#fff}.btn-blue:hover{filter:brightness(1.15)}.btn-blue.ok{background:#22c55e}'
-            + '.btn-gray{background:rgba(128,128,128,.12);color:var(--text-muted);border:1px solid var(--border)}.btn-gray:hover{background:rgba(128,128,128,.2)}'
-            + '</style></head><body>'
-            + '<div class=\"frame\">'
-            + '<div class=\"hdr\">'
-            +   '<div class=\"hdr-row1\">'
-            +     '<div class=\"hdr-title\">📋 ' + meta.titulo + ' ' + badgeStatus + '</div>'
-            +   '</div>'
-            +   '<div class=\"hdr-meta\">'
-            +     '<span class=\"meta-lbl\">Folhas:&nbsp;</span><span class=\"meta-hi\">' + meta.folhas + '</span>'
-            +     '<span class=\"meta-lbl\">Duração:&nbsp;</span><span class=\"meta-hi\">' + meta.tempo + '</span>'
-            +     '<span class=\"meta-lbl\">Gerado em:&nbsp;</span><span class=\"meta-val\">' + meta.gerado + '</span>'
-            +   '</div>'
-            +   diagnosticoHtml
-            + '</div>'
-            + '<div class=\"body-scroll\">'
-            + '<div class=\"sec\">'
-            + '<div class=\"sec-label\">📊 Tabela de resultados</div>'
-            + '<div class=\"tbl-wrap\"><table id=\"fpw-table\">'
-            +   '<thead><tr>'
-            +     '<th data-col=\"nome\" style=\"text-align:left;cursor:pointer\">Nome <span class=\"sort-arrow\" id=\"arr-nome\"></span></th>'
-            +     '<th data-col=\"folgas\">Folgas Mov. <span class=\"sort-arrow\" id=\"arr-folgas\"></span></th>'
-            +     '<th data-col=\"cod47\">Cód 47 <span class=\"sort-arrow\" id=\"arr-cod47\"></span></th>'
-            +     pressaTh
-            +     '<th data-col=\"irregs\">Irregularidades <span class=\"sort-arrow\" id=\"arr-irregs\"></span></th>'
-            +     '<th data-col=\"interj\">Interjornada <span class=\"sort-arrow\" id=\"arr-interj\"></span></th>'
-            +     '<th data-col=\"he\">HE100% <span class=\"sort-arrow\" id=\"arr-he\"></span></th>'
-            +     '<th data-col=\"hef\">HEF100% <span class=\"sort-arrow\" id=\"arr-hef\"></span></th>'
-            +     '<th data-col=\"hec\">HEC70% <span class=\"sort-arrow\" id=\"arr-hec\"></span></th>'
-            +   '</tr></thead>'
-            +   '<tbody id=\"fpw-tbody\"></tbody>'
-            +   '<tfoot><tr class=\"row-total\">'
-            +     '<td>▸ TOTAIS</td>'
-            +     '<td style=\"text-align:right;padding:7px 10px\">' + tF + '</td>'
-            +     '<td style=\"text-align:right;padding:7px 10px\">' + tC + '</td>'
-            +     pressaTot
-            +     '<td style=\"text-align:right;padding:7px 10px\">' + tI + '</td>'
-            +     '<td style=\"text-align:right;padding:7px 10px\">' + tJ + '</td>'
-            +     '<td style=\"text-align:right;padding:7px 10px\">' + cellHeStr(minToHe(tHE)) + '</td>'
-            +     '<td style=\"text-align:right;padding:7px 10px\">' + cellHeStr(minToHe(tHEF)) + '</td>'
-            +     '<td style=\"text-align:right;padding:7px 10px\">' + hecTotalHtml + '</td>'
-            +   '</tr></tfoot>'
-            + '</table></div>'
-            + '</div>'
-            + '<div class=\"action-bar\">'
-            +   '<span class=\"hint\">👆 Clique em uma linha para navegar • Clique no cabeçalho para ordenar</span>'
-            +   '<button class=\"btn btn-blue\" id=\"btn-tsv\">📋 Copiar Relatório</button>'
-            + '</div>'
-            + (hasLog
-                ? '<div class=\"log-header\">'
-                +   '<span class=\"log-title\">📄 Log</span>'
-                +   '<select class=\"log-sel\" id=\"log-sel\">' + opcoesSelect + '</select>'
-                +   '<button class=\"btn btn-gray\" id=\"btn-log-copy\">📋 Copiar Log</button>'
-                + '</div>'
-                + '<div class=\"log-box\" id=\"log-box\"></div>'
-                : '')
-            + '</div>'
-            + '</div>'
-            + '<script>'
-            + 'var _tsv=' + tsvEsc + ';'
-            + 'var _grupos=' + gruposJson + ';'
-            + 'var _logCompleto=' + logCompletoJson + ';'
-            + 'var _lista=' + listaJson + ';'
-            + 'var _max=' + maxJson + ';'
-            + 'var _temPressa=' + temPressaJs + ';'
-            + 'var _sortCol=null,_sortDir=1;'
-
-            // ── helpers de renderização client-side ──
-            + 'function _normSort(s){return(s||"").normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").toLowerCase();}'
-            + 'function _abrev(nome){'
-            +   'var c=nome.replace(/\\s+\\d+$/,""),p=c.split(" ");'
-            +   'if(p.length<=2)return p.join(" ");'
-            +   'var sk=["DE","DA","DO","DOS","DAS","E"],f=p[0],u=p[p.length-1];'
-            +   'var m=p.slice(1,-1).map(function(x){return sk.indexOf(x)>=0?x:x.charAt(0)+".";}).join(" ");'
-            +   'return f+" "+m+" "+u;'
-            + '}'
-            + 'function _heToMin(str){'
-            +   'if(str===null||str===undefined)return null;'
-            +   'var s=String(str||"00:00").trim().replace(/^\'/,"");'
-            +   'var neg=s.charAt(0)==="-",b=neg?s.slice(1):s,p=b.split(":");'
-            +   'var m=parseInt(p[0]||0)*60+parseInt(p[1]||0);'
-            +   'return neg?-m:m;'
-            + '}'
-            + 'function _minToHe(m){'
-            +   'var neg=m<0,abs=Math.abs(m);'
-            +   'return(neg?"-":"")+String(Math.floor(abs/60)).padStart(2,"0")+":"+String(abs%60).padStart(2,"0");'
-            + '}'
-            + 'function _chipRed(val,mx){'
-            +   'if(val===null||val===undefined)return\'<span class="cell-dash">-</span>\';'
-            +   'if(!val)return\'<span class="cell-zero">0</span>\';'
-            +   'var r=val/mx;'
-            +   'var bg=r<=.2?"rgba(239,68,68,.10)":r<=.4?"rgba(239,68,68,.20)":r<=.6?"rgba(239,68,68,.32)":r<=.8?"rgba(239,68,68,.48)":"rgba(239,68,68,.68)";'
-            +   'var fg=r<=.8?"#fca5a5":"#fff";'
-            +   'return\'<span style="background:\'+bg+\';color:\'+fg+\';padding:1px 6px;border-radius:4px;font-weight:600">\'+val+\'</span>\';'
-            + '}'
-            + 'function _chipOra(val,mx){'
-            +   'if(val===null||val===undefined)return\'<span class="cell-dash">-</span>\';'
-            +   'if(!val)return\'<span class="cell-zero">0</span>\';'
-            +   'var r=val/mx;'
-            +   'var bg=r<=.2?"rgba(249,115,22,.10)":r<=.4?"rgba(249,115,22,.20)":r<=.6?"rgba(249,115,22,.32)":r<=.8?"rgba(249,115,22,.48)":"rgba(249,115,22,.68)";'
-            +   'var fg=r<=.8?"#fdba74":"#fff";'
-            +   'return\'<span style="background:\'+bg+\';color:\'+fg+\';padding:1px 6px;border-radius:4px;font-weight:600">\'+val+\'</span>\';'
-            + '}'
-            + 'function _cellHe(val){'
-            +   'if(val===null||val===undefined)return\'<span class="cell-dash">-</span>\';'
-            +   'var s=String(val||"00:00").replace(/^\'/,""),m=_heToMin(s);'
-            +   'if(m>0)return\'<span style="color:#22c55e;font-weight:600">\'+s+\'</span>\';'
-            +   'if(m<0)return\'<span style="color:#ef4444;font-weight:600">\'+s+\'</span>\';'
-            +   'return\'<span class="cell-zero">00:00</span>\';'
-            + '}'
-
-            // ── renderizar tbody ──
-            + 'function _renderRows(arr){'
-            +   'var tb=document.getElementById("fpw-tbody");'
-            +   'if(!tb)return;'
-            +   'var html="";'
-            +   'for(var i=0;i<arr.length;i++){'
-            +     'var d=arr[i],nr=d.lido===false;'
-            +     'var pc=_temPressa?\'<td style="text-align:right;padding:5px 10px">\'+_chipOra(d.presas,_max.maxPressa)+"</td>":"";'
-            +     'html+=\'<tr class="fpw-row\' +(nr ? \' row-unread\' : \'\') + \'" data-nome="\' + d.nome + \'" title="\' + d.nome + (d.parcial ? \' - parcial; folha interrompida\' : (nr ? \' - nao processada\' : \'\')) + \'">\''
-            +       '+\'<td class="col-nome" title="\'+d.nome+\'">\'+_abrev(d.nome)+\'</td>\''
-            +       '+\'<td style="text-align:right;padding:5px 10px">\'+_chipOra(d.folgas,_max.maxFolgas)+\'</td>\''
-            +       '+\'<td style="text-align:right;padding:5px 10px">\'+_chipOra(d.cod47,_max.maxCod47)+\'</td>\''
-            +       '+pc'
-            +       '+\'<td style="text-align:right;padding:5px 10px">\'+_chipRed(d.irregs,_max.maxIrregs)+\'</td>\''
-            +       '+\'<td style="text-align:right;padding:5px 10px">\'+_chipRed(d.interj,_max.maxInterj)+\'</td>\''
-            +       '+\'<td style="text-align:right;padding:5px 10px">\'+_cellHe(d.he)+\'</td>\''
-            +       '+\'<td style="text-align:right;padding:5px 10px">\'+_cellHe(d.hef)+\'</td>\''
-            +       '+\'<td style="text-align:right;padding:5px 10px">\'+_cellHe(d.hec)+\'</td>\''
-            +       '+\'</tr>\';'
-            +   '}'
-            +   'tb.innerHTML=html;'
-            +   '_bindRows();'
-            + '}'
-
-            // ── lógica de ordenação ──
-            + 'function _sortLista(col,dir){'
-            +   'var arr=_lista.slice();'
-            +   'arr.sort(function(a,b){'
-            +     'var va,vb;'
-            +     'if(col==="nome"){'
-            +       'va=_normSort(a.nome);vb=_normSort(b.nome);'
-            +       'return va<vb?-dir:va>vb?dir:0;'
-            +     '}'
-            +     'if(col==="hec"){'
-            // HEC70%: ordena apenas pelos positivos (negativos e null ficam no fim)
-            +       'va=_heToMin(a.hec);vb=_heToMin(b.hec);'
-            +       'var aPos=va!==null&&va>=0,bPos=vb!==null&&vb>=0;'
-            +       'if(aPos&&bPos)return(vb-va)*dir;'
-            +       'if(aPos)return-1;'
-            +       'if(bPos)return 1;'
-            +       'return 0;'
-            +     '}'
-            +     'if(col==="he"||col==="hef"){'
-            +       'va=_heToMin(a[col]);vb=_heToMin(b[col]);'
-            +       'if(va===null&&vb===null)return 0;'
-            +       'if(va===null)return 1;if(vb===null)return-1;'
-            +       'return(vb-va)*dir;'
-            +     '}'
-            // numéricos
-            +     'va=a[col]!=null?a[col]:-Infinity;vb=b[col]!=null?b[col]:-Infinity;'
-            +     'return(vb-va)*dir;'
-            +   '});'
-            +   'return arr;'
-            + '}'
-
-            // ── atualizar setas ──
-            + 'function _updateArrows(col,dir){'
-            +   'var cols=["nome","folgas","cod47","presas","irregs","interj","he","hef","hec"];'
-            +   'for(var i=0;i<cols.length;i++){'
-            +     'var el=document.getElementById("arr-"+cols[i]);'
-            +     'var th=document.querySelector(\'th[data-col="\'+cols[i]+\'"]\');'
-            +     'if(el)el.textContent="";'
-            +     'if(th)th.classList.remove("sort-active");'
-            +   '}'
-            +   'var active=document.getElementById("arr-"+col);'
-            +   'var activeTh=document.querySelector(\'th[data-col="\'+col+\'"]\');'
-            +   'if(active)active.textContent=dir===1?"↑":"↓";'
-            +   'if(activeTh)activeTh.classList.add("sort-active");'
-            + '}'
-
-            // ── click nos th ──
-            + 'document.querySelectorAll("thead th[data-col]").forEach(function(th){'
-            +   'th.addEventListener("click",function(){'
-            +     'var col=this.getAttribute("data-col");'
-            +     'if(_sortCol===col){_sortDir*=-1;}else{_sortCol=col;_sortDir=col==="nome"?1:-1;}'
-            +     '_updateArrows(_sortCol,_sortDir);'
-            +     '_renderRows(_sortLista(_sortCol,_sortDir));'
-            +   '});'
-            + '});'
-
-            // ── render inicial ──
-            + '_renderRows(_lista);'
-
-            // ── bind clique nas linhas (navegar funcionário) ──
-            + 'function _bindRows(){'
-            +   'document.querySelectorAll(".fpw-row").forEach(function(tr){'
-            +     'tr.addEventListener("click",function(){'
-            +       'document.querySelectorAll(".fpw-row").forEach(function(r){r.classList.remove("active-row");});'
-            +       'this.classList.add("active-row");'
-            +       'var nome=this.getAttribute("data-nome");'
-            +       'try{'
-            +         'var f0=window.opener.top.frames[0];'
-            +         'var docC=f0.document;'
-            +         'var sel=docC.getElementById("lstNome")||docC.querySelector("select[name=lstNome]");'
-            +         'if(!sel)return;'
-            +         'var norm=function(s){return(s||"").normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").toLowerCase().trim();};'
-            +         'var nn=norm(nome.replace(/\\s+\\d+$/,""));'
-            +         'for(var i=0;i<sel.options.length;i++){'
-            +           'if(norm(sel.options[i].text.replace(/\\s+\\d+$/,""))===nn){'
-            +             'sel.selectedIndex=i;'
-            +             'try{f0.AjustaCodEmpresaEmpregado(docC.yourform.lstNome,docC.yourform.CodEmpresaEmpregado);}catch(e){}'
-            +             'try{f0.AtualizaFuncionario();}catch(e){}'
-            +             'break;'
-            +           '}'
-            +         '}'
-            +       '}catch(e){}'
-            +     '});'
-            +   '});'
-            + '}'
-
-            // ── copiar TSV ──
-            + 'document.getElementById("btn-tsv").onclick=function(){'
-            +   'navigator.clipboard.writeText(_tsv).then(function(){'
-            +     'var b=document.getElementById("btn-tsv");'
-            +     'b.classList.add("ok");b.textContent="✓ Copiado!";'
-            +     'setTimeout(function(){b.classList.remove("ok");b.innerHTML="📋 Copiar Relatório";},2500);'
-            +   '}).catch(function(){alert("Erro ao copiar.");});'
-            + '};'
-
-            + (hasLog
-                ? 'function renderLog(grupos,filtro){'
-                +   'var box=document.getElementById("log-box");'
-                +   'if(!box)return;'
-                +   'box.innerHTML="";'
-                +   'if(filtro==="__todos__"){'
-                +     'for(var gi=0;gi<grupos.length;gi++){'
-                +       'var sep=document.createElement("div");'
-                +       'sep.className="log-line log-sep";'
-                +       'sep.textContent="── "+grupos[gi].nome+" "+"─".repeat(10);'
-                +       'box.appendChild(sep);'
-                +       'for(var li=0;li<grupos[gi].linhas.length;li++){renderLinha(box,grupos[gi].linhas[li]);}'
-                +     '}'
-                +   '}else{'
-                +     'var g=grupos[parseInt(filtro)];'
-                +     'if(g){for(var li=0;li<g.linhas.length;li++){renderLinha(box,g.linhas[li]);}}'
-                +   '}'
-                +   'if(!box.firstChild){var e=document.createElement("div");e.className="log-empty";e.textContent="Nenhum log para este funcionário.";box.appendChild(e);}'
-                +   'box.scrollTop=0;'
-                + '}'
-                + 'function renderLinha(box,item){'
-                +   'var d=document.createElement("div");'
-                +   'd.className="log-line";'
-                +   'd.style.color=item.cor||"var(--text)";'
-                +   'd.textContent="* "+item.msg;'
-                +   'box.appendChild(d);'
-                + '}'
-                + 'document.getElementById("log-sel").onchange=function(){renderLog(_grupos,this.value);};'
-                + 'renderLog(_grupos,"__todos__");'
-                + 'document.getElementById("btn-log-copy").onclick=function(){'
-                +   'var sel=document.getElementById("log-sel").value;'
-                +   'var txt="";'
-                +   'if(sel==="__todos__"){'
-                +     'for(var gi=0;gi<_grupos.length;gi++){txt+="── "+_grupos[gi].nome+" ──\\n";for(var li=0;li<_grupos[gi].linhas.length;li++){txt+="* "+_grupos[gi].linhas[li].msg+"\\n";}txt+="\\n";}'
-                +   '}else{var g=_grupos[parseInt(sel)];if(g){txt+="── "+g.nome+" ──\\n";for(var li=0;li<g.linhas.length;li++){txt+="* "+g.linhas[li].msg+"\\n";}}}'
-                +   'navigator.clipboard.writeText(txt).then(function(){'
-                +     'var b=document.getElementById("btn-log-copy");'
-                +     'b.classList.add("ok");b.classList.remove("btn-gray");b.textContent="✓ Copiado!";'
-                +     'setTimeout(function(){b.classList.remove("ok");b.classList.add("btn-gray");b.textContent="📋 Copiar Log";},2500);'
-                +   '}).catch(function(){alert("Erro ao copiar.");});'
-                + '};'
-                : '')
-            + '<\/script>'
-            + '</body></html>';
-    }
-
-    // ── helper estático para totais no tfoot (server-side) ────────
-    function cellHeStr(val) {
-        if (val === null || val === undefined) return '<span class="cell-dash">-</span>';
-        var s = String(val || '00:00').replace(/^'/, '');
-        var neg = s.charAt(0) === '-';
-        var b = neg ? s.slice(1) : s;
-        var p = b.split(':');
-        var m = parseInt(p[0] || 0) * 60 + parseInt(p[1] || 0);
-        var total = neg ? -m : m;
-        if (total > 0) return '<span style="color:#22c55e;font-weight:600">' + s + '</span>';
-        if (total < 0) return '<span style="color:#ef4444;font-weight:600">' + s + '</span>';
-        return '<span class="cell-zero">00:00</span>';
-    }
-
-    // ── Abrir / atualizar janela popup ─────────────────────────────
-
-    AF.relatorios.abrirJanela = function () {
-        var lista    = AF.estado.relatorioLista || [];
-        var meta     = AF.estado.relatorioMeta  || {};
-        var tipo     = AF.estado.relatorioTipo  || 'analise';
-        var tsv      = AF.estado.textoCopiavel  || '';
-        var logBuf   = AF.estado.relatorioLog   || [];
-
-        if (AF.estado.winRelatorio && !AF.estado.winRelatorio.closed) {
-            AF.estado.winRelatorio.focus();
-            AF.estado.winRelatorio._fpwAtualizar &&
-                AF.estado.winRelatorio._fpwAtualizar(lista, meta, tipo, tsv, logBuf);
-            return;
-        }
-
-        var win = window.open('', 'fpw-relatorio',
-            'width=1000,height=680,left=80,top=60,resizable=yes,scrollbars=no');
-        if (!win) { AF.core.log('Popup bloqueado pelo navegador.', '#f87171'); return; }
-        AF.estado.winRelatorio = win;
-
-        var html = gerarHTML(lista, meta, tipo, tsv, logBuf);
-        win.document.open();
-        win.document.write(html);
-        win.document.close();
-
-        win._fpwAtualizar = function (l, m, t, ts, lb) {
-            var h = gerarHTML(l, m, t, ts, lb);
-            win.document.open();
-            win.document.write(h);
-            win.document.close();
-        };
-    };
-
-    console.log('[FPW] 60-relatorios carregado | v1.4 - log por execucao');
+    console.log('[FPW] 60-relatorios carregado. v2.0 - janela de relatorio ao vivo e unificada');
 })();

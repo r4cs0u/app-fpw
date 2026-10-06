@@ -19,9 +19,9 @@
     function setBtnCopiar(docC, ativo) {
         var b = docC.getElementById('btn-copiar');
         if (!b) return;
-        b.disabled = !ativo;
-        b.style.opacity  = ativo ? '1'       : '.35';
-        b.style.cursor   = ativo ? 'pointer' : 'not-allowed';
+        b.disabled = false;
+        b.style.opacity  = '1';
+        b.style.cursor   = 'pointer';
     }
 
     function setBtnAtivo(docC, rodando) {
@@ -155,7 +155,7 @@
             '<div style="display:flex;gap:6px;padding:10px 10px;background:#0f172a;flex-shrink:0;">' +
             '<button id="btn-analisar" title="Analisar m\u00EAs alvo" style="' + btnStyle + ';background:#2563eb;">&#128269; Analisar</button>' +
             '<button id="btn-executar" title="Ajustar folgas e c\u00F3d 47" style="' + btnStyle + ';background:#7c3aed;">&#9881;&#65039; Ajustar</button>' +
-            '<button id="btn-copiar" title="Ver relat\u00F3rio" disabled style="' + btnStyle + ';background:#16a34a;opacity:.35;cursor:not-allowed;">&#128202; Relat\u00F3rio</button>' +
+            '<button id="btn-copiar" title="Ver relat\u00F3rio" style="' + btnStyle + ';background:#16a34a;opacity:1;cursor:pointer;">&#128202; Relat\u00F3rio</button>' +
             '<button id="btn-parar" title="Parar execu\u00E7\u00E3o" disabled style="' + btnStyle + ';background:transparent;border:1px solid #dc2626;opacity:.35;cursor:not-allowed;">&#9209; Parar</button>' +
             '</div>' +
 
@@ -236,16 +236,12 @@
 
         docC.getElementById('btn-analisar').onclick = async function () {
             AF.estado.cancelado = false;
-            AF.estado.relatorioLista = null;
-            setBtnCopiar(docC, false);
             setStatus(docC, 'Analisando...', '#60a5fa');
             await AF.analisar.analisarTodas();
         };
 
         docC.getElementById('btn-executar').onclick = async function () {
             AF.estado.cancelado = false;
-            AF.estado.relatorioLista = null;
-            setBtnCopiar(docC, false);
             setStatus(docC, 'Ajustando...', '#a78bfa');
             await AF.fases.processarTodas();
         };
@@ -263,10 +259,6 @@
         };
 
         docC.getElementById('btn-copiar').onclick = function () {
-            if (!AF.estado.relatorioLista || !AF.estado.relatorioLista.length) {
-                setStatus(docC, 'Nenhum relat\u00F3rio dispon\u00EDvel', '#f87171');
-                return;
-            }
             AF.relatorios.abrirJanela();
             AF.sons.tocar('copia');
         };

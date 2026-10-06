@@ -69,13 +69,15 @@
     };
 
     // ── Dias com código 47 ───────────────────────────────────────────────
-    // Por padrão só o mês alvo; a Fase 4 do Ajuste também considera a semana de transição.
+    // Por padrão inclui o mês alvo e a semana de transição (mesmo escopo da Fase 4 do Ajuste).
+    // Opção somenteMesAlvo: true restringe estritamente ao mês alvo.
 
     AF.analisar.coletarDiasCod47 = function (opcoes) {
         opcoes = opcoes || {};
         var alvo = AF.utils.mesAlvoDaTabela();
         var ultimaSemanaId = '';
-        if (opcoes.incluirSemanaTransicao) {
+        var incluirTransicao = !opcoes.somenteMesAlvo;
+        if (incluirTransicao) {
             ultimaSemanaId = AF.utils.semanaIdBR(new Date(alvo.getFullYear(), alvo.getMonth() + 1, 0));
         }
         var campos = Array.from(AF.core.getDoc1().querySelectorAll('input[type=text]'));
@@ -245,6 +247,9 @@
 
         var nomeMesStr = AF.utils.nomeMes[alvo.getMonth()] + ' ' + alvo.getFullYear();
         logExecucao('iniciarExecucao', 'analise');
+        if (AF.modelo && typeof AF.modelo.iniciarExecucao === 'function') {
+            AF.modelo.iniciarExecucao('analise', todosNomes, nomeMesStr);
+        }
         AF.estado.ultimaAnalise = AF.estado.ultimaAnalise || {};
         AF.core.log('Analisando ' + nomeMesStr + '...', '#0043ff');
 
@@ -286,15 +291,24 @@
 
             var nome = AF.core.nomeAtual();
             logExecucao('definirFuncionario', nome);
+            if (AF.modelo && typeof AF.modelo.definirAtual === 'function') {
+                AF.modelo.definirAtual(nome);
+            }
             var r    = AF.analisar.analisarFolhaAtual();
             total++;
             registrarEventoAnalise(nome, r);
 
             if (r.vazia) {
                 stats.vazias++;
+                if (AF.modelo && typeof AF.modelo.registrarSemMarcacoes === 'function') {
+                    AF.modelo.registrarSemMarcacoes(nome, 'analise');
+                }
                 AF.core.log('- ' + nome, '#000000');
             } else {
                 stats.totalFolhas++;
+                if (AF.modelo && typeof AF.modelo.registrarAnalise === 'function') {
+                    AF.modelo.registrarAnalise(nome, r);
+                }
                 stats.folgasMoviveis += r.folgas;
                 stats.irregs         += r.irregs;
                 stats.interj         += r.interj;
@@ -380,6 +394,9 @@
         var tempoMs = Date.now() - inicioExec;
         AF.relatorios.gerarAnalise(stats, lista, nomeMesStr, tempoMs, AF.estado.cancelado);
         logExecucao('encerrarExecucao', AF.estado.cancelado ? 'cancelada' : 'concluida');
+        if (AF.modelo && typeof AF.modelo.encerrarExecucao === 'function') {
+            AF.modelo.encerrarExecucao('analise', AF.estado.cancelado ? 'cancelada' : 'concluida');
+        }
 
         if (!AF.estado.cancelado) AF.sons.tocar('fim');
 

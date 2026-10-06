@@ -34,7 +34,7 @@ function load(files) {
     return AF;
 }
 
-const ALL = ['05-log.js', '10-utils.js', '20-mapa.js', '25-detector.js', '35-planejamento.js', '40-fases.js', '50-analisar.js', '60-relatorios.js'];
+const ALL = ['05-log.js', '10-utils.js', '20-mapa.js', '25-detector.js', '27-modelo-relatorio.js', '35-planejamento.js', '40-fases.js', '50-analisar.js', '60-relatorios.js'];
 
 function dd(dia, mes = 9) {
     return String(dia).padStart(2, '0') + '/' + String(mes).padStart(2, '0') + '/2026';
@@ -138,15 +138,17 @@ test('empty page yields zeroed legacy fields', () => {
     assert.equal(r.britanica, 0);
 });
 
-test('cod 47 days: month only by default and transition week when requested', () => {
+test('cod 47 days: includes transition week by default and month only when requested', () => {
     const AF = load(ALL);
     // Alvo setembro/2026; semana de transição do último dia (30/09) começa em 28/09 e vai a 04/10.
     wireSheet(AF, createSheet(SHEET.slice(0, 2), [
         { dia: 10 }, { dia: 29 }, { dia: 2, mes: 10 }, { dia: 20, mes: 8 }, { dia: 10, mes: 10 }
     ]));
-    assert.deepEqual(plain(AF.analisar.coletarDiasCod47()), [dd(10), dd(29)]);
-    assert.equal(AF.analisar.contarCod47(), 2);
-    assert.deepEqual(plain(AF.analisar.coletarDiasCod47({ incluirSemanaTransicao: true })), [dd(10), dd(29), dd(2, 10)]);
+    // Por padrão (D4/2.1), inclui a semana de transição
+    assert.deepEqual(plain(AF.analisar.coletarDiasCod47()), [dd(10), dd(29), dd(2, 10)]);
+    assert.equal(AF.analisar.contarCod47(), 3);
+    // Com somenteMesAlvo: true restringe estritamente ao mês
+    assert.deepEqual(plain(AF.analisar.coletarDiasCod47({ somenteMesAlvo: true })), [dd(10), dd(29)]);
 });
 
 function reportAF() {
@@ -177,7 +179,7 @@ test('analysis report keeps the current table fields and carries the detection d
     assert.equal(ana.naoPreenchida.flag, true);
     assert.equal(ana.dias.semES[0].data, dd(5));
     const bia = AF.estado.relatorioLista.find(x => x.nome === 'BIA');
-    assert.equal(bia.britanica, null);
+    assert.equal(bia.britanica == null, true);
 });
 
 test('adjustment report keeps the current table fields and carries the detection data', () => {

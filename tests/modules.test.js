@@ -20,6 +20,9 @@ test('every listed module exists and the new modules load in dependency order', 
     assert.ok(indice('05-log.js') < indice('10-utils.js'));
     assert.ok(indice('25-detector.js') > indice('10-utils.js'));
     assert.ok(indice('25-detector.js') > indice('20-mapa.js'));
+    assert.ok(indice('27-modelo-relatorio.js') > indice('25-detector.js'));
+    assert.ok(indice('27-modelo-relatorio.js') < indice('30-popup.js'));
+    assert.ok(indice('27-modelo-relatorio.js') < indice('40-fases.js'));
     assert.ok(indice('25-detector.js') < indice('40-fases.js'));
     assert.ok(indice('25-detector.js') < indice('50-analisar.js'));
 });
@@ -39,7 +42,7 @@ test('all modules load in the listed order without using a module that is not lo
 
 test('the test build version is consistent between the entry script and the core', () => {
     const versaoMeta = /@version\s+(\S+)/.exec(main)[1];
-    assert.equal(versaoMeta, '9.9-test');
+    assert.equal(versaoMeta, '9.10-test');
     const core = readFileSync(join(root, '00-core.js'), 'utf8');
     assert.ok(core.includes("versao: '" + versaoMeta + "'"));
     assert.ok(main.includes("AF.versao = '" + versaoMeta + "'"));

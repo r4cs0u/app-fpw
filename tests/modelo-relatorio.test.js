@@ -1,0 +1,201 @@
+'use strict';
+
+const assert = require('node:assert/strict');
+const { readFileSync } = require('node:fs');
+const { join } = require('node:path');
+const test = require('node:test');
+const vm = require('node:vm');
+
+const plain = value => JSON.parse(JSON.stringify(value));
+
+function createStorage() {
+    const data = new Map();
+    return {
+        getItem: key => (data.has(key) ? data.get(key) : null),
+        setItem: (key, value) => { data.set(key, String(value)); },
+        removeItem: key => { data.delete(key); }
+    };
+}
+
+function loadModelo(storage = createStorage()) {
+    const window = {
+        AutomacaoFolha: {
+            utils: {},
+            core: {}
+        },
+        sessionStorage: storage
+    };
+    const context = { window, console: { log() {} } };
+    vm.runInNewContext(readFileSync(join(__dirname, '..', '10-utils.js'), 'utf8'), context);
+    vm.runInNewContext(readFileSync(join(__dirname, '..', '27-modelo-relatorio.js'), 'utf8'), context);
+    return { AF: window.AutomacaoFolha, storage };
+}
+
+test('1.1: Modelo unificado permite Ajuste apos Analise sem apagar Analise', () => {
+    const { AF } = loadModelo();
+    AF.modelo.iniciarExecucao('analise', ['ANA', 'BIA'], 'Setembro 2026');
+    AF.modelo.registrarAnalise('ANA', { folgas: 5, cod47: 2, irregs: 1 });
+    AF.modelo.registrarAnalise('BIA', { folgas: 0, cod47: 0, irregs: 0 });
+    AF.modelo.encerrarExecucao('analise', 'concluida');
+
+    // Executa Ajuste em ANA
+    AF.modelo.iniciarExecucao('ajuste', null, null);
+    AF.modelo.registrarAjuste('ANA', { movidas: 4, presas: [{ data: '12/09/2026', motivo: 'sem destino' }], cod47Conv: 2, cod47Rest: 0 });
+    AF.modelo.encerrarExecucao('ajuste', 'concluida');
+
+    const ana = AF.modelo.obterDadosFunc('ANA');
+    const bia = AF.modelo.obterDadosFunc('BIA');
+
+    assert.equal(ana.folgas.texto, '4/5');
+    assert.equal(ana.cod47.texto, '2/2');
+    assert.equal(ana.folgas.estado, 'atencao');
+    assert.equal(ana.folgas.presas, 1);
+
+    // BIA manteve dados de analise intactos
+    assert.equal(bia.folgas.texto, '0');
+    assert.equal(bia.folgas.estado, 'zero');
+});
+
+test('1.1 & 1.2: Nova Analise apos Ajuste reseta a fracao para numero inteiro', () => {
+    const { AF } = loadModelo();
+    AF.modelo.iniciarExecucao('ajuste', ['ANA']);
+    AF.modelo.registrarAjuste('ANA', { movidas: 4, presas: [{ data: '12/09/2026' }], cod47Conv: 1, cod47Rest: 1 });
+    AF.modelo.encerrarExecucao('ajuste');
+
+    assert.equal(AF.modelo.obterDadosFunc('ANA').folgas.texto, '4/5');
+
+    // Nova analise
+    AF.modelo.iniciarExecucao('analise', ['ANA']);
+    AF.modelo.registrarAnalise('ANA', { folgas: 1, cod47: 1, irregs: 0 });
+    AF.modelo.encerrarExecucao('analise');
+
+    const ana = AF.modelo.obterDadosFunc('ANA');
+    assert.equal(ana.folgas.texto, '1');
+    assert.equal(ana.folgas.estado, 'pendente');
+    assert.equal(ana.cod47.texto, '1');
+});
+
+test('1.2: Ajuste sem Analise previa (2/2) e ajuste com presas sem movidas (0/1)', () => {
+    const { AF } = loadModelo();
+    AF.modelo.iniciarExecucao('ajuste', ['CARLOS', 'DANI']);
+    AF.modelo.registrarAjuste('CARLOS', { movidas: 2, presas: [] });
+    AF.modelo.registrarAjuste('DANI', { movidas: 0, presas: [{ data: '15/09/2026', motivo: 'popup rejeitou' }] });
+
+    const carlos = AF.modelo.obterDadosFunc('CARLOS');
+    assert.equal(carlos.folgas.texto, '2/2');
+    assert.equal(carlos.folgas.estado, 'concluida');
+
+    const dani = AF.modelo.obterDadosFunc('DANI');
+    assert.equal(dani.folgas.texto, '0/1');
+    assert.equal(dani.folgas.estado, 'atencao');
+});
+
+test('1.2: Ajuste repetido acumula movidas e mantem presas mais recentes', () => {
+    const { AF } = loadModelo();
+    AF.modelo.iniciarExecucao('ajuste', ['ANA']);
+    AF.modelo.registrarAjuste('ANA', { movidas: 4, presas: [{ data: '12/09/2026' }] });
+    // Segunda rodada de ajuste
+    AF.modelo.registrarAjuste('ANA', { movidas: 0, presas: [{ data: '12/09/2026' }] });
+
+    const ana = AF.modelo.obterDadosFunc('ANA');
+    assert.equal(ana.folgas.texto, '4/5');
+    assert.equal(ana.folgas.num, 4);
+    assert.equal(ana.folgas.den, 5);
+});
+
+test('1.2: Cores e estados (concluida, atencao, pendente, zero, nao-processado)', () => {
+    const { AF } = loadModelo();
+    AF.modelo.iniciarExecucao('analise', ['F_PEND', 'F_ZERO', 'F_NAO']);
+    AF.modelo.registrarAnalise('F_PEND', { folgas: 3 });
+    AF.modelo.registrarAnalise('F_ZERO', { folgas: 0 });
+
+    assert.equal(AF.modelo.obterDadosFunc('F_PEND').folgas.estado, 'pendente');
+    assert.equal(AF.modelo.obterDadosFunc('F_ZERO').folgas.estado, 'zero');
+    assert.equal(AF.modelo.obterDadosFunc('F_NAO').folgas.estado, 'nao-processado');
+    assert.equal(AF.modelo.obterDadosFunc('F_NAO').folgas.texto, '-');
+});
+
+test('1.3: Resumo geral (Big Numbers) calcula totais, pendentes, presas, minimos e maximos sem zeros', () => {
+    const { AF } = loadModelo();
+    AF.modelo.iniciarExecucao('analise', ['F1', 'F2', 'F3']);
+    AF.modelo.registrarAnalise('F1', { folgas: 0, irregs: 4, HE: '00:09', HEC: '+11:00' });
+    AF.modelo.registrarAnalise('F2', { folgas: 8, irregs: 1, HE: '07:19', HEC: '-35:00' });
+    AF.modelo.registrarAnalise('F3', { folgas: 0, irregs: 0, HE: '00:00', HEC: '-08:13' });
+
+    // Ajustamos F1 com 12 movidas e 3 presas (simulando historico)
+    AF.modelo.iniciarExecucao('ajuste', null);
+    AF.modelo.registrarAjuste('F1', { movidas: 12, presas: [{}, {}, {}] });
+
+    const resumo = AF.modelo.resumo();
+
+    // Folgas: 12 movidas, 3 presas, 8 pendentes (de F2) -> totalConsiderado: 23
+    assert.equal(resumo.folgas.movidas, 12);
+    assert.equal(resumo.folgas.presas, 3);
+    assert.equal(resumo.folgas.pendentes, 8);
+    assert.equal(resumo.folgas.totalConsiderado, 23);
+    assert.equal(resumo.folgas.fracaoTexto, '12/23');
+
+    // Irregularidades
+    assert.equal(resumo.irregularidades.semES.total, 5);
+    assert.equal(resumo.irregularidades.semES.funcs, 2);
+
+    // Horas HE: exclui 00:00 -> min 00:09 (F1), max 07:19 (F2)
+    assert.equal(resumo.he.min, '00:09');
+    assert.equal(resumo.he.minNome, 'F1');
+    assert.equal(resumo.he.max, '07:19');
+    assert.equal(resumo.he.maxNome, 'F2');
+
+    // HEC Positivo: +11:00
+    assert.equal(resumo.hecPos.total, '11:00');
+    assert.equal(resumo.hecPos.min, '+11:00');
+
+    // HEC Negativo: -08:13 e -35:00 -> max magnitude é -35:00
+    assert.equal(resumo.hecNeg.total, '-43:13');
+    assert.equal(resumo.hecNeg.min, '-08:13');
+    assert.equal(resumo.hecNeg.max, '-35:00');
+    assert.equal(resumo.hecNeg.maxNome, 'F2');
+});
+
+test('1.4: Filtros retornam subconjunto de funcionarios e ordenacao respeita pendentes e processados', () => {
+    const { AF } = loadModelo();
+    AF.modelo.iniciarExecucao('analise', ['ANA', 'BIA', 'CAIO']);
+    AF.modelo.registrarAnalise('ANA', { folgas: 3, irregs: 1 });
+    AF.modelo.registrarAnalise('BIA', { folgas: 0, irregs: 0 });
+    // CAIO não processado
+
+    assert.deepEqual(plain(AF.modelo.filtrar('semES')), ['ANA']);
+    assert.deepEqual(plain(AF.modelo.filtrar('pendentes')), ['ANA']);
+    assert.deepEqual(plain(AF.modelo.filtrar('presas')), []);
+
+    const ordenados = AF.modelo.ordenar(['BIA', 'CAIO', 'ANA'], 'nome', 1);
+    // Processados primeiro, CAIO por último
+    assert.equal(ordenados[0], 'ANA');
+    assert.equal(ordenados[1], 'BIA');
+    assert.equal(ordenados[2], 'CAIO');
+});
+
+test('1.5: TSV sob demanda formata fracoes com aspas e valores negativos', () => {
+    const { AF } = loadModelo();
+    AF.modelo.iniciarExecucao('ajuste', ['ANA']);
+    AF.modelo.registrarAjuste('ANA', {
+        movidas: 4, presas: [{}], cod47Conv: 1, cod47Rest: 0,
+        leitura: { HEC: '-05:00', semES: { total: 2 } }
+    });
+
+    const tsv = AF.modelo.tsv();
+    assert.match(tsv, /ANA\t'4\/5\t1\t'1\/1\t2\t0\t0\t-\t00:00\t00:00\t'-05:00/);
+});
+
+test('1.6: Persistencia e recuperacao de execucao interrompida', () => {
+    const storage = createStorage();
+    const m1 = loadModelo(storage);
+    m1.AF.modelo.iniciarExecucao('analise', ['ANA']);
+    m1.AF.modelo.registrarAnalise('ANA', { folgas: 2 });
+    m1.AF.modelo.salvar();
+
+    // Simula reload em m2
+    const m2 = loadModelo(storage);
+    const estado = m2.AF.modelo.obterEstado();
+    assert.equal(estado.execs.analise.status, 'interrompida');
+    assert.equal(m2.AF.modelo.obterDadosFunc('ANA').folgas.texto, '2');
+});

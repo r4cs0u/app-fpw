@@ -94,7 +94,7 @@
     AF.fases.capturarEstadoFolha = function () {
         var deteccao = AF.detector.lerFolhaAtual();
         var mapa = AF.mapa.mapearFolhaAtual();
-        var cod47Dias = AF.analisar.coletarDiasCod47({ incluirSemanaTransicao: true });
+        var cod47Dias = AF.analisar.coletarDiasCod47();
         return AF.fases.montarEstadoFolha(mapa, deteccao, cod47Dias, AF.analisar.contarFolgas());
     };
 
@@ -397,26 +397,38 @@
         if (!execucao || !execucao.isActive()) return;
         var nome = AF.core.nomeAtual();
         if (AF.log && typeof AF.log.definirFuncionario === 'function') AF.log.definirFuncionario(nome);
+        if (AF.modelo && typeof AF.modelo.definirAtual === 'function') AF.modelo.definirAtual(nome);
         AF.core.log('\u2500\u2500 ' + nome + ' \u2500\u2500', '#c084fc');
 
-        var entry = relListaMap[nome] || relListaMap[nome.trim()];
+        var entry = relListaMap ? (relListaMap[nome] || relListaMap[nome.trim()]) : null;
         var totalMovidas = 0;
         var presasFinais = [];
 
         function salvarProgressoParcial() {
             logEvento('estado-depois', { coletado: false, motivo: 'folha interrompida antes de concluir' },
                 'Estado depois: nao coletado (folha interrompida).', '#f97316');
+            if (AF.modelo && typeof AF.modelo.registrarAjusteParcial === 'function') {
+                AF.modelo.registrarAjusteParcial(nome, {
+                    movidas: totalMovidas,
+                    presas: presasFinais
+                });
+            }
             if (!entry) return;
             entry.parcial = true;
             entry.folgasAlteradas = totalMovidas;
             entry.folgasSemAlteracao = presasFinais.length;
-            relStats.folgasAlteradas += totalMovidas;
-            relStats.folgasNaoAlteradas += presasFinais.length;
+            if (relStats) {
+                relStats.folgasAlteradas += totalMovidas;
+                relStats.folgasNaoAlteradas += presasFinais.length;
+            }
         }
 
         if (AF.core.paginaVaziaAgora()) {
             AF.core.log('Sem marcacoes, pulando.', '#000000');
-            relStats.semMarcacoes++;
+            if (relStats) relStats.semMarcacoes++;
+            if (AF.modelo && typeof AF.modelo.registrarSemMarcacoes === 'function') {
+                AF.modelo.registrarSemMarcacoes(nome, 'ajuste');
+            }
             if (entry) {
                 entry.lido = true;
                 entry.pulada = true;
@@ -432,7 +444,10 @@
             AF.estado.preAnalise = AF.estado.preAnalise || {};
             AF.estado.preAnalise[nome] = estadoAntes.contagens;
             logEvento('estado-antes', AF.fases.estadoParaLog(estadoAntes), 'Estado antes do ajuste.', '#6b7280');
-            var anterior = AF.estado.ultimaAnalise && AF.estado.ultimaAnalise[nome];
+            var anterior = (AF.estado.ultimaAnalise && AF.estado.ultimaAnalise[nome]) ||
+                ((AF.modelo && typeof AF.modelo.contagensDaAnalise === 'function')
+                    ? AF.modelo.contagensDaAnalise(nome)
+                    : null);
             if (!anterior) {
                 logEvento('pre-analise', { analiseAnterior: false }, 'Sem analise anterior para este funcionario; estado inicial registrado.', '#6b7280');
             } else {
@@ -537,12 +552,33 @@
         var extras   = (AF.analisar && AF.analisar.somarHorasExtras) ? AF.analisar.somarHorasExtras() : { HE: '00:00', HEF: '00:00' };
         var saldoHEC = (AF.analisar && AF.analisar.lerSaldoHEC)      ? AF.analisar.lerSaldoHEC()      : '00:00';
 
-        relStats.totalFolhas++;
-        relStats.folgasAlteradas    += totalMovidas;
-        relStats.folgasNaoAlteradas += presasFinais.length;
-        relStats.irregsRestantes    += contagensDepois.semES;
-        relStats.interjRestantes    += contagensDepois.interj;
-        relStats.linhas47           += linhas47;
+        if (relStats) {
+            relStats.totalFolhas++;
+            relStats.folgasAlteradas    += totalMovidas;
+            relStats.folgasNaoAlteradas += presasFinais.length;
+            relStats.irregsRestantes    += contagensDepois.semES;
+            relStats.interjRestantes    += contagensDepois.interj;
+            relStats.linhas47           += linhas47;
+        }
+
+        if (AF.modelo && typeof AF.modelo.registrarAjuste === 'function') {
+            var det = estadoDepois ? estadoDepois.deteccao : null;
+            AF.modelo.registrarAjuste(nome, {
+                movidas: totalMovidas,
+                presas: presasFinais,
+                cod47Conv: linhas47,
+                cod47Rest: contagensDepois.cod47 || 0,
+                leitura: {
+                    semES: det ? det.dias.semES : { total: contagensDepois.semES, dias: [] },
+                    interj: det ? det.dias.interj : { total: contagensDepois.interj, dias: [] },
+                    britanica: det ? det.dias.britanica : { total: contagensDepois.britanica, dias: [] },
+                    naoPreenchida: det ? det.naoPreenchida : null,
+                    HE: extras.HE,
+                    HEF: extras.HEF,
+                    HEC: saldoHEC
+                }
+            });
+        }
 
         if (entry) {
             entry.lido               = true;
@@ -620,9 +656,11 @@
 
             relLista = [];
             relListaMap = {};
+            var todosNomesAjuste = [];
             for (var pi = 0; pi < sel.options.length; pi++) {
                 var nomeTxt = (sel.options[pi].text || '').trim();
                 if (!nomeTxt) continue;
+                todosNomesAjuste.push(nomeTxt);
                 var obj = {
                     nome: nomeTxt,
                     lido: false, pulada: false,
@@ -632,6 +670,9 @@
                 };
                 relLista.push(obj);
                 relListaMap[nomeTxt] = obj;
+            }
+            if (AF.modelo && typeof AF.modelo.iniciarExecucao === 'function') {
+                AF.modelo.iniciarExecucao('ajuste', todosNomesAjuste);
             }
             var normSort = function (s) {
                 return (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
@@ -764,6 +805,9 @@
                     !AF.estado.cancelado ? 'concluida' : (falhaFinal ? 'interrompida' : 'cancelada'),
                     falhaFinal ? falhaFinal.stage + ': ' + falhaFinal.reason : (paradaFinal ? paradaFinal.reason : '')
                 );
+                if (AF.modelo && typeof AF.modelo.encerrarExecucao === 'function') {
+                    AF.modelo.encerrarExecucao('ajuste', !AF.estado.cancelado ? 'concluida' : (falhaFinal ? 'interrompida' : 'cancelada'));
+                }
 
                 if (!AF.estado.cancelado) AF.sons.tocar('fim');
                 if (execucao.ativa) {

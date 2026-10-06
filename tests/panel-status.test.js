@@ -147,3 +147,27 @@ test('log button reports when the log module is unavailable', () => {
 
     assert.match(doc.getElementById('fpw-status-text').textContent, /Log indispon/);
 });
+
+test('report button is enabled from the start and opens the live report window', () => {
+    const doc = createDocument();
+    let relOpened = 0;
+    const AF = {
+        estado: { cancelado: false, rodando: false },
+        core: { getDocC: () => doc },
+        relatorios: { abrirJanela() { relOpened++; } },
+        sons: { tocar() {} }
+    };
+    const panel = loadPanel(AF);
+    panel.iniciar(doc);
+
+    const btnCopiar = doc.getElementById('btn-copiar');
+    assert.ok(!btnCopiar.disabled);
+
+    // Durante execução continua habilitado
+    AF.core.setBotoes(true);
+    assert.ok(!btnCopiar.disabled);
+
+    // Clique abre janela mesmo sem relatório anterior
+    btnCopiar.onclick();
+    assert.equal(relOpened, 1);
+});
