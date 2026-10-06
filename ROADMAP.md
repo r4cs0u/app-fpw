@@ -50,7 +50,7 @@ Evoluir primeiro a previsibilidade, a capacidade de testar e a segurança operac
 
 **Concluída quando:** as principais regras de negócio podem ser testadas com dados de exemplo sem DOM, e os fluxos existentes continuam produzindo os resultados esperados em validações controladas.
 
-**Progresso:** a mudança `sheet-detector-and-log` (planejada) dá o primeiro passo concreto: leitura da folha em linhas estruturadas e detecção pura, com os dias de cada irregularidade, usada por Análise e Ajuste.
+**Progresso:** a mudança `sheet-detector-and-log` (implementada e publicada na branch `test`; ver etapa 5) dá o primeiro passo concreto: leitura da folha em linhas estruturadas e detecção pura, com os dias de cada irregularidade, usada por Análise e Ajuste.
 
 ### 4. Reforçar segurança e diagnóstico das ações que alteram dados
 
@@ -72,7 +72,7 @@ Evoluir primeiro a previsibilidade, a capacidade de testar e a segurança operac
 
 **Progresso:** em planejamento, em três mudanças OpenSpec sequenciais; cada uma é planejada, aplicada, testada e arquivada antes de detalhar a seguinte, para que os dados reais da anterior orientem a próxima.
 
-1. **`sheet-detector-and-log` (A, planejada):** fundação. Detector único de folha com os dias de cada irregularidade (Sem Entrada/Saída, Interjornada, Marcação britânica e Folha não preenchida), pré-análise no Ajuste, log estruturado, acumulado e persistente na sessão (com estado antes/depois e janela de consulta/cópia) e documentação do formato das marcações. Não altera a tabela do relatório.
+1. **`sheet-detector-and-log` (A, implementada na branch `test`):** fundação. Detector único de folha com os dias de cada irregularidade (Sem Entrada/Saída, Interjornada, Marcação britânica e Folha não preenchida), pré-análise no Ajuste, log estruturado, acumulado e persistente na sessão (com estado antes/depois e janela de consulta/cópia) e documentação do formato das marcações. Não altera a tabela do relatório. Estado: testes sintéticos passando e detector e Análise conferidos em folhas reais (somente leitura); falta executar o Ajuste supervisionado para ver os eventos de antes/depois no runtime, e a mudança ainda não foi arquivada.
 2. **Relatório unificado (B, a planejar após A):** um único modelo por funcionário, alimentado por Análise e Ajuste sem que um apague o outro; botão de relatório sempre disponível, abrindo vazio e preenchendo ao vivo; modelo persistente na sessão; células em fração (movimentadas/a movimentar, Cód 47) com cores azul (concluído), laranja (concluído com folgas presas) e vermelho (irregularidades); colunas abertas por irregularidade; big numbers (folgas, presas, irregularidades, HE 100%, HEF 100% e HEC 70% com total, mín e máx, sem zeros e com nome em tooltip) e filtro por clique nas irregularidades; botão de Log dentro do relatório.
 3. **Exportação de irregularidades (C, a planejar após B):** texto copiável por pessoa e do time inteiro, com os dias de cada irregularidade e, para folha não preenchida, apenas o aviso com a porcentagem; ícone por linha e botão "Exportar irregularidades" no fim da tabela.
 

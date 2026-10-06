@@ -41,6 +41,6 @@
 ## 6. Integração e validação
 
 - [x] 6.1 Executar `node --test` completo. Verificação: todos os testes passam, incluindo os novos.
-- [ ] 6.2 Publicar na branch `test`, atualizar a instalação Tampermonkey de teste (o arquivo de entrada mudou) e recarregar o MyWay conforme `AGENT.md`. Verificação: runtime mostra a versão `9.9-test`, os módulos e o painel com o botão Log.
+- [x] 6.2 Publicar na branch `test`, atualizar a instalação Tampermonkey de teste (o arquivo de entrada mudou) e recarregar o MyWay conforme `AGENT.md`. Verificação: runtime mostra a versão `9.9-test`, os módulos e o painel com o botão Log.
 - [ ] 6.3 Validar em modo somente leitura via MCP, sem executar Ajustar, o detector em folhas reais e conferir com os resultados esperados já calculados: (i) folha de 16 dias do mês: sem britânica, não sinalizada; (ii) folha com saídas `*` de minutos 15 em 02, 10 e 15/09: britânica = 3 dias; (iii) folha com dias de 3 e 4 linhas: Sem Entrada/Saída = 1 (06/09), Interjornada = 3 (05, 06 e 29/09), britânica = 0, 19 de 26 dias visíveis preenchidos (não sinalizada). Incluir uma Análise completa e conferir contagens e log. Verificação: resultados coincidem, a página e o funcionário selecionado permanecem inalterados e o botão Log abre o texto copiável.
-- [ ] 6.4 Atualizar `ROADMAP.md` registrando esta fundação. Verificação: roadmap descreve o estado atual e aponta os changes B e C como próximos.
+- [x] 6.4 Atualizar `ROADMAP.md` registrando esta fundação. Verificação: roadmap descreve o estado atual e aponta os changes B e C como próximos.
