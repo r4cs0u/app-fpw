@@ -70,11 +70,11 @@ Evoluir primeiro a previsibilidade, a capacidade de testar e a segurança operac
 
 **Concluída quando:** não é uma entrega única. Cada funcionalidade aprovada tem critérios de aceitação, validação compatível com seu risco e decisão explícita sobre eventual promoção para a linha estável.
 
-**Progresso:** A e B foram concluídas e arquivadas. C está implementada e publicada na branch `test`, aguardando validação de runtime somente leitura via MCP antes do arquivamento.
+**Progresso:** A e B foram concluídas e arquivadas. C está implementada, publicada na branch `test` e validada em runtime somente leitura via MCP; está pronta para arquivamento.
 
 1. **`sheet-detector-and-log` (A, concluída e arquivada):** fundação com detector de folha unificado e log estruturado.
 2. **`unified-live-report` (B, implementada na branch `test`):** modelo único por funcionário (`27-modelo-relatorio.js`), Análise e Ajuste coexistindo, botão Relatório sempre disponível com janela ao vivo (`60-relatorios.js`), frações de progresso (`movidas/(movidas+presas)`), cores por estado, colunas abertas de irregularidade, indicadores no topo com filtros rápidos e persistência na sessão.
-3. **`irregularity-export` (C, implementada e publicada na branch `test`; validação MCP pendente):** texto copiável por pessoa e pela lista visível do time, com os dias de cada irregularidade; ícone por linha e janela "Exportar irregularidades" que respeita filtros e extremos.
+3. **`irregularity-export` (C, implementada, publicada na branch `test` e validada via MCP):** texto copiável por pessoa e pela lista visível do time, com os dias de cada irregularidade; ícone por linha e janela "Exportar irregularidades" que respeita filtros e extremos.
 
 Decisões de produto já tomadas para B e C: a fração usa a Análise como denominador e o Ajuste como numerador, e Ajustar repetido acumula sobre a mesma linha de base; uma nova Análise volta ao valor inteiro.
 
