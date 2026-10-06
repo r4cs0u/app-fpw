@@ -622,6 +622,27 @@
         return arr;
     };
 
+    // ── Extremos (mín/máx) de horas: filtra zerados e ordena pela magnitude ──
+    // col: 'he' | 'hef' | 'hec'; modo: 'min' | 'max'; sinal: 1 (só positivos), -1 (só negativos) ou 0 (qualquer não zero).
+    AF.modelo.ordenarPorExtremo = function (nomes, col, modo, sinal) {
+        var chave = String(col || '').toUpperCase();
+        var itens = [];
+        (nomes || []).forEach(function (nome) {
+            var d = AF.modelo.obterDadosFunc(nome);
+            if (!d.processado || d.vazia) return;
+            var m = parseMin(d[chave]);
+            if (!m) return;
+            if (sinal > 0 && m < 0) return;
+            if (sinal < 0 && m > 0) return;
+            itens.push({ nome: nome, mag: Math.abs(m) });
+        });
+        var dir = modo === 'min' ? 1 : -1;
+        itens.sort(function (a, b) {
+            if (a.mag !== b.mag) return (a.mag - b.mag) * dir;
+            return a.nome < b.nome ? -1 : a.nome > b.nome ? 1 : 0;
+        });
+        return itens.map(function (x) { return x.nome; });
+    };
     // ── Exportação TSV ──────────────────────────────────────────────────
 
     AF.modelo.tsv = function () {

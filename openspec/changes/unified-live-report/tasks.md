@@ -25,6 +25,8 @@
 - [x] 3.5 Remover `gerarAnalise`, `gerarFolgas` e as chaves `relatorio`, `textoCopiavel`, `relatorioLista`, `relatorioMeta`, `relatorioTipo`, `relatorioLog` e `winRelatorio` de `AF.estado`, e o painel de log embutido. Verificação: busca no código não encontra mais referências e `node --test` completo passa.
 - [x] 3.6 Atualizar `SSD.md` (janela viva, temporizadores de redesenho e de cópia, ausência de painel de log embutido), `README.md` (relatório sempre disponível, frações e filtros) e `ROADMAP.md` (mudança B). Verificação: os três documentos descrevem o estado atual, sem itens concluídos escritos como trabalho futuro.
 
+- [x] 3.7 Refinar os indicadores a partir da validação em runtime: três linhas temáticas e compactas (Folgas, Irregularidades, Hora Extra); HEC 70% em dois quadrados (positivo e negativo) com sinal colorido só no caractere; mín e máx clicáveis que ordenam a tabela excluindo os zerados (`AF.modelo.ordenarPorExtremo`); folha sem marcações com `-`; correção do Ajuste que apagava as irregularidades. Verificação: testes do modelo (extremos com e sem sinal, zerados, não processados, vazias, filtro prévio) e da janela (clique em mín/máx, limpar, cabeçalho cancela) passando.
+- [x] 3.8 Manter no cabeçalho o mês, o progresso e a duração (com hora de término) da última Análise e do último Ajuste, atualizando a duração a cada segundo durante a execução. Verificação: teste de `gerarMetaHTML` para execução concluída e em andamento.
 ## 4. Integração e validação
 
 - [x] 4.1 Executar `node --test` completo. Verificação: todos os testes passam.

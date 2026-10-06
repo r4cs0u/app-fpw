@@ -284,3 +284,44 @@ test('folha sem marcacoes nao entra nos indicadores, nos filtros nem no TSV', ()
     assert.deepEqual(plain(AF.modelo.filtrar('semES')), ['ANA']);
     assert.doesNotMatch(AF.modelo.tsv(), /VAZIA/);
 });
+function equipeComHoras() {
+    const { AF } = loadModelo();
+    AF.modelo.iniciarExecucao('analise', ['ANA', 'BIA', 'CAIO', 'DANI', 'ZERO']);
+    AF.modelo.registrarAnalise('ANA',  { folgas: 0, HE: '07:19', HEF: '00:00', HEC: '11:00' });
+    AF.modelo.registrarAnalise('BIA',  { folgas: 0, HE: '00:09', HEF: '01:54', HEC: '-35:00' });
+    AF.modelo.registrarAnalise('CAIO', { folgas: 0, HE: '05:46', HEF: '08:42', HEC: '00:19' });
+    AF.modelo.registrarAnalise('DANI', { folgas: 0, HE: '00:26', HEF: '00:00', HEC: '-08:13' });
+    AF.modelo.registrarAnalise('ZERO', { folgas: 0, HE: '00:00', HEF: '00:00', HEC: '00:00' });
+    return AF;
+}
+
+test('extremo "max" ordena do maior para o menor e exclui quem esta zerado na coluna', () => {
+    const AF = equipeComHoras();
+    const nomes = ['ANA', 'BIA', 'CAIO', 'DANI', 'ZERO'];
+    assert.deepEqual(plain(AF.modelo.ordenarPorExtremo(nomes, 'he', 'max', 0)), ['ANA', 'CAIO', 'DANI', 'BIA']);
+    assert.deepEqual(plain(AF.modelo.ordenarPorExtremo(nomes, 'hef', 'max', 0)), ['CAIO', 'BIA']);
+});
+
+test('extremo "min" ordena do menor para o maior e tambem exclui os zerados', () => {
+    const AF = equipeComHoras();
+    const nomes = ['ANA', 'BIA', 'CAIO', 'DANI', 'ZERO'];
+    assert.deepEqual(plain(AF.modelo.ordenarPorExtremo(nomes, 'he', 'min', 0)), ['BIA', 'DANI', 'CAIO', 'ANA']);
+});
+
+test('extremos de HEC separam positivos e negativos; no negativo "max" e o de maior magnitude', () => {
+    const AF = equipeComHoras();
+    const nomes = ['ANA', 'BIA', 'CAIO', 'DANI', 'ZERO'];
+    assert.deepEqual(plain(AF.modelo.ordenarPorExtremo(nomes, 'hec', 'max', 1)), ['ANA', 'CAIO']);
+    assert.deepEqual(plain(AF.modelo.ordenarPorExtremo(nomes, 'hec', 'min', 1)), ['CAIO', 'ANA']);
+    assert.deepEqual(plain(AF.modelo.ordenarPorExtremo(nomes, 'hec', 'max', -1)), ['BIA', 'DANI']);
+    assert.deepEqual(plain(AF.modelo.ordenarPorExtremo(nomes, 'hec', 'min', -1)), ['DANI', 'BIA']);
+});
+
+test('extremos ignoram nao processados e folhas sem marcacoes, e respeitam um filtro previo', () => {
+    const AF = equipeComHoras();
+    AF.modelo.iniciarExecucao('analise', ['VAZIA', 'NOVO']);
+    AF.modelo.registrarSemMarcacoes('VAZIA', 'analise');
+    const todos = ['ANA', 'BIA', 'CAIO', 'DANI', 'ZERO', 'VAZIA', 'NOVO'];
+    assert.deepEqual(plain(AF.modelo.ordenarPorExtremo(todos, 'he', 'max', 0)), ['ANA', 'CAIO', 'DANI', 'BIA']);
+    assert.deepEqual(plain(AF.modelo.ordenarPorExtremo(['BIA', 'CAIO'], 'he', 'max', 0)), ['CAIO', 'BIA']);
+});

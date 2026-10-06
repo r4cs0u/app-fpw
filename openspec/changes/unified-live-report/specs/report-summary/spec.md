@@ -43,7 +43,7 @@ O resumo SHALL mostrar, para cada tipo de irregularidade (Sem Entrada/Saída, In
 - **THEN** o indicador de Folha não preenchida SHALL mostrar 2
 
 ### Requirement: Indicadores de horas extras e compensação
-O resumo SHALL mostrar, para HE 100%, HEF 100% e HEC 70%, o total, o mínimo e o máximo entre os funcionários lidos, excluindo valores zero do mínimo e do máximo. O mínimo e o máximo SHALL exibir o nome do funcionário correspondente em dica de contexto. Para HEC 70%, valores positivos e negativos SHALL ser apresentados separadamente, cada grupo com seu total, mínimo e máximo, onde o máximo do grupo negativo é o de maior magnitude.
+O resumo SHALL mostrar, para HE 100%, HEF 100% e HEC 70%, o total, o mínimo e o máximo entre os funcionários lidos, excluindo valores zero do mínimo e do máximo. O mínimo e o máximo SHALL exibir o nome do funcionário correspondente em dica de contexto. Para HEC 70%, valores positivos e negativos SHALL ser apresentados separadamente, cada grupo com seu total, mínimo e máximo, onde o máximo do grupo negativo é o de maior magnitude. Na caixa de HEC 70%, os grupos positivo e negativo SHALL ser apresentados em dois quadrados menores e o sinal (`+` ou `−`) SHALL ser o único caractere colorido, em verde e vermelho respectivamente, mantendo o valor na cor do texto. Os indicadores SHALL ser compactos, ocupando pouca altura da janela.
 
 #### Scenario: Mínimo e máximo sem zeros
 - **WHEN** os valores de HE 100% dos funcionários lidos são 00:00, 00:09, 05:46 e 07:19
@@ -89,3 +89,23 @@ Os indicadores SHALL se atualizar enquanto a janela do relatório estiver aberta
 #### Scenario: Indicador cresce com a execução
 - **WHEN** a janela está aberta e a Análise lê a folha de um funcionário com 2 interjornadas
 - **THEN** o indicador de Interjornada SHALL refletir essas 2 ocorrências sem reabrir a janela
+
+### Requirement: Mínimo e máximo ordenam a tabela
+Clicar no mínimo ou no máximo de HE 100%, HEF 100% ou HEC 70% SHALL ordenar a tabela pela coluna correspondente, do menor para o maior (mínimo) ou do maior para o menor (máximo), e SHALL excluir da tabela os funcionários com valor zero nessa coluna, os não processados e os de folha sem marcações. Nos quadrados de HEC 70%, o extremo positivo SHALL considerar somente saldos positivos e o negativo somente saldos negativos, sendo o máximo negativo o de maior magnitude. O extremo ativo SHALL ser destacado e a janela SHALL indicar a ordenação ativa. Clicar novamente no mesmo extremo SHALL limpá-lo; clicar no cabeçalho de uma coluna SHALL cancelá-lo e voltar à ordenação por coluna. Um extremo SHALL poder ser combinado com um filtro por indicador. Extremos sem valor (`-`) SHALL aparecer desativados e não clicáveis.
+
+#### Scenario: Máximo de HE 100%
+- **WHEN** os valores de HE 100% são 07:19, 00:09, 05:46 e 00:00 e o usuário clica no máximo
+- **THEN** a tabela SHALL mostrar os funcionários com 07:19, 05:46 e 00:09, nessa ordem
+- **AND** o funcionário com 00:00 SHALL ser excluído
+
+#### Scenario: Mínimo inverte a ordem
+- **WHEN** o usuário clica no mínimo do mesmo indicador
+- **THEN** a ordem SHALL ser 00:09, 05:46 e 07:19
+
+#### Scenario: Extremo negativo de HEC
+- **WHEN** os saldos de HEC 70% são +11:00, +00:19, -35:00 e -08:13 e o usuário clica no máximo do quadrado negativo
+- **THEN** a tabela SHALL mostrar somente os funcionários com -35:00 e -08:13, nessa ordem
+
+#### Scenario: Limpar o extremo
+- **WHEN** o usuário clica novamente no extremo ativo ou no cabeçalho de uma coluna
+- **THEN** a tabela SHALL voltar a mostrar os funcionários sem a exclusão dos zerados

@@ -192,3 +192,15 @@ A Análise SHALL contar os dias com código 47 no mesmo escopo que o Ajuste conv
 #### Scenario: Pré-análise coerente com a Análise
 - **WHEN** a folha não mudou entre a Análise e o início do Ajuste
 - **THEN** a pré-análise SHALL NOT registrar divergência na contagem de Cód 47
+
+### Requirement: Cabeçalho com mês, progresso e duração das execuções
+O cabeçalho da janela do relatório SHALL mostrar o mês analisado, o número de funcionários processados sobre o total e, para a última Análise e o último Ajuste, o estado (em andamento, concluída, cancelada ou interrompida) e a duração. Para execuções encerradas SHALL mostrar também a hora de término. Para uma execução em andamento, a duração SHALL aumentar enquanto a janela estiver aberta, sem exigir nova atualização dos dados. Esses valores SHALL permanecer disponíveis após recarregar a página, junto com o modelo.
+
+#### Scenario: Execução concluída
+- **WHEN** a última Análise durou 3 minutos e 12 segundos e terminou às 00:13
+- **THEN** o cabeçalho SHALL mostrar a Análise como concluída, com duração de 3min 12s e hora 00:13
+
+#### Scenario: Execução em andamento
+- **WHEN** um Ajuste está em andamento há 1 minuto e 5 segundos
+- **THEN** o cabeçalho SHALL mostrar o Ajuste como em andamento com 1min 05s, sem hora de término
+- **AND** a duração SHALL continuar crescendo enquanto a janela estiver aberta

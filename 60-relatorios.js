@@ -11,6 +11,7 @@
         col: 'nome',
         dir: 1,
         filtro: null,
+        extremo: null,
         selecionado: null
     };
 
@@ -72,20 +73,28 @@
             + '.hdr-row1{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}'
             + '.hdr-title{font-size:14px;font-weight:700;display:flex;align-items:center;gap:8px}'
             + '.hdr-actions{display:flex;align-items:center;gap:8px}'
-            + '.cards-grid{display:flex;flex-direction:column;gap:8px;padding:10px 16px;max-height:46vh;overflow-y:auto;background:var(--surface2);border-bottom:1px solid var(--border);flex-shrink:0}'
-            + '.grp{width:100%;border:1px solid var(--grp-border);background:var(--grp-bg);border-radius:8px;padding:8px 10px;display:flex;flex-direction:row;align-items:stretch;gap:12px}'
-            + '.grp-title{flex:0 0 110px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--grp-fg);display:flex;align-items:center}'
-            + '.grp-items{flex:1;display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:6px}'
+            + '.cards-grid{display:flex;flex-direction:column;gap:5px;padding:6px 16px;max-height:40vh;overflow-y:auto;background:var(--surface2);border-bottom:1px solid var(--border);flex-shrink:0}'
+            + '.grp{width:100%;border:1px solid var(--grp-border);background:var(--grp-bg);border-radius:6px;padding:4px 8px;display:flex;flex-direction:row;align-items:stretch;gap:10px}'
+            + '.grp-title{flex:0 0 92px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--grp-fg);display:flex;align-items:center}'
+            + '.grp-items{flex:1;display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:5px}'
             + '.grp-green{--grp-bg:rgba(34,197,94,.06);--grp-border:rgba(34,197,94,.28);--grp-fg:#4ade80;--card-bg:rgba(34,197,94,.12)}'
             + '.grp-red{--grp-bg:rgba(239,68,68,.06);--grp-border:rgba(239,68,68,.28);--grp-fg:#f87171;--card-bg:rgba(239,68,68,.12)}'
             + '.grp-blue{--grp-bg:rgba(59,130,246,.06);--grp-border:rgba(59,130,246,.28);--grp-fg:#60a5fa;--card-bg:rgba(59,130,246,.12)}'
-            + '.card{background:var(--card-bg);border:1px solid var(--grp-border);border-radius:6px;padding:6px 8px;display:flex;flex-direction:column;gap:2px;cursor:pointer;transition:border-color .15s,box-shadow .15s;user-select:none}'
+            + '.card{background:var(--card-bg);border:1px solid var(--grp-border);border-radius:5px;padding:3px 7px;display:flex;flex-direction:column;gap:1px;cursor:pointer;transition:border-color .15s,box-shadow .15s;user-select:none}'
             + '.card:hover{border-color:var(--grp-fg)}'
             + '.card.card-active{border-color:var(--grp-fg);box-shadow:0 0 0 1px var(--grp-fg)}'
             + '.card-static{cursor:default}.card-static:hover{border-color:var(--grp-border)}'
-            + '.card-title{font-size:10px;font-weight:600;color:var(--text-muted);display:flex;justify-content:space-between;gap:4px}'
-            + '.card-val{font-size:17px;font-weight:700;color:var(--text);line-height:1.2}'
-            + '.card-sub{font-size:10px;color:var(--text-muted);display:flex;flex-wrap:wrap;gap:2px 8px}'
+            + '.card-wide{grid-column:span 2}'
+            + '.card-title{font-size:9px;font-weight:600;color:var(--text-muted);display:flex;justify-content:space-between;gap:4px;line-height:1.2}'
+            + '.card-val{font-size:14px;font-weight:700;color:var(--text);line-height:1.15}'
+            + '.card-sub{font-size:9px;color:var(--text-muted);display:flex;flex-wrap:wrap;gap:0 8px;line-height:1.2}'
+            + '.mini-row{display:grid;grid-template-columns:1fr 1fr;gap:5px}'
+            + '.mini{border:1px solid var(--grp-border);background:rgba(15,17,23,.35);border-radius:4px;padding:2px 6px;display:flex;flex-direction:column;gap:0}'
+            + '.mm{cursor:pointer;border-radius:3px;padding:0 2px}'
+            + '.mm:hover{background:rgba(255,255,255,.10);color:var(--text)}'
+            + '.mm.mm-active{background:var(--grp-fg);color:#0f1117;font-weight:700}'
+            + '.mm.mm-off{cursor:default;opacity:.5}.mm.mm-off:hover{background:none;color:inherit}'
+            + '.sg-pos{color:#22c55e;font-weight:700}.sg-neg{color:#ef4444;font-weight:700}'
             + '.tbl-wrap{flex:1;overflow:auto}'
             + 'table{width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed}'
             + 'thead th{background:var(--tbl-head);color:var(--tbl-head-txt);font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.05em;padding:6px 10px;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:5;user-select:none;text-align:right}'
@@ -144,11 +153,21 @@
 
     // ── Renderização dos Indicadores (3 caixas temáticas) ─────────────────
 
-    AF.relatorios.gerarCardsHTML = function (resumo, filtroAtivo) {
-        function card(id, titulo, valor, sub, tip) {
+    function semSinal(v) {
+        return String(v == null ? '' : v).replace(/^[+\-−]/, '');
+    }
+
+    // Sinal colorido apenas no caractere; o valor mantém a cor do texto.
+    function horaComSinal(v, sinal) {
+        var s = sinal < 0 ? '<span class="sg-neg">−</span>' : '<span class="sg-pos">+</span>';
+        return s + escaparHTML(semSinal(v));
+    }
+
+    AF.relatorios.gerarCardsHTML = function (resumo, filtroAtivo, extremoAtivo) {
+        function card(id, titulo, valor, sub, tip, extraClass) {
             var clicavel = !!id;
             var ativo = clicavel && filtroAtivo === id;
-            var cls = 'card ' + (clicavel ? '' : 'card-static ') + (ativo ? 'card-active' : '');
+            var cls = 'card ' + (clicavel ? '' : 'card-static ') + (ativo ? 'card-active ' : '') + (extraClass || '');
             var dataAttr = clicavel ? ' data-filtro="' + id + '"' : '';
             var titleAttr = tip ? ' title="' + escaparHTML(tip) + '"' : '';
             return '<div class="' + cls + '"' + dataAttr + titleAttr + '>'
@@ -163,12 +182,18 @@
                 + '<div class="grp-items">' + cards + '</div></div>';
         }
 
-        function subMinMax(o, rotulo) {
-            if (!o || (o.min === '-' && o.max === '-')) return '<span>' + (rotulo || '') + 'sem saldo</span>';
-            var tMin = o.minNome ? ' title="Mínimo: ' + escaparHTML(o.minNome) + '"' : '';
-            var tMax = o.maxNome ? ' title="Máximo: ' + escaparHTML(o.maxNome) + '"' : '';
-            return '<span' + tMin + '>' + (rotulo || '') + 'mín ' + escaparHTML(o.min) + '</span>'
-                + '<span' + tMax + '>máx ' + escaparHTML(o.max) + '</span>';
+        // mín/máx clicáveis: ordenam a tabela pela coluna e excluem quem está zerado nela.
+        function minMax(o, col, sinal, comSinal) {
+            function item(modo, rotulo, valor, nome) {
+                var vazio = !valor || valor === '-';
+                var ativo = extremoAtivo && extremoAtivo.col === col && extremoAtivo.modo === modo && extremoAtivo.sinal === sinal;
+                var cls = 'mm' + (vazio ? ' mm-off' : '') + (ativo ? ' mm-active' : '');
+                var attrs = vazio ? '' : ' data-mm="' + col + ':' + modo + ':' + sinal + '"'
+                    + ' title="' + escaparHTML((modo === 'min' ? 'Menor' : 'Maior') + (nome ? ': ' + nome : '') + ' — clique para ordenar a tabela') + '"';
+                var txt = vazio ? '-' : (comSinal ? horaComSinal(valor, sinal) : escaparHTML(valor));
+                return '<span class="' + cls + '"' + attrs + '>' + rotulo + ' ' + txt + '</span>';
+            }
+            return item('min', 'mín', o.min, o.minNome) + item('max', 'máx', o.max, o.maxNome);
         }
 
         var fol = resumo.folgas;
@@ -187,12 +212,23 @@
             + card('naoPreenchida', 'Folhas não Preenchidas', String(irr.naoPreenchida.total), '<span>' + irr.naoPreenchida.funcs + ' folha(s)</span>')
         );
 
-        var hecVal = '<span>+' + escaparHTML(resumo.hecPos.total) + '</span> <span style="color:var(--text-faint)">/</span> <span>' + escaparHTML(resumo.hecNeg.total) + '</span>';
+        function miniHec(rotuloSinal, dados, sinal) {
+            var tot = dados.total === '00:00' ? '00:00' : dados.total;
+            return '<div class="mini">'
+                + '<div class="card-val">' + horaComSinal(tot, sinal) + '</div>'
+                + '<div class="card-sub">' + minMax(dados, 'hec', sinal, true) + '</div>'
+                + '</div>';
+        }
+
+        var cardHec = '<div class="card card-static card-wide">'
+            + '<div class="card-title"><span>70% (Compensáveis)</span></div>'
+            + '<div class="mini-row">' + miniHec('+', resumo.hecPos, 1) + miniHec('−', resumo.hecNeg, -1) + '</div>'
+            + '</div>';
+
         var gHoras = grupo('blue', 'Hora Extra',
-            card(null, '100% (Acima das 10h)', escaparHTML(resumo.he.total), subMinMax(resumo.he))
-            + card(null, '100% (Feriado)', escaparHTML(resumo.hef.total), subMinMax(resumo.hef))
-            + card(null, '70% (Compensáveis)', hecVal,
-                subMinMax(resumo.hecPos, '+ ') + subMinMax(resumo.hecNeg, '− '))
+            card(null, '100% (Acima das 10h)', escaparHTML(resumo.he.total), minMax(resumo.he, 'he', 0, false))
+            + card(null, '100% (Feriado)', escaparHTML(resumo.hef.total), minMax(resumo.hef, 'hef', 0, false))
+            + cardHec
         );
 
         return gFolgas + gIrreg + gHoras;
@@ -316,6 +352,48 @@
         return h;
     };
 
+    // ── Cabeçalho: mês, progresso e duração da última execução ───────────
+
+    function fmtDuracao(ms) {
+        var seg = Math.max(0, Math.round(ms / 1000));
+        var min = Math.floor(seg / 60);
+        return min + 'min ' + String(seg % 60).padStart(2, '0') + 's';
+    }
+
+    function fmtHora(ts) {
+        var d = new Date(ts);
+        return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+    }
+
+    AF.relatorios.gerarMetaHTML = function (est, agora) {
+        agora = agora || Date.now();
+        var total = est.ordem.length;
+        var proc = 0;
+        est.ordem.forEach(function (n) { if (AF.modelo.obterDadosFunc(n).processado) proc++; });
+        var rot = { 'em-andamento': 'em andamento', concluida: 'concluída', cancelada: 'cancelada', interrompida: 'interrompida' };
+        var h = '<span><b>Mês:</b> ' + escaparHTML(est.mes || 'Não definido') + '</span>'
+            + '<span><b>Processados:</b> ' + proc + ' / ' + total + '</span>';
+        [['analise', 'Análise'], ['ajuste', 'Ajuste']].forEach(function (par) {
+            var ex = est.execs && est.execs[par[0]];
+            if (!ex || !ex.inicio) return;
+            var andamento = ex.status === 'em-andamento';
+            var dur = fmtDuracao((ex.fim || agora) - ex.inicio);
+            h += '<span><b>' + par[1] + ':</b> ' + (rot[ex.status] || escaparHTML(ex.status))
+                + ' • ' + dur + (andamento ? '' : ' • ' + fmtHora(ex.fim || ex.inicio)) + '</span>';
+        });
+        return h;
+    };
+
+    var ultimoMetaHTML = null;
+    function atualizarMeta(win) {
+        try {
+            var el = win.document.getElementById('fpw-hdr-meta');
+            if (!el) return;
+            var html = AF.relatorios.gerarMetaHTML(AF.modelo.obterEstado());
+            if (html !== ultimoMetaHTML) { el.innerHTML = html; ultimoMetaHTML = html; }
+        } catch (e) {}
+    }
+
     // ── Condutor da Janela Viva ──────────────────────────────────────────
 
     function atualizarJanelaDOM(win, forcar) {
@@ -327,21 +405,24 @@
         try {
             var doc = win.document;
 
-            // Metadados no topo
-            var metaEl = doc.getElementById('fpw-hdr-meta');
-            if (metaEl) {
-                var totalOrdem = est.ordem.length;
-                var proc = 0;
-                est.ordem.forEach(function (n) { if (AF.modelo.obterDadosFunc(n).processado) proc++; });
-                metaEl.innerHTML = '<span><b>Mês:</b> ' + (est.mes || 'Não definido') + '</span>'
-                    + '<span><b>Processados:</b> ' + proc + ' / ' + totalOrdem + '</span>';
-            }
+            // Metadados no topo (mês, progresso e duração das execuções)
+            atualizarMeta(win);
 
             // Cards de Resumo
             var resumo = AF.modelo.resumo();
             var cardsGrid = doc.getElementById('fpw-cards-grid');
             if (cardsGrid) {
-                cardsGrid.innerHTML = AF.relatorios.gerarCardsHTML(resumo, estadoVisao.filtro);
+                cardsGrid.innerHTML = AF.relatorios.gerarCardsHTML(resumo, estadoVisao.filtro, estadoVisao.extremo);
+                cardsGrid.querySelectorAll('.mm[data-mm]').forEach(function (m) {
+                    m.onclick = function (ev) {
+                        if (ev && ev.stopPropagation) ev.stopPropagation();
+                        var p = this.getAttribute('data-mm').split(':');
+                        var novo = { col: p[0], modo: p[1], sinal: parseInt(p[2], 10) };
+                        var ex = estadoVisao.extremo;
+                        estadoVisao.extremo = (ex && ex.col === novo.col && ex.modo === novo.modo && ex.sinal === novo.sinal) ? null : novo;
+                        atualizarJanelaDOM(win, true);
+                    };
+                });
                 // Bind clique dos cards
                 cardsGrid.querySelectorAll('.card[data-filtro]').forEach(function (c) {
                     c.onclick = function () {
@@ -359,6 +440,7 @@
                 theadTr.querySelectorAll('th[data-col]').forEach(function (th) {
                     th.onclick = function () {
                         var col = this.getAttribute('data-col');
+                        estadoVisao.extremo = null;
                         if (estadoVisao.col === col) {
                             estadoVisao.dir *= -1;
                         } else {
@@ -372,7 +454,10 @@
 
             // Tbody
             var nomesFiltrados = AF.modelo.filtrar(estadoVisao.filtro);
-            var nomesOrdenados = AF.modelo.ordenar(nomesFiltrados, estadoVisao.col, estadoVisao.dir);
+            var ex = estadoVisao.extremo;
+            var nomesOrdenados = ex
+                ? AF.modelo.ordenarPorExtremo(nomesFiltrados, ex.col, ex.modo, ex.sinal)
+                : AF.modelo.ordenar(nomesFiltrados, estadoVisao.col, estadoVisao.dir);
             var tbody = doc.getElementById('fpw-tbody');
             if (tbody) {
                 tbody.innerHTML = AF.relatorios.gerarTbodyHTML(nomesOrdenados, est.atual, estadoVisao.selecionado);
@@ -421,7 +506,8 @@
             var rodape = doc.getElementById('fpw-rodape-contagem');
             if (rodape) {
                 rodape.textContent = 'Exibindo ' + nomesOrdenados.length + ' de ' + est.ordem.length + ' funcionários'
-                    + (estadoVisao.filtro ? ' (Filtro ativo: ' + estadoVisao.filtro + ')' : '');
+                    + (estadoVisao.filtro ? ' (Filtro ativo: ' + estadoVisao.filtro + ')' : '')
+                    + (ex ? ' (' + (ex.modo === 'min' ? 'menores' : 'maiores') + ' ' + ex.col.toUpperCase() + ', sem zerados)' : '');
             }
 
         } catch (eDOM) {
@@ -462,6 +548,7 @@
 
         janelaRelatorio = win;
         ultimoVersaoJanela = -1;
+        ultimoMetaHTML = null;
 
         win.document.open();
         win.document.write(AF.relatorios.gerarEsqueletoHTML());
@@ -492,6 +579,7 @@
                     intervaloJanela = null;
                     return;
                 }
+                atualizarMeta(janelaRelatorio);
                 atualizarJanelaDOM(janelaRelatorio, false);
             }, 1000);
         }
