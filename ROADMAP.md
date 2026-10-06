@@ -42,6 +42,8 @@ Evoluir primeiro a previsibilidade, a capacidade de testar e a segurança operac
 
 **Concluída quando:** as regras escolhidas têm exemplos automatizados para resultados esperados e casos-limite, e existe um comando documentado que os executa de forma repetível.
 
+**Estado:** critérios atendidos. A suíte (`node --test`, documentado no [README.md](README.md)) cobre datas, planejamento de ajustes, mapeamento da folha, detector, modelo do relatório, esperas e a interface do relatório, com 172 testes aprovados em 2026-10-06. Novas regras devem continuar entrando com testes.
+
 ### 3. Separar gradualmente as regras da página
 
 **Objetivo:** reduzir o quanto os cálculos dependem diretamente de elementos HTML e da estrutura específica do WebPonto.
@@ -50,7 +52,7 @@ Evoluir primeiro a previsibilidade, a capacidade de testar e a segurança operac
 
 **Concluída quando:** as principais regras de negócio podem ser testadas com dados de exemplo sem DOM, e os fluxos existentes continuam produzindo os resultados esperados em validações controladas.
 
-**Progresso:** a mudança `sheet-detector-and-log` (implementada e publicada na branch `test`; ver etapa 5) dá o primeiro passo concreto: leitura da folha em linhas estruturadas e detecção pura, com os dias de cada irregularidade, usada por Análise e Ajuste.
+**Progresso:** em andamento. O mapeamento da folha e o planejamento de ajustes foram extraídos, e `sheet-detector-and-log` (arquivada; ver etapa 5) trouxe a leitura da folha em linhas estruturadas e a detecção pura, com os dias de cada irregularidade, usada por Análise e Ajuste. `unified-live-report` e `irregularity-export` seguiram o mesmo princípio: o modelo do relatório e o texto de irregularidades são funções puras testadas sem DOM. A fronteira com frames, DOM e popups continua sendo o que falta isolar nos fluxos de Análise e Ajuste.
 
 ### 4. Reforçar segurança e diagnóstico das ações que alteram dados
 
@@ -60,7 +62,9 @@ Evoluir primeiro a previsibilidade, a capacidade de testar e a segurança operac
 
 **Concluída quando:** cada ação que altera dados tem pré-condições e resultado verificáveis, estados inesperados interrompem o fluxo com diagnóstico, e a validação confirma que nenhuma gravação ou aprovação ocorre fora do comportamento explicitamente aprovado.
 
-**Progresso:** em andamento. A mudança `stop-adjustments-on-wait-failure` reúne esperas com evidência estrutural, parada por execução, limpeza de recursos e diagnóstico de resultados parciais. Prazos são limites provisórios de segurança, não tempos fixos de resposta do FPW; a validação sintética não substitui evidência de runtime.
+**Progresso:** em andamento. As mudanças `guard-adjustment-write-preconditions` e `stop-adjustments-on-wait-failure` (ambas arquivadas) trouxeram pré-condições de gravação, esperas com evidência estrutural, parada por execução, limpeza de recursos e diagnóstico de resultados parciais. Prazos são limites provisórios de segurança, não tempos fixos de resposta do FPW; a validação sintética não substitui evidência de runtime.
+
+**Pendente para concluir:** validar em runtime, de forma controlada e com aprovação explícita do usuário, o comportamento do Ajuste (pré-condições, parada em falha e ausência de gravação fora do esperado). Isso é requisito para decidir a promoção a `main`.
 
 ### 5. Retomar evoluções maiores de funcionalidades
 
@@ -70,11 +74,11 @@ Evoluir primeiro a previsibilidade, a capacidade de testar e a segurança operac
 
 **Concluída quando:** não é uma entrega única. Cada funcionalidade aprovada tem critérios de aceitação, validação compatível com seu risco e decisão explícita sobre eventual promoção para a linha estável.
 
-**Progresso:** A e B foram concluídas e arquivadas. C está implementada, publicada na branch `test` e validada em runtime somente leitura via MCP; está pronta para arquivamento.
+**Progresso:** A, B e C foram concluídas e arquivadas; seus requisitos duráveis estão em `openspec/specs/`. Todas estão publicadas apenas na branch `test`, sem promoção para `main`. A validação de C em runtime foi somente leitura via MCP e não incluiu Análise nem Ajuste.
 
 1. **`sheet-detector-and-log` (A, concluída e arquivada):** fundação com detector de folha unificado e log estruturado.
-2. **`unified-live-report` (B, implementada na branch `test`):** modelo único por funcionário (`27-modelo-relatorio.js`), Análise e Ajuste coexistindo, botão Relatório sempre disponível com janela ao vivo (`60-relatorios.js`), frações de progresso (`movidas/(movidas+presas)`), cores por estado, colunas abertas de irregularidade, indicadores no topo com filtros rápidos e persistência na sessão.
-3. **`irregularity-export` (C, implementada, publicada na branch `test` e validada via MCP):** texto copiável por pessoa e pela lista visível do time, com os dias de cada irregularidade; ícone por linha e janela "Exportar irregularidades" que respeita filtros e extremos.
+2. **`unified-live-report` (B, concluída e arquivada):** modelo único por funcionário (`27-modelo-relatorio.js`), Análise e Ajuste coexistindo, botão Relatório sempre disponível com janela ao vivo (`60-relatorios.js`), frações de progresso (`movidas/(movidas+presas)`), cores por estado, colunas abertas de irregularidade, indicadores no topo com filtros rápidos e persistência na sessão.
+3. **`irregularity-export` (C, concluída e arquivada):** texto copiável por pessoa e pela lista visível do time, com os dias de cada irregularidade; ícone por linha e janela "Exportar irregularidades" que respeita filtros e extremos.
 
 Decisões de produto já tomadas para B e C: a fração usa a Análise como denominador e o Ajuste como numerador, e Ajustar repetido acumula sobre a mesma linha de base; uma nova Análise volta ao valor inteiro.
 
