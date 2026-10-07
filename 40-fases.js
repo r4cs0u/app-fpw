@@ -251,25 +251,28 @@
 
 		var doc1   = AF.core.getDoc1();
 		var alvo   = AF.utils.mesAlvoDaTabela();
-		var ultimoDia = new Date(alvo.getFullYear(), alvo.getMonth() + 1, 0);
-		var ultimaSemanaId = AF.utils.semanaIdBR(ultimoDia);
 
 		var nsMarcados = [];
 		var campos = Array.from(doc1.querySelectorAll('input[type=text]'));
+		var entradas = campos.map(function (inp) {
+			return {
+				name: inp.name,
+				value: inp.value,
+				dataStr: inp.value && inp.value.trim() === '47'
+					? AF.mapa.obterDataDoInput(inp)
+					: null
+			};
+		});
 
-		for (var i = 0; i < campos.length; i++) {
+		var selecionados = AF.regras.selecionarCamposCod47(entradas, alvo);
+
+		for (var i = 0; i < selecionados.length; i++) {
             if (execucao && !execucao.isActive()) break;
-			var inp = campos[i];
-			if (!inp.value || inp.value.trim() !== '47') continue;
+			var selInfo = selecionados[i];
+			var inp = campos[selInfo.indice];
+			var dataStr = selInfo.dataStr;
+			var num = selInfo.num;
 
-			var dataStr = AF.mapa.obterDataDoInput(inp);
-			var dataObj = AF.utils.parseDataBR(dataStr);
-			if (!dataObj) continue;
-			var semId = AF.utils.semanaIdBR(dataObj);
-			var noEscopo = AF.utils.ehMesAlvo(dataObj, alvo) || semId === ultimaSemanaId;
-			if (!noEscopo) continue;
-
-			var num = (inp.name || '').replace(/\D/g, '');
 			var tr = inp.closest('tr');
 			if (!tr) continue;
 

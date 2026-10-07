@@ -216,6 +216,47 @@ test('pure code 47 rule respects target and transition-week scope without reorde
     assert.deepEqual(plain(AF.regras.selecionarDiasCod47(campos, alvo, { somenteMesAlvo: true })), [date(10)]);
 });
 
+test('selecionarCamposCod47 returns descriptors with indice, num and dataStr, handling whitespace and invalid dates', () => {
+    const { AF } = createAnalysis();
+    const campos = [
+        { name: 'CodJust12', value: '  47  ', dataStr: date(5) },
+        { name: 'CodJust13', value: '47', dataStr: 'data-invalida' },
+        { name: 'CodJust14', value: '47', dataStr: null },
+        { name: 'CodJust15', value: '48', dataStr: date(10) },
+        { name: 'CodJust16', value: '47', dataStr: date(2, 10) }, // semana transição
+        { name: 'CodJust17', value: '47', dataStr: date(20, 8) }  // fora
+    ];
+    const alvo = new Date(2026, 8, 1);
+
+    const selecionados = plain(AF.regras.selecionarCamposCod47(campos, alvo));
+    assert.deepEqual(selecionados, [
+        { indice: 0, num: '12', dataStr: date(5) },
+        { indice: 4, num: '16', dataStr: date(2, 10) }
+    ]);
+
+    const somenteMes = plain(AF.regras.selecionarCamposCod47(campos, alvo, { somenteMesAlvo: true }));
+    assert.deepEqual(somenteMes, [
+        { indice: 0, num: '12', dataStr: date(5) }
+    ]);
+});
+
+test('analysis cod47 collection matches the pure selection on the same inputs', () => {
+    const campos = [
+        { value: '47', dataStr: date(5) },
+        { value: '47', dataStr: date(25) },
+        { value: '47', dataStr: date(2, 10) },
+        { value: '47', dataStr: date(15, 10) }
+    ];
+    const { AF } = createAnalysis({ campos47: campos });
+    const alvo = new Date(2026, 8, 1);
+
+    const analiseDates = plain(AF.analisar.coletarDiasCod47());
+    const regrasDates = plain(AF.regras.selecionarDiasCod47(campos, alvo));
+
+    assert.deepEqual(analiseDates, [date(5), date(25), date(2, 10)]);
+    assert.deepEqual(analiseDates, regrasDates);
+});
+
 test('pure overtime rule sums only matching codes and in-scope dated entries', () => {
     const { AF } = createAnalysis();
     const lancamentos = [

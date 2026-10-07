@@ -14,4 +14,4 @@
 
 - [x] 3.1 Atualizar `README.md` e `SSD.md` (filtros somados, Movim., busca, título da exportação); verificar com `Select-String -Pattern 'filtro' README.md SSD.md` que nada descreve o filtro como único.
 - [x] 3.2 Rodar `node --test` completo e `openspec validate additive-report-filters --strict`, sem falhas.
-- [ ] 3.3 Validação manual na branch `test`, somente leitura: após uma Análise e após um Ajuste, conferir Movim., soma de indicadores, busca e exportação; registrar no `ROADMAP.md`.
+- [x] 3.3 Validação manual na branch `test`, somente leitura: após uma Análise e após um Ajuste, conferir Movim., soma de indicadores, busca e exportação; registrar no `ROADMAP.md`.

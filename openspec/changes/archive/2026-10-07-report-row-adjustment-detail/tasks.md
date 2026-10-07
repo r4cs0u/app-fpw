@@ -18,4 +18,4 @@
 
 - [x] 4.1 Atualizar `README.md` e `SSD.md` (detalhe por linha, dados guardados no modelo); verificar com `Select-String -Pattern 'detalhe' README.md SSD.md`.
 - [x] 4.2 Rodar `node --test` completo e `openspec validate report-row-adjustment-detail --strict`, sem falhas.
-- [ ] 4.3 Validação de runtime na branch `test`: executar o Ajuste controlado em poucas folhas, conferir o detalhe contra o log e contra a folha, e registrar no `ROADMAP.md`. Conforme a Etapa 4, qualquer divergência vira nova change.
+- [x] 4.3 Validação de runtime na branch `test`: executar o Ajuste controlado em poucas folhas, conferir o detalhe contra o log e contra a folha, e registrar no `ROADMAP.md`. Conforme a Etapa 4, qualquer divergência vira nova change.

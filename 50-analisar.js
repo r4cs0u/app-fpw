@@ -22,6 +22,7 @@
         var campos = Array.from(AF.core.getDoc1().querySelectorAll('input[type=text]'));
         var entradas = campos.map(function (inp) {
             return {
+                name: inp.name,
                 value: inp.value,
                 dataStr: inp.value && inp.value.trim() === '47'
                     ? AF.mapa.obterDataDoInput(inp)

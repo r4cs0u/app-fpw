@@ -63,27 +63,40 @@
         return total;
     };
 
-    AF.regras.selecionarDiasCod47 = function (campos, alvo, opcoes) {
+    AF.regras.selecionarCamposCod47 = function (campos, alvo, opcoes) {
         opcoes = opcoes || {};
         var ultimaSemanaId = '';
         var incluirTransicao = !opcoes.somenteMesAlvo;
         if (incluirTransicao) {
             ultimaSemanaId = AF.utils.semanaIdBR(new Date(alvo.getFullYear(), alvo.getMonth() + 1, 0));
         }
-        var dias = [];
+        var selecionados = [];
 
-        for (var i = 0; i < campos.length; i++) {
+        for (var i = 0; i < (campos || []).length; i++) {
             var campo = campos[i];
-            if (!campo.value || campo.value.trim() !== '47') continue;
+            if (!campo || !campo.value || String(campo.value).trim() !== '47') continue;
             var dataStr = campo.dataStr;
             var dataObj = AF.utils.parseDataBR(dataStr);
             if (!dataObj) continue;
             var noEscopo = AF.utils.ehMesAlvo(dataObj, alvo) ||
                 (ultimaSemanaId && AF.utils.semanaIdBR(dataObj) === ultimaSemanaId);
-            if (noEscopo) dias.push(dataStr);
+            if (noEscopo) {
+                var num = String(campo.name || '').replace(/\D/g, '');
+                selecionados.push({
+                    indice: i,
+                    num: num,
+                    dataStr: dataStr
+                });
+            }
         }
 
-        return dias;
+        return selecionados;
+    };
+
+    AF.regras.selecionarDiasCod47 = function (campos, alvo, opcoes) {
+        return AF.regras.selecionarCamposCod47(campos, alvo, opcoes).map(function (c) {
+            return c.dataStr;
+        });
     };
 
     AF.regras.somarHorasExtras = function (lancamentos, alvo) {
