@@ -216,3 +216,42 @@ test('stop button plays no sound when nothing is running', () => {
 
     assert.deepEqual(sons, []);
 });
+
+test('panel displays oracle badge across unknown, active, and inactive states and does not stop running automation on loss', () => {
+    const doc = createDocument();
+    const AF = {
+        estado: { cancelado: false, rodando: true },
+        core: { getDocC: () => doc },
+        relatorios: {},
+        sons: { tocar() {} }
+    };
+    loadPanel(AF, { sessionStorage: { removeItem() {} } }).iniciar(doc);
+
+    const badge = doc.getElementById('fpw-oracle-badge');
+    const warning = doc.getElementById('fpw-oracle-warning');
+    assert.ok(badge);
+    assert.ok(warning);
+
+    // Estado inicial: unknown
+    assert.equal(badge.textContent, 'Oracle: ?');
+    assert.equal(warning.style.display, 'none');
+
+    // Estado active
+    AF.painel.atualizarSessaoOracle({ estado: 'active' });
+    assert.equal(badge.textContent, 'Oracle: ativa');
+    assert.equal(warning.style.display, 'none');
+
+    // Estado inactive (perda de sessão)
+    AF.painel.atualizarSessaoOracle({ estado: 'inactive', houvePerda: true });
+    assert.equal(badge.textContent, 'Oracle: inativa');
+    assert.equal(warning.style.display, 'block');
+
+    // Automação em andamento NÃO é interrompida
+    assert.equal(AF.estado.rodando, true);
+    assert.equal(AF.estado.cancelado, false);
+
+    // Recuperação para active
+    AF.painel.atualizarSessaoOracle({ estado: 'active' });
+    assert.equal(badge.textContent, 'Oracle: ativa');
+    assert.equal(warning.style.display, 'none');
+});

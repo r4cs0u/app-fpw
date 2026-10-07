@@ -24,6 +24,32 @@
         b.style.cursor   = 'pointer';
     }
 
+    function atualizarSessaoOracle(docC, avaliacao) {
+        var badge = docC.getElementById('fpw-oracle-badge');
+        var aviso = docC.getElementById('fpw-oracle-warning');
+        if (!badge) return;
+        var st = (avaliacao && avaliacao.estado) || 'unknown';
+        if (st === 'active') {
+            badge.style.background = 'rgba(34,197,94,.18)';
+            badge.style.color = '#4ade80';
+            badge.textContent = 'Oracle: ativa';
+            badge.title = 'Sess\u00E3o Oracle ativa e comunicando';
+            if (aviso) aviso.style.display = 'none';
+        } else if (st === 'inactive') {
+            badge.style.background = 'rgba(239,68,68,.25)';
+            badge.style.color = '#fca5a5';
+            badge.textContent = 'Oracle: inativa';
+            badge.title = 'Sess\u00E3o Oracle inativa ou expirada';
+            if (aviso) aviso.style.display = 'block';
+        } else {
+            badge.style.background = '#374151';
+            badge.style.color = '#9ca3af';
+            badge.textContent = 'Oracle: ?';
+            badge.title = 'Sess\u00E3o Oracle: sem evid\u00EAncia recente';
+            if (aviso) aviso.style.display = 'none';
+        }
+    }
+
     function setBtnAtivo(docC, rodando) {
         ['btn-analisar', 'btn-executar'].forEach(function (id) {
             var b = docC.getElementById(id);
@@ -138,6 +164,7 @@
             '<div style="background:#1f2937;padding:5px 10px;font-weight:bold;font-size:13px;' +
             'border-bottom:1px solid #374151;text-align:center;flex-shrink:0;' +
             'display:flex;align-items:center;justify-content:space-between;">'
+            + '<span id="fpw-oracle-badge" title="Sess\u00E3o Oracle: sem evid\u00EAncia recente" style="font-size:9px;font-weight:600;padding:1px 6px;border-radius:99px;background:#374151;color:#9ca3af;cursor:help;">Oracle: ?</span>'
             + '<span style="flex:1;text-align:center;">FolhaF\u00E1cil</span>'
             + '<div style="display:flex;gap:4px;flex-shrink:0;">'
             + '<button id="btn-log" title="Log de atividades" style="'
@@ -167,6 +194,12 @@
             'background:#0d1117;border-top:1px solid #1f2937;font-size:13px;flex-shrink:0;">' +
             '<span id="fpw-status-dot" style="width:7px;height:7px;border-radius:50%;background:#374151;flex-shrink:0;"></span>' +
             '<span id="fpw-status-text" style="color:#4b5563;">Aguardando...</span>' +
+            '</div>' +
+
+            // Aviso de perda de sessão Oracle
+            '<div id="fpw-oracle-warning" style="display:none;background:#7c2d12;color:#ffedd5;padding:4px 10px;' +
+            'font-size:11px;text-align:center;border-top:1px solid #9a3412;line-height:1.3;flex-shrink:0;">' +
+            '&#9888;&#65039; Sess\u00E3o Oracle inativa. Abra ou recarregue a aba do Oracle para manter o MyWay conectado.' +
             '</div>';
 
         docC.body.appendChild(painel);
@@ -266,6 +299,17 @@
         // API pública para outros módulos
         AF.painel.setStatus    = function (t, c) { setStatus(docC, t, c); };
         AF.painel.setBtnCopiar = function (a)    { setBtnCopiar(docC, a); };
+        AF.painel.atualizarSessaoOracle = function (avaliacao) {
+            atualizarSessaoOracle(docC, avaliacao);
+        };
+
+        atualizarSessaoOracle(docC, { estado: (AF.estado && AF.estado.sessaoOracleEstado) || 'unknown' });
+
+        if (AF.sessao && typeof AF.sessao.iniciarMonitorOracle === 'function') {
+            AF.sessao.iniciarMonitorOracle(function (avaliacao) {
+                atualizarSessaoOracle(docC, avaliacao);
+            });
+        }
 
         setStatus(docC, 'Aguardando...', '#4b5563');
         setBtnAtivo(docC, false);

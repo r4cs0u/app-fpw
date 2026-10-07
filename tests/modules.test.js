@@ -54,3 +54,27 @@ test('the test build version is consistent between the entry script and the core
     assert.ok(core.includes("versao: '" + versaoMeta + "'"));
     assert.ok(main.includes("AF.versao = '" + versaoMeta + "'"));
 });
+
+test('entry script running on oraclecloud.com runs sentinel only and does not load automation modules', () => {
+    let gmSetKey = null;
+    let gmSetValue = null;
+    let httpRequests = 0;
+
+    const window = {
+        location: { hostname: 'elny.fa.la1.oraclecloud.com', pathname: '/fscmUI/faces/FuseWelcome' }
+    };
+    const context = {
+        window,
+        console: { info() {}, error() {}, log() {} },
+        GM_setValue: (k, v) => { gmSetKey = k; gmSetValue = v; },
+        GM_xmlhttpRequest: () => { httpRequests++; },
+        setInterval: (fn, ms) => {}
+    };
+
+    vm.runInNewContext(main, context);
+
+    assert.equal(httpRequests, 0, 'Must not issue HTTP requests to download automation modules on Oracle origin');
+    assert.equal(gmSetKey, 'fpw_oracle_liveness');
+    assert.ok(typeof gmSetValue === 'number' && gmSetValue > 0);
+    assert.equal(window.AutomacaoFolha, undefined, 'Must not initialize AutomacaoFolha on Oracle origin');
+});

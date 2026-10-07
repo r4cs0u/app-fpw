@@ -942,5 +942,83 @@ window.AutomacaoFolha = window.AutomacaoFolha || {
             AF.estado.keepAliveTimer = null;
         }
     };
+
+    // ── Sessão Oracle (Liveness & Monitoramento) ──────────────────────
+    AF.sessao = AF.sessao || {};
+
+    var JANELA_EXPIRACAO_ORACLE_MS = 90 * 1000;
+    AF.sessao.JANELA_EXPIRACAO_ORACLE_MS = JANELA_EXPIRACAO_ORACLE_MS;
+
+    AF.sessao.avaliarEstadoOracle = function (entrada) {
+        entrada = entrada || {};
+        var agora = entrada.agora !== undefined ? entrada.agora : Date.now();
+        var ultimoSinal = entrada.ultimoSinal;
+        var estadoAnterior = entrada.estadoAnterior || 'unknown';
+        var janelaMs = entrada.janelaMs || JANELA_EXPIRACAO_ORACLE_MS;
+
+        var novoEstado;
+        if (!ultimoSinal) {
+            novoEstado = 'unknown';
+        } else if (agora - ultimoSinal <= janelaMs && agora >= ultimoSinal) {
+            novoEstado = 'active';
+        } else {
+            novoEstado = 'inactive';
+        }
+
+        var houvePerda = (estadoAnterior === 'active' && novoEstado === 'inactive');
+        var transicao = (estadoAnterior !== novoEstado);
+
+        return {
+            estado: novoEstado,
+            transicao: transicao,
+            houvePerda: houvePerda,
+            ultimoSinal: ultimoSinal || null,
+            momento: agora
+        };
+    };
+
+    AF.sessao.iniciarMonitorOracle = function (callback) {
+        function verificar() {
+            var ultimo = null;
+            try {
+                if (typeof GM_getValue === 'function') {
+                    ultimo = GM_getValue('fpw_oracle_liveness', null);
+                }
+            } catch (e) {}
+
+            var avaliacao = AF.sessao.avaliarEstadoOracle({
+                ultimoSinal: ultimo,
+                estadoAnterior: AF.estado.sessaoOracleEstado || 'unknown'
+            });
+
+            AF.estado.sessaoOracleEstado = avaliacao.estado;
+            AF.estado.sessaoOracleUltimoSinal = avaliacao.ultimoSinal;
+            AF.estado.sessaoOracleUltimoResultado = avaliacao;
+
+            if (avaliacao.houvePerda) {
+                if (AF.log && typeof AF.log.evento === 'function') {
+                    AF.log.evento('perda-sessao-oracle', avaliacao, 'Sessao da pagina Oracle foi perdida ou expirou.', '#f97316');
+                }
+            }
+
+            if (typeof callback === 'function') {
+                callback(avaliacao);
+            }
+        }
+
+        verificar();
+        if (typeof setInterval === 'function') {
+            AF.sessao.pararMonitorOracle();
+            AF.estado.sessaoOracleTimer = setInterval(verificar, 10000);
+        }
+    };
+
+    AF.sessao.pararMonitorOracle = function () {
+        if (AF.estado.sessaoOracleTimer) {
+            clearInterval(AF.estado.sessaoOracleTimer);
+            AF.estado.sessaoOracleTimer = null;
+        }
+    };
+
     console.log('[FPW] 00-core carregado. versão 1.2 - Update log message to include version number.');
 })();

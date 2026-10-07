@@ -129,3 +129,15 @@ The automation verifies structural contracts before starting adjustments and bef
    - If any required frame, form, or control is absent or fails the contract, the batch stops immediately (`AF.estado.falhaPrecondicao = true`, `AF.estado.cancelado = true`).
    - A visible diagnostic error is logged and reflected in the panel status.
    - The batch does not advance automatically to the next employee.
+
+## Página Oracle (observada em 2026-10-07 via MCP)
+
+- **Origem e rota**: `https://elny.fa.la1.oraclecloud.com/fscmUI/faces/FuseWelcome` (Oracle Fusion Cloud / Oracle ADF).
+- **Scripts e framework**: utiliza biblioteca Oracle ADF (`AdfPage`, recursos em `/fscmUI/adf/` e `/fscmUI/afr/`).
+- **Cookies de sessão (apenas nomes)**: `OciTrack`, `bm_sv`. Nenhum valor ou token armazenado ou exposto.
+- **Diálogos de expiração**: diálogos com IDs contendo `session`, `timeout` ou `expire` surgem na árvore DOM quando a sessão expira ou avisa inatividade.
+- **Conclusão para manutenção de sessão e liveness (Tarefas 1.1 e 1.2)**:
+  - As origens `myway.g.globo` e `oraclecloud.com` são distintas e não compartilham armazenamento web nativo (`sessionStorage`, `localStorage`, `BroadcastChannel`).
+  - O uso de `iframe` da página Oracle dentro do WebPonto é inviabilizado por políticas de cabeçalhos de segurança (frame-ancestors) e alteraria a estrutura de frames do WebPonto.
+  - Requisição HTTP direta do MyWay para o Oracle via `GM_xmlhttpRequest` pode não satisfazer o ciclo de vida do Oracle ADF (que depende de estado na UI e na conexão da aba).
+  - A abordagem viável e segura é a **hipótese 1 do design**: o userscript do Tampermonkey também carregar no domínio `https://elny.fa.la1.oraclecloud.com/*` em modo exclusivamente sentinela/liveness (sem automações de folha nem injeção de painel), gravando carimbos de presença periódicos via `GM_setValue`. A instância do userscript no MyWay consome esse sinal via `GM_addValueChangeListener` / `GM_getValue`, apresentando o status da sessão Oracle e avisando quando o sinal for interrompido.

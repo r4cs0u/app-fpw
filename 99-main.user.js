@@ -3,7 +3,11 @@
 // @namespace    http://tampermonkey.net/
 // @version      9.11-test
 // @match        https://myway.g.globo/WebPonto/just_user/justuser.asp*
+// @match        https://elny.fa.la1.oraclecloud.com/*
 // @grant        GM_xmlhttpRequest
+// @grant        GM_setValue
+// @grant        GM_getValue
+// @grant        GM_addValueChangeListener
 // @connect      raw.githubusercontent.com
 // @downloadURL https://raw.githubusercontent.com/r4cs0u/app-fpw/test/99-main.user.js
 // @updateURL   https://raw.githubusercontent.com/r4cs0u/app-fpw/test/99-main.user.js
@@ -12,6 +16,31 @@
 
 (function () {
     'use strict';
+
+    function ehOrigemOracle(loc) {
+        loc = loc || (typeof window !== 'undefined' ? window.location : null);
+        return !!(loc && loc.hostname && loc.hostname.indexOf('oraclecloud.com') !== -1);
+    }
+
+    function iniciarSentinelaOracle() {
+        console.info('[FPW] Sentinela de sessao Oracle ativo nesta aba.');
+        function emitirPulso() {
+            try {
+                if (typeof GM_setValue === 'function') {
+                    GM_setValue('fpw_oracle_liveness', Date.now());
+                }
+            } catch (e) {}
+        }
+        emitirPulso();
+        if (typeof setInterval === 'function') {
+            setInterval(emitirPulso, 30000);
+        }
+    }
+
+    if (ehOrigemOracle()) {
+        iniciarSentinelaOracle();
+        return;
+    }
 
     var BASE = 'https://raw.githubusercontent.com/r4cs0u/app-fpw/test/';
     var MODULOS = [

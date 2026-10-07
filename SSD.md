@@ -12,7 +12,7 @@ The repository uses branch `main` as its stable production reference and branch 
 
 | Module | Current responsibility |
 | --- | --- |
-| `00-core.js` | Shared `AutomacaoFolha` state, frame access, logging entry point (`AF.core.log`), employee navigation, popup interception, and session heartbeat. |
+| `00-core.js` | Shared `AutomacaoFolha` state, frame access, logging entry point (`AF.core.log`), employee navigation, popup interception, session heartbeat, and Oracle companion session liveness evaluation and monitor (`AF.sessao`). |
 | `05-log.js` | Structured, accumulated activity log (events with time, execution, employee, phase, and data), plain-text rendering, `sessionStorage` persistence for the tab lifetime, and the log window (view/copy). |
 | `10-utils.js` | Date parsing/formatting, week and target-month helpers, and RJ holiday calculation. |
 | `35-planejamento.js` | Pure phase 1–3 adjustment planning over structured maps; no DOM, frame, popup, or write access. |
@@ -25,7 +25,7 @@ The repository uses branch `main` as its stable production reference and branch 
 | `50-analisar.js` | Reads the page and delegates rule calculations to `37-regras-folha.js`; runs read-only analysis across employees, aggregates sheet statistics, and records a per-employee event with counts and days. |
 | `60-relatorios.js` | Builds the live HTML report, copies per-employee irregularity text, opens expandable per-employee adjustment detail rows, opens the team irregularity export window for the visible table rows (title lists active filters and search), provides the name-search field, and supports report navigation and TSV copying. |
 | `70-sons.js` | Provides optional audio cues for execution events: start, completion, user stop and failure. Opening the live report plays no sound. |
-| `80-painel.js` | Builds the injected controls (including the always-available Log button), status display, and instruction side panel. |
+| `80-painel.js` | Builds the injected controls (including the always-available Log button), status display, Oracle companion session status indicator/warning, and instruction side panel. |
 | `85-ambiente.js` | Sets experimental environment, version, repository, and branch metadata. |
 
 The modules share a global `window.AutomacaoFolha` namespace rather than using a bundler or module system. The core and workflow modules access the legacy same-origin frames through `window.top`; the analysis, mapping, popup, and adjustment flows are consequently coupled to the WebPonto DOM and its navigation behavior.
