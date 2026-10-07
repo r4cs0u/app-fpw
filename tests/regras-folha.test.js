@@ -200,6 +200,27 @@ test('pure folga rule counts only qualifying folgas in the target month', () => 
         }
     };
     assert.equal(AF.regras.contarFolgasAMovimentar(mapa, new Date(2026, 8, 1)), 2);
+    assert.deepEqual(plain(AF.regras.listarFolgasAMovimentar(mapa, new Date(2026, 8, 1))), [date(2), date(9)]);
+});
+
+test('listarFolgasAMovimentar preserves reading order, hidden days, month absences, and repetition', () => {
+    const { AF } = createAnalysis();
+    const mapa = {
+        semanas: {
+            s1: {
+                folgas: [{ dataStr: date(2) }, { dataStr: date(3) }],
+                ausencias: [{ dataStr: date(1) }],
+                ausenciasMes: [{ dataStr: date(1) }],
+                feriados: [],
+                folgasVisiveis: [{ dataStr: date(4), foraDoMes: true }],
+                folgasOcultas: [{ dataStr: date(5) }]
+            }
+        }
+    };
+    const alvo = new Date(2026, 8, 1);
+    const dias = plain(AF.regras.listarFolgasAMovimentar(mapa, alvo));
+    assert.deepEqual(dias, [date(2), date(3), date(4), date(5)]);
+    assert.equal(AF.regras.contarFolgasAMovimentar(mapa, alvo), dias.length);
 });
 
 test('pure code 47 rule respects target and transition-week scope without reordering', () => {

@@ -49,6 +49,7 @@
         '10-utils.js',
         '35-planejamento.js',
         '37-regras-folha.js',
+        '38-preanalise.js',
         '20-mapa.js',
         '25-detector.js',
         '27-modelo-relatorio.js',

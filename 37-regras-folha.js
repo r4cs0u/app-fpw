@@ -4,9 +4,9 @@
     var AF = window.AutomacaoFolha;
     AF.regras = AF.regras || {};
 
-    AF.regras.contarFolgasAMovimentar = function (mapa, alvo) {
-        var chaves = Object.keys(mapa.semanas);
-        var total = 0;
+    AF.regras.listarFolgasAMovimentar = function (mapa, alvo) {
+        var chaves = Object.keys((mapa && mapa.semanas) || {});
+        var dias = [];
 
         for (var i = 0; i < chaves.length; i++) {
             var semana = mapa.semanas[chaves[i]];
@@ -37,12 +37,12 @@
 
             if (!semanaValida) continue;
 
-            for (var j = 0; j < semana.folgas.length; j++) {
+            for (var j = 0; j < (semana.folgas || []).length; j++) {
                 var folga = semana.folgas[j];
                 var fDataObj = AF.utils.parseDataBR(folga.dataStr);
                 if (!fDataObj || !AF.utils.ehMesAlvo(fDataObj, alvo)) continue;
-                if (semana.ausencias.length > 0 || semana.feriados.length > 0) {
-                    total++;
+                if ((semana.ausencias && semana.ausencias.length > 0) || (semana.feriados && semana.feriados.length > 0)) {
+                    dias.push(folga.dataStr);
                 }
             }
 
@@ -52,15 +52,24 @@
                     var fd = AF.utils.parseDataBR(f.dataStr);
                     return fd && AF.utils.ehMesAlvo(fd, alvo) && f.foraDoMes;
                 });
-                total += fv.length;
-                total += (semana.folgasOcultas || []).filter(function (f) {
+                for (var v = 0; v < fv.length; v++) {
+                    dias.push(fv[v].dataStr);
+                }
+                var fo = (semana.folgasOcultas || []).filter(function (f) {
                     var fd = AF.utils.parseDataBR(f.dataStr);
                     return fd && AF.utils.ehMesAlvo(fd, alvo);
-                }).length;
+                });
+                for (var o = 0; o < fo.length; o++) {
+                    dias.push(fo[o].dataStr);
+                }
             }
         }
 
-        return total;
+        return dias;
+    };
+
+    AF.regras.contarFolgasAMovimentar = function (mapa, alvo) {
+        return AF.regras.listarFolgasAMovimentar(mapa, alvo).length;
     };
 
     AF.regras.selecionarCamposCod47 = function (campos, alvo, opcoes) {

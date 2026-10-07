@@ -21,6 +21,8 @@ test('every listed module exists and the new modules load in dependency order', 
     assert.ok(indice('37-regras-folha.js') > indice('10-utils.js'));
     assert.ok(indice('37-regras-folha.js') < indice('40-fases.js'));
     assert.ok(indice('37-regras-folha.js') < indice('50-analisar.js'));
+    assert.ok(indice('38-preanalise.js') > indice('37-regras-folha.js'));
+    assert.ok(indice('38-preanalise.js') < indice('40-fases.js'));
     assert.ok(indice('25-detector.js') > indice('10-utils.js'));
     assert.ok(indice('25-detector.js') > indice('20-mapa.js'));
     assert.ok(indice('27-modelo-relatorio.js') > indice('25-detector.js'));
@@ -43,6 +45,7 @@ test('all modules load in the listed order without using a module that is not lo
     assert.equal(typeof AF.regras.selecionarDiasCod47, 'function');
     assert.equal(typeof AF.regras.somarHorasExtras, 'function');
     assert.equal(typeof AF.regras.interpretarSaldoHEC, 'function');
+    assert.equal(typeof AF.preanalise.montar, 'function');
     assert.equal(typeof AF.fases.capturarEstadoFolha, 'function');
     assert.equal(typeof AF.analisar.analisarFolhaAtual, 'function');
 });
