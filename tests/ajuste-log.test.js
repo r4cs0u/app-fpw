@@ -283,3 +283,80 @@ test('failures and stops record stage, reason and unconfirmed result as structur
     assert.match(texto, /Interrompido \(footer-save\): reload nao observado \(resultado nao confirmado\)/);
     assert.match(texto, /unconfirmed: true/);
 });
+
+test('acoes das fases 1 a 3 e cod47Dias sao passados ao modelo na ordem e resetados entre folhas', async () => {
+    const h = harness({
+        acoesFase3: [
+            { tipo: 'feriado', semanaId: 's1', dataAusencia: '13/09/2026', dataOrigem: '07/09/2026', dataFolgaOriginal: '07/09/2026' }
+        ]
+    });
+
+    const chamadasModelo = [];
+    h.AF.modelo.registrarAjuste = (nome, dados) => {
+        chamadasModelo.push({ tipo: 'ajuste', nome, dados });
+    };
+    h.AF.modelo.registrarAjusteParcial = (nome, dados) => {
+        chamadasModelo.push({ tipo: 'parcial', nome, dados });
+    };
+
+    // Simula Fase 1 registrando uma acao
+    h.AF.fases.processarFase1 = async () => {
+        h.AF.fases.registrarAcaoFolga(1, { dataAusencia: '10/09/2026', dataOrigem: '03/09/2026' }, { ok: true }, 'visivel');
+        return { movidas: 1, presas: [] };
+    };
+    // Simula Fase 4 marcando dias 47
+    h.AF.fases.processarFase4 = () => {
+        h.AF.estado.cod47DiasFolhaAtual = ['07/09/2026', '25/09/2026'];
+        return ['1', '2'];
+    };
+    h.AF.fases.gravar = async () => ({ status: 'ready' });
+
+    await h.run();
+
+    assert.equal(chamadasModelo.length, 1);
+    const prim = chamadasModelo[0];
+    assert.equal(prim.nome, 'ANA');
+    assert.deepEqual(plain(prim.dados.acoes), [
+        { ausencia: '10/09/2026', origem: '03/09/2026', resultado: 'movida' },
+        { ausencia: '13/09/2026', origem: '07/09/2026', resultado: 'movida' }
+    ]);
+    assert.deepEqual(plain(prim.dados.cod47Dias), ['07/09/2026', '25/09/2026']);
+
+    // Proxima folha: listas comecam vazias
+    h.AF.core.nomeAtual = () => 'BIA';
+    h.AF.fases.processarFase1 = async () => ({ movidas: 0, presas: [] });
+    h.AF.fases.processarFase4 = () => [];
+    h.AF.planejamento.planejarFase3 = () => ({ acoes: [], presasFinais: [] });
+    const entryBia = { nome: 'BIA', lido: false };
+    await h.AF.fases.processarFolhaAtual(h.relStats, [entryBia], { BIA: entryBia }, h.execucao);
+
+    assert.equal(chamadasModelo.length, 2);
+    const seg = chamadasModelo[1];
+    assert.equal(seg.nome, 'BIA');
+    assert.deepEqual(plain(seg.dados.acoes), []);
+    assert.deepEqual(plain(seg.dados.cod47Dias), []);
+});
+
+test('folha interrompida passa acoes acumuladas e cod47Dias vazio para registrarAjusteParcial', async () => {
+    let ativo = true;
+    const h = harness();
+    h.execucao.isActive = () => ativo;
+    const parciais = [];
+    h.AF.modelo.registrarAjusteParcial = (nome, dados) => {
+        parciais.push({ nome, dados });
+    };
+    h.AF.fases.processarFase1 = async () => {
+        h.AF.fases.registrarAcaoFolga(1, { dataAusencia: '12/09/2026', dataOrigem: '05/09/2026' }, { ok: true }, 'visivel');
+        ativo = false; // interrompe antes da fase 2
+        return { movidas: 1, presas: [] };
+    };
+
+    await h.run();
+
+    assert.equal(parciais.length, 1);
+    assert.equal(parciais[0].nome, 'ANA');
+    assert.deepEqual(plain(parciais[0].dados.acoes), [
+        { ausencia: '12/09/2026', origem: '05/09/2026', resultado: 'movida' }
+    ]);
+    assert.deepEqual(plain(parciais[0].dados.cod47Dias), []);
+});

@@ -25,6 +25,7 @@ Ele não substitui a decisão final do usuário, mas ajuda a acelerar o fluxo de
 - Ajuste automático de folgas e deslocamentos de registros;
 - Correção de ocorrências do código 47 para 48 quando aplicável;
 - Relatório unificado ao vivo: sempre disponível, com frações de progresso, cores por estado e colunas abertas de irregularidade; a linha do funcionário em processamento pulsa e folhas sem marcações aparecem como "Sem Marcações na Folha";
+- Detalhe compacto dos ajustes expansível por linha no relatório, com resumo em árvore das folgas movimentadas, folgas presas e códigos 47 convertidos;
 - Resumo em indicadores (big numbers) com filtros rápidos por clique que se somam (cada indicador ativo acrescenta funcionários à tabela) e busca por nome combinada com eles;
 - Exportação copiável das irregularidades por funcionário ou da lista visível no relatório, com datas em `dd/mm`;
 - Janela de log estruturado acessível dentro e fora do relatório;

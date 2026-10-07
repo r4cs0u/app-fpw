@@ -140,6 +140,14 @@
 
     AF.fases.registrarAcaoFolga = function (fase, acao, r, tipo) {
         var resultado = r.ok ? 'movida' : (r.fatal ? 'falha' : 'sem-alteracao');
+        if (AF.estado) {
+            AF.estado.acoesFolhaAtual = AF.estado.acoesFolhaAtual || [];
+            AF.estado.acoesFolhaAtual.push({
+                ausencia: acao.dataAusencia,
+                origem: acao.dataOrigem,
+                resultado: resultado
+            });
+        }
         logEvento('acao-folga', {
             fase: fase,
             tipo: tipo || null,
@@ -303,6 +311,12 @@
 			}
 
 			nsMarcados.push(num);
+			if (AF.estado && dataStr) {
+				AF.estado.cod47DiasFolhaAtual = AF.estado.cod47DiasFolhaAtual || [];
+				if (AF.estado.cod47DiasFolhaAtual.indexOf(dataStr) === -1) {
+					AF.estado.cod47DiasFolhaAtual.push(dataStr);
+				}
+			}
 
 			var cod = doc1.querySelector('[name="CodJust' + num + '"]');
 			AF.core.log('Fase 4: ' + dataStr + ' | 47 → 48 | CodJust: ' + (cod ? cod.value : '-'), '#ffb000');
@@ -396,6 +410,10 @@
     AF.fases.processarFolhaAtual = async function (relStats, relLista, relListaMap, execucao) {
         if (!execucao || !execucao.isActive()) return;
         var nome = AF.core.nomeAtual();
+        if (AF.estado) {
+            AF.estado.acoesFolhaAtual = [];
+            AF.estado.cod47DiasFolhaAtual = [];
+        }
         if (AF.log && typeof AF.log.definirFuncionario === 'function') AF.log.definirFuncionario(nome);
         if (AF.modelo && typeof AF.modelo.definirAtual === 'function') AF.modelo.definirAtual(nome);
         AF.core.log('\u2500\u2500 ' + nome + ' \u2500\u2500', '#c084fc');
@@ -410,7 +428,9 @@
             if (AF.modelo && typeof AF.modelo.registrarAjusteParcial === 'function') {
                 AF.modelo.registrarAjusteParcial(nome, {
                     movidas: totalMovidas,
-                    presas: presasFinais
+                    presas: presasFinais,
+                    acoes: (AF.estado && AF.estado.acoesFolhaAtual) ? AF.estado.acoesFolhaAtual.slice() : [],
+                    cod47Dias: []
                 });
             }
             if (!entry) return;
@@ -568,6 +588,8 @@
                 presas: presasFinais,
                 cod47Conv: linhas47,
                 cod47Rest: contagensDepois.cod47 || 0,
+                acoes: (AF.estado && AF.estado.acoesFolhaAtual) ? AF.estado.acoesFolhaAtual.slice() : [],
+                cod47Dias: (AF.estado && AF.estado.cod47DiasFolhaAtual) ? AF.estado.cod47DiasFolhaAtual.slice() : [],
                 leitura: {
                     semES: det ? { total: det.contagens.semES, dias: det.dias.semES } : { total: contagensDepois.semES, dias: [] },
                     interj: det ? { total: det.contagens.interj, dias: det.dias.interj } : { total: contagensDepois.interj, dias: [] },

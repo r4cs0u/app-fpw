@@ -218,6 +218,14 @@
 
         var movidasAnteriores = (f.ajuste && f.ajuste.movidas) || 0;
         var cod47ConvAnteriores = (f.ajuste && f.ajuste.cod47Conv) || 0;
+        var acoesAnteriores = (f.ajuste && f.ajuste.acoes) || [];
+        var cod47DiasAnteriores = (f.ajuste && f.ajuste.cod47Dias) || [];
+
+        var novasAcoes = acoesAnteriores.concat(dados.acoes || []);
+        var novosCod47Dias = cod47DiasAnteriores.slice();
+        (dados.cod47Dias || []).forEach(function (d) {
+            if (novosCod47Dias.indexOf(d) === -1) novosCod47Dias.push(d);
+        });
 
         f.ajuste = {
             ts: Date.now(),
@@ -225,6 +233,8 @@
             presas: (dados.presas || []).slice(),
             cod47Conv: cod47ConvAnteriores + (dados.cod47Conv || 0),
             cod47Rest: dados.cod47Rest != null ? dados.cod47Rest : 0,
+            acoes: novasAcoes,
+            cod47Dias: novosCod47Dias,
             parcial: false
         };
 
@@ -251,6 +261,14 @@
         var movidasAnteriores = (f.ajuste && f.ajuste.movidas) || 0;
         var cod47ConvAnteriores = (f.ajuste && f.ajuste.cod47Conv) || 0;
         var cod47RestAnteriores = (f.ajuste && f.ajuste.cod47Rest) || 0;
+        var acoesAnteriores = (f.ajuste && f.ajuste.acoes) || [];
+        var cod47DiasAnteriores = (f.ajuste && f.ajuste.cod47Dias) || [];
+
+        var novasAcoes = acoesAnteriores.concat(dados.acoes || []);
+        var novosCod47Dias = cod47DiasAnteriores.slice();
+        (dados.cod47Dias || []).forEach(function (d) {
+            if (novosCod47Dias.indexOf(d) === -1) novosCod47Dias.push(d);
+        });
 
         f.ajuste = {
             ts: Date.now(),
@@ -258,6 +276,8 @@
             presas: (dados.presas || []).slice(),
             cod47Conv: cod47ConvAnteriores + (dados.cod47Conv || 0),
             cod47Rest: dados.cod47Rest != null ? dados.cod47Rest : cod47RestAnteriores,
+            acoes: novasAcoes,
+            cod47Dias: novosCod47Dias,
             parcial: true
         };
         incVersao();
@@ -288,6 +308,7 @@
                 processado: false,
                 vazia: false,
                 parcial: false,
+                temAjuste: false,
                 folgas: { texto: '-', estado: 'nao-processado', num: 0, den: 0, presas: 0 },
                 cod47: { texto: '-', estado: 'nao-processado', num: 0, den: 0, rest: 0 },
                 semES: { total: null, dias: [] },
@@ -310,6 +331,7 @@
                 processado: true,
                 vazia: true,
                 parcial: false,
+                temAjuste: false,
                 folgas: { texto: '-', estado: 'nao-processado', num: 0, den: 0, presas: 0, presasDetalhe: [] },
                 cod47: { texto: '-', estado: 'nao-processado', num: 0, den: 0, rest: 0, dias: [] },
                 semES: { total: null, dias: [] },
@@ -379,6 +401,7 @@
             processado: true,
             vazia: vazia,
             parcial: parcial,
+            temAjuste: !!f.ajuste,
             folgas: folgasInfo,
             cod47: cod47Info,
             semES: l.semES || { total: 0, dias: [] },
@@ -773,6 +796,118 @@
             if (texto) blocos.push(texto);
         });
         return titulo + '\n\n' + (blocos.length ? blocos.join('\n\n') : 'Nenhuma irregularidade para exportar.');
+    };
+
+    // ── Detalhe de Ajuste por Funcionário ───────────────────────────────
+
+    function extrairDataCompleta(item) {
+        var valor = item && typeof item === 'object' ? (item.dataFolga || item.data) : item;
+        var texto = String(valor == null ? '' : valor).trim();
+        var match = texto.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+        if (!match) return { texto: texto, chave: null, dataFmt: texto };
+
+        var dia = parseInt(match[1], 10);
+        var mes = parseInt(match[2], 10);
+        var ano = parseInt(match[3], 10);
+        var data = new Date(Date.UTC(ano, mes - 1, dia));
+        if (data.getUTCFullYear() !== ano || data.getUTCMonth() !== mes - 1 || data.getUTCDate() !== dia) {
+            return { texto: texto, chave: null, dataFmt: texto };
+        }
+        var dataFmt = String(dia).padStart(2, '0') + '/' + String(mes).padStart(2, '0') + '/' + ano;
+        return {
+            texto: texto,
+            chave: ano * 10000 + mes * 100 + dia,
+            dataFmt: dataFmt
+        };
+    }
+
+    function formatarDatasCompletasUnicas(lista) {
+        var validas = [];
+        var invalidas = [];
+        var vistas = Object.create(null);
+        (lista || []).forEach(function (item, indice) {
+            var d = extrairDataCompleta(item);
+            if (!d.texto) return;
+            var chave = d.chave === null ? 'invalida:' + d.texto : 'data:' + d.chave;
+            if (vistas[chave]) return;
+            vistas[chave] = true;
+            var entrada = { data: d, indice: indice };
+            if (d.chave === null) invalidas.push(entrada);
+            else validas.push(entrada);
+        });
+        validas.sort(function (a, b) { return a.data.chave - b.data.chave || a.indice - b.indice; });
+        return validas.map(function (x) { return x.data.dataFmt; })
+            .concat(invalidas.map(function (x) { return x.data.texto; }));
+    }
+
+    function normalizarResultadoAcao(r) {
+        if (!r) return 'alterado';
+        if (r === 'movida' || r === 'alterado') return 'alterado';
+        if (r === 'sem-alteracao' || r === 'sem alteração' || r === 'sem alteracao') return 'sem alteração';
+        if (r === 'falha') return 'falha';
+        return String(r);
+    }
+
+    AF.modelo.textoDetalheAjuste = function (nome) {
+        nome = String(nome || '').trim();
+        var f = estado.funcs[nome];
+        var nomeCabecalho = nomeParaExportacao(nome);
+        if (!f || !f.ajuste) {
+            return nomeCabecalho + '\n|_Nenhum ajuste registrado';
+        }
+
+        var aj = f.ajuste;
+        var linhas = [nomeCabecalho];
+        if (aj.parcial) {
+            linhas.push('|_Ajuste parcial (interrompido)');
+        }
+
+        var temConteudo = false;
+
+        // 1. Folgas movimentadas
+        var acoes = aj.acoes || [];
+        if (acoes.length > 0) {
+            temConteudo = true;
+            linhas.push('|_Folgas movimentadas');
+            acoes.forEach(function (ac) {
+                var dest = extrairDataCompleta(ac.ausencia || ac.destino).dataFmt;
+                var orig = extrairDataCompleta(ac.origem).dataFmt;
+                var res = normalizarResultadoAcao(ac.resultado);
+                linhas.push('  |_ ' + dest + ' <- origem ' + orig + ' => ' + res);
+            });
+        }
+
+        // 2. Folgas Presas
+        var presas = aj.presas || [];
+        if (presas.length > 0) {
+            var datasPresas = formatarDatasCompletasUnicas(presas);
+            if (datasPresas.length > 0) {
+                temConteudo = true;
+                linhas.push('|_Folgas Presas');
+                linhas.push('  |_Dias: ' + datasPresas.join(', '));
+            }
+        }
+
+        // 3. Códigos 47
+        var cod47Dias = aj.cod47Dias || [];
+        var cod47Rest = aj.cod47Rest != null ? aj.cod47Rest : 0;
+        var datas47 = formatarDatasCompletasUnicas(cod47Dias);
+        if (datas47.length > 0 || cod47Rest > 0) {
+            temConteudo = true;
+            linhas.push('|_Códigos 47');
+            if (datas47.length > 0) {
+                linhas.push('  |_ Dias: ' + datas47.join(', '));
+            }
+            if (cod47Rest > 0) {
+                linhas.push('  |_ Restantes: ' + cod47Rest);
+            }
+        }
+
+        if (!temConteudo) {
+            linhas.push('|_Nenhum ajuste registrado');
+        }
+
+        return linhas.join('\n');
     };
 
     // ── Exportação TSV ──────────────────────────────────────────────────

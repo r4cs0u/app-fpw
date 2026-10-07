@@ -14,7 +14,8 @@
         filtros: [],
         busca: '',
         extremo: null,
-        selecionado: null
+        selecionado: null,
+        expandidos: {}
     };
 
     function escaparHTML(valor) {
@@ -104,6 +105,7 @@
             + 'thead th[data-col]{cursor:pointer}'
             + 'thead th.sort-active{color:var(--blue)}'
             + 'thead th.irreg-copy-col{width:44px;text-align:center}'
+            + 'thead th.detail-col{width:44px;text-align:center}'
             + 'tbody tr{cursor:pointer;transition:background .1s}'
             + 'tbody tr:hover{background:var(--tbl-row-hover)}'
             + 'tbody tr.active-row{background:var(--tbl-row-active)!important;outline:1px solid var(--tbl-row-active-outline)}'
@@ -122,9 +124,13 @@
             + '.chip-red{background:rgba(239,68,68,.18);color:#fca5a5}'
             + '.chip-zero{color:var(--text-faint)}'
             + '.chip-dash{color:var(--text-faint)}'
-            + '.btn-copy-irreg{border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text-muted);border-radius:4px;padding:2px 6px;cursor:pointer;font-size:11px}'
-            + '.btn-copy-irreg:hover:not(:disabled){background:rgba(59,130,246,.2);color:#bfdbfe}'
-            + '.btn-copy-irreg:disabled{opacity:.35;cursor:default}'
+            + '.btn-copy-irreg,.btn-detalhe-ajuste{border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text-muted);border-radius:4px;padding:2px 6px;cursor:pointer;font-size:11px}'
+            + '.btn-copy-irreg:hover:not(:disabled),.btn-detalhe-ajuste:hover:not(:disabled){background:rgba(59,130,246,.2);color:#bfdbfe}'
+            + '.btn-copy-irreg:disabled,.btn-detalhe-ajuste:disabled{opacity:.35;cursor:default}'
+            + '.btn-detalhe-ajuste.expanded{background:rgba(59,130,246,.25);color:#93c5fd;border-color:var(--blue)}'
+            + 'tbody tr.detail-row{background:rgba(15,23,42,.65)!important;cursor:default}'
+            + 'tbody tr.detail-row td{padding:8px 14px;text-align:left;white-space:normal;overflow:visible}'
+            + '.detail-box{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:11px;line-height:1.5;color:var(--text);white-space:pre-wrap;word-break:break-word}'
             + '.badge{font-size:9px;padding:1px 5px;border-radius:99px;font-weight:600;margin-left:4px;vertical-align:middle;flex-shrink:0}'
             + '.badge-parcial{background:rgba(249,115,22,.2);color:#fdba74}'
             + '.action-bar{display:flex;align-items:center;justify-content:space-between;padding:7px 14px;background:var(--surface2);border-top:1px solid var(--border);flex-shrink:0}'
@@ -261,8 +267,10 @@
         { id: 'hec', label: 'HEC 70%', align: 'right' }
     ];
 
-    // Colunas após o nome: as de dados e a do ícone de cópia.
-    var COLUNAS_APOS_NOME = COLUNAS_TABELA.length;
+    // Colunas extras além das métricas: cópia de irregularidades e detalhe de ajustes.
+    var COLUNAS_EXTRAS = 2;
+    var TOTAL_COLUNAS_TABELA = COLUNAS_TABELA.length + COLUNAS_EXTRAS;
+    var COLUNAS_APOS_NOME = TOTAL_COLUNAS_TABELA - 1;
 
     AF.relatorios.gerarTheadHTML = function (sortCol, sortDir) {
         var colunas = COLUNAS_TABELA;
@@ -277,6 +285,7 @@
                 + escaparHTML(c.label) + '<span style="opacity:.6;font-size:9px;">' + seta + '</span></th>';
         }
         h += '<th class="irreg-copy-col" title="Copiar irregularidades">📋</th>';
+        h += '<th class="detail-col" title="Detalhe dos ajustes">🔍</th>';
         return h;
     };
 
@@ -305,7 +314,8 @@
         return ' title="' + escaparHTML(t) + '"';
     }
 
-    AF.relatorios.gerarTbodyHTML = function (nomes, atualEmExecucao, selecionado) {
+    AF.relatorios.gerarTbodyHTML = function (nomes, atualEmExecucao, selecionado, expandidos) {
+        expandidos = expandidos || estadoVisao.expandidos || {};
         var h = '';
 
         for (var j = 0; j < nomes.length; j++) {
@@ -369,6 +379,13 @@
                 return '<span style="color:' + (neg ? 'var(--red)' : 'var(--green)') + ';font-weight:600">' + escaparHTML(v) + '</span>';
             }
 
+            var isExpandido = !!expandidos[nome];
+            var botaoDetalhe = '<button type="button" class="btn-detalhe-ajuste' + (isExpandido ? ' expanded' : '') + '" data-nome="' + escaparHTML(nome) + '"'
+                + (d.temAjuste ? '' : ' disabled')
+                + ' aria-expanded="' + (isExpandido ? 'true' : 'false') + '"'
+                + ' aria-label="' + (d.temAjuste ? 'Detalhe dos ajustes de ' + escaparHTML(nome) : 'Sem ajustes para detalhar') + '"'
+                + ' title="' + (d.temAjuste ? (isExpandido ? 'Recolher detalhe dos ajustes' : 'Expandir detalhe dos ajustes') : 'Sem ajustes para detalhar') + '">🔍</button>';
+
             h += '<tr class="' + trCls.join(' ') + '"' + atributosLinha + '>'
                 + celulaNome
                 + '<td>' + chipF + '</td>'
@@ -381,7 +398,16 @@
                 + '<td>' + cellHora(d.HEF) + '</td>'
                 + '<td>' + cellHora(d.HEC) + '</td>'
                 + '<td>' + botaoIrregularidades + '</td>'
+                + '<td>' + botaoDetalhe + '</td>'
                 + '</tr>';
+
+            if (isExpandido) {
+                var textoDet = AF.modelo.textoDetalheAjuste(nome);
+                h += '<tr class="detail-row" data-detalhe-de="' + escaparHTML(nome) + '">'
+                    + '<td colspan="' + TOTAL_COLUNAS_TABELA + '">'
+                    + '<pre class="detail-box">' + escaparHTML(textoDet) + '</pre>'
+                    + '</td></tr>';
+            }
         }
         return h;
     };
@@ -504,7 +530,7 @@
             var nomesOrdenados = obterNomesVisiveis();
             var tbody = doc.getElementById('fpw-tbody');
             if (tbody) {
-                tbody.innerHTML = AF.relatorios.gerarTbodyHTML(nomesOrdenados, est.atual, estadoVisao.selecionado);
+                tbody.innerHTML = AF.relatorios.gerarTbodyHTML(nomesOrdenados, est.atual, estadoVisao.selecionado, estadoVisao.expandidos);
                 // Bind clique nas linhas
                 tbody.querySelectorAll('tr[data-nome]').forEach(function (tr) {
                     tr.onclick = function () {
@@ -549,6 +575,20 @@
                         if (ev && ev.stopPropagation) ev.stopPropagation();
                         if (this.disabled) return;
                         copiarIrregularidadeFuncionario(win, this);
+                    };
+                });
+                tbody.querySelectorAll('.btn-detalhe-ajuste[data-nome]').forEach(function (btn) {
+                    btn.onclick = function (ev) {
+                        if (ev && ev.stopPropagation) ev.stopPropagation();
+                        if (this.disabled) return;
+                        var nome = this.getAttribute('data-nome');
+                        estadoVisao.expandidos = estadoVisao.expandidos || {};
+                        if (estadoVisao.expandidos[nome]) {
+                            delete estadoVisao.expandidos[nome];
+                        } else {
+                            estadoVisao.expandidos[nome] = true;
+                        }
+                        atualizarJanelaDOM(win, true);
                     };
                 });
             }

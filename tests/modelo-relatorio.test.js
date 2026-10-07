@@ -527,3 +527,138 @@ test('titulo da exportacao indica todos os filtros e a busca, preservando o form
     assert.match(AF.modelo.textoIrregularidadesTime([], ['interj'], 'souza'), /^\*Irregularidades – Setembro 2026 – Interjornada – Busca: "souza"\n/);
     assert.match(AF.modelo.textoIrregularidadesTime([], []), /^\*Irregularidades – Setembro 2026\n/);
 });
+
+test('registrarAjuste acumula acoes e cod47Dias entre execucoes e descarta na Analise', () => {
+    const { AF } = loadModelo();
+    AF.modelo.iniciarExecucao('ajuste', ['ANA']);
+    AF.modelo.registrarAjuste('ANA', {
+        movidas: 1,
+        cod47Conv: 1,
+        cod47Rest: 0,
+        acoes: [{ ausencia: '13/09/2026', origem: '07/09/2026', resultado: 'movida' }],
+        cod47Dias: ['07/09/2026']
+    });
+
+    let dados = AF.modelo.obterDadosFunc('ANA');
+    assert.equal(dados.temAjuste, true);
+
+    // Segundo ajuste: acumula acoes e cod47Dias sem duplicar
+    AF.modelo.registrarAjuste('ANA', {
+        movidas: 0,
+        cod47Conv: 1,
+        cod47Rest: 0,
+        acoes: [{ ausencia: '04/09/2026', origem: '02/09/2026', resultado: 'sem-alteracao' }],
+        cod47Dias: ['07/09/2026', '25/09/2026']
+    });
+
+    const textoAjuste2 = AF.modelo.textoDetalheAjuste('ANA');
+    assert.match(textoAjuste2, /13\/09\/2026 <- origem 07\/09\/2026 => alterado/);
+    assert.match(textoAjuste2, /04\/09\/2026 <- origem 02\/09\/2026 => sem alteração/);
+    assert.match(textoAjuste2, /Dias: 07\/09\/2026, 25\/09\/2026/);
+
+    // Nova analise descarta dados do ajuste
+    AF.modelo.registrarAnalise('ANA', { folgas: 3 });
+    dados = AF.modelo.obterDadosFunc('ANA');
+    assert.equal(dados.temAjuste, false);
+    assert.equal(AF.modelo.textoDetalheAjuste('ANA'), 'ANA\n|_Nenhum ajuste registrado');
+});
+
+test('registrarAjusteParcial mantem acoes e parcial flag sem registrar cod47 nao confirmados', () => {
+    const { AF } = loadModelo();
+    AF.modelo.iniciarExecucao('ajuste', ['BIA']);
+    AF.modelo.registrarAjusteParcial('BIA', {
+        movidas: 1,
+        acoes: [{ ausencia: '15/09/2026', origem: '08/09/2026', resultado: 'alterado' }],
+        cod47Dias: [] // parcial nao confirma cod47
+    });
+
+    const dados = AF.modelo.obterDadosFunc('BIA');
+    assert.equal(dados.parcial, true);
+    assert.equal(dados.temAjuste, true);
+
+    const texto = AF.modelo.textoDetalheAjuste('BIA');
+    assert.match(texto, /^BIA\n\|_Ajuste parcial \(interrompido\)\n\|_Folgas movimentadas\n  \|_ 15\/09\/2026 <- origem 08\/09\/2026 => alterado$/);
+});
+
+test('textoDetalheAjuste formata cenarios da spec com precisao e ordena datas sem duplicar', () => {
+    const { AF } = loadModelo();
+    AF.modelo.iniciarExecucao('ajuste', ['MARIA 2 SILVA 4812']);
+    AF.modelo.registrarAjuste('MARIA 2 SILVA 4812', {
+        movidas: 1,
+        presas: [{ dataFolga: '02/09/2026' }],
+        cod47Conv: 2,
+        cod47Rest: 0,
+        acoes: [
+            { ausencia: '13/09/2026', origem: '07/09/2026', resultado: 'alterado' },
+            { ausencia: '04/09/2026', origem: '02/09/2026', resultado: 'sem alteração' }
+        ],
+        cod47Dias: ['25/09/2026', '07/09/2026'] // ordem nao cronologica para testar ordenacao
+    });
+
+    const esperadoCenario1 = [
+        'MARIA 2 SILVA',
+        '|_Folgas movimentadas',
+        '  |_ 13/09/2026 <- origem 07/09/2026 => alterado',
+        '  |_ 04/09/2026 <- origem 02/09/2026 => sem alteração',
+        '|_Folgas Presas',
+        '  |_Dias: 02/09/2026',
+        '|_Códigos 47',
+        '  |_ Dias: 07/09/2026, 25/09/2026'
+    ].join('\n');
+
+    assert.equal(AF.modelo.textoDetalheAjuste('MARIA 2 SILVA 4812'), esperadoCenario1);
+
+    // Seção sem conteudo e omitida (ex: so cod47 com restantes)
+    AF.modelo.registrarAnalise('MARIA 2 SILVA 4812', { folgas: 0 });
+    AF.modelo.registrarAjuste('MARIA 2 SILVA 4812', {
+        movidas: 0,
+        presas: [],
+        cod47Conv: 2,
+        cod47Rest: 1,
+        acoes: [],
+        cod47Dias: ['05/09/2026', '12/09/2026']
+    });
+
+    const esperadoCenarioRestantes = [
+        'MARIA 2 SILVA',
+        '|_Códigos 47',
+        '  |_ Dias: 05/09/2026, 12/09/2026',
+        '  |_ Restantes: 1'
+    ].join('\n');
+    assert.equal(AF.modelo.textoDetalheAjuste('MARIA 2 SILVA 4812'), esperadoCenarioRestantes);
+
+    // Ajuste sem nada a registrar
+    AF.modelo.registrarAnalise('MARIA 2 SILVA 4812', { folgas: 0 });
+    AF.modelo.registrarAjuste('MARIA 2 SILVA 4812', {
+        movidas: 0,
+        presas: [],
+        cod47Conv: 0,
+        cod47Rest: 0,
+        acoes: [],
+        cod47Dias: []
+    });
+    assert.equal(AF.modelo.textoDetalheAjuste('MARIA 2 SILVA 4812'), 'MARIA 2 SILVA\n|_Nenhum ajuste registrado');
+});
+
+test('restauracao de registro antigo sem campos de detalhe funciona normalmente', () => {
+    const storage = createStorage();
+    const legado = {
+        v: 1, versao: 1, mes: 'Outubro 2026',
+        execs: { analise: null, ajuste: null },
+        atual: null, ordem: ['LEGADO'],
+        funcs: {
+            LEGADO: {
+                vazia: false,
+                analise: null,
+                ajuste: { ts: Date.now(), movidas: 1, presas: [], cod47Conv: 0, cod47Rest: 0, parcial: false },
+                leitura: null
+            }
+        }
+    };
+    storage.setItem('fpw.relatorio.v1', JSON.stringify(legado));
+    const { AF } = loadModelo(storage);
+
+    const dados = AF.modelo.obterDadosFunc('LEGADO');
+    assert.equal(dados.temAjuste, true);
+    assert.equal(AF.modelo.textoDetalheAjuste('LEGADO'), 'LEGADO\n|_Nenhum ajuste registrado');
+});

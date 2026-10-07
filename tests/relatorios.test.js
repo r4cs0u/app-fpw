@@ -295,7 +295,9 @@ function janelaComElementos(copiados = [], timeouts = []) {
                 '.card[data-filtro]': ['data-filtro', /data-filtro="([^"]+)"/g],
                 'th[data-col]': ['data-col', /data-col="([^"]+)"/g],
                 'tr[data-nome]': ['data-nome', /data-nome="([^"]+)"/g],
-                '.btn-copy-irreg[data-nome]': ['data-nome', /<button[^>]*class="btn-copy-irreg"[^>]*data-nome="([^"]+)"([^>]*)>/g] }[sel];
+                '.btn-copy-irreg[data-nome]': ['data-nome', /<button[^>]*class="btn-copy-irreg"[^>]*data-nome="([^"]+)"([^>]*)>/g],
+                '.btn-detalhe-ajuste[data-nome]': ['data-nome', /<button[^>]*class="btn-detalhe-ajuste[^"]*"[^>]*data-nome="([^"]+)"([^>]*)>/g],
+                '.detail-row': ['data-detalhe-de', /<tr[^>]*class="detail-row"[^>]*data-detalhe-de="([^"]+)"/g] }[sel];
             if (!alvo) return [];
             // mesmos objetos enquanto o HTML nao muda, como num DOM real
             e._cache = e._cache || {};
@@ -303,7 +305,7 @@ function janelaComElementos(copiados = [], timeouts = []) {
             if (!e._cache[chave]) {
                 e._cache[chave] = [...e._html.matchAll(alvo[1])].map(m => ({
                     getAttribute: () => m[1], onclick: null, textContent: '📋',
-                    disabled: sel === '.btn-copy-irreg[data-nome]' && /\sdisabled(?:\s|$)/.test(m[2]),
+                    disabled: /\sdisabled(?:\s|>|$)/.test(m[2]),
                     classList: { add() {}, remove() {} }
                 }));
             }
@@ -588,4 +590,75 @@ test('janela: busca por nome filtra, combina com indicadores, persiste nas atual
     busca.oninput();
     while (timeouts.length) timeouts.shift()();
     assert.deepEqual(ordemDaTabela(elementos), ['BIA SOUZA', 'CAIO SILVA', 'DINA']);
+});
+
+test('coluna e botao de detalhe de ajustes: expande, recolhe, desabilita sem ajuste e preserva na renderizacao', () => {
+    const { win, elementos } = janelaComElementos();
+    const AF = loadRelatorios(() => win);
+    AF.modelo.iniciarExecucao('analise', ['ANA', 'BIA', 'VAZIA'], 'Outubro 2026');
+    AF.modelo.registrarAnalise('ANA', { folgas: 1 });
+    AF.modelo.registrarAnalise('BIA', { folgas: 0 });
+    AF.modelo.registrarSemMarcacoes('VAZIA', 'analise');
+
+    // Ajuste apenas para ANA
+    AF.modelo.iniciarExecucao('ajuste', null);
+    AF.modelo.registrarAjuste('ANA', {
+        movidas: 1,
+        presas: [],
+        cod47Conv: 1,
+        cod47Rest: 0,
+        acoes: [{ ausencia: '13/09/2026', origem: '07/09/2026', resultado: 'movida' }],
+        cod47Dias: ['07/09/2026']
+    });
+
+    AF.relatorios.abrirJanela();
+
+    const thead = elementos.get('fpw-thead-tr').innerHTML;
+    assert.match(thead, /class="detail-col"/);
+
+    // Botao de ANA habilitado; BIA e VAZIA desabilitados
+    const btns = elementos.get('fpw-tbody').querySelectorAll('.btn-detalhe-ajuste[data-nome]');
+    const btnAna = btns.find(b => b.getAttribute() === 'ANA');
+    const btnBia = btns.find(b => b.getAttribute() === 'BIA');
+    assert.ok(btnAna && !btnAna.disabled);
+    assert.ok(btnBia && btnBia.disabled);
+
+    // Vazia nao tem botao de detalhe
+    const btnVazia = btns.find(b => b.getAttribute() === 'VAZIA');
+    assert.equal(btnVazia, undefined);
+
+    // Clicar no botao de ANA expande a linha sem selecionar a linha (stopPropagation)
+    let stopped = false;
+    btnAna.onclick({ stopPropagation() { stopped = true; } });
+    assert.equal(stopped, true);
+
+    let tbodyHTML = elementos.get('fpw-tbody').innerHTML;
+    assert.match(tbodyHTML, /class="detail-row" data-detalhe-de="ANA"/);
+    assert.match(tbodyHTML, /13\/09\/2026 (&lt;|<)- origem 07\/09\/2026 (=&gt;|=>) alterado/);
+    assert.doesNotMatch(tbodyHTML, /tr class="active-row"/);
+
+    // Atualizacao do modelo mantem expandido
+    AF.modelo.registrarAnalise('BIA', { folgas: 2 });
+    AF.relatorios.abrirJanela();
+    tbodyHTML = elementos.get('fpw-tbody').innerHTML;
+    assert.match(tbodyHTML, /class="detail-row" data-detalhe-de="ANA"/);
+
+    // Clicar novamente recolhe
+    const btnAna2 = elementos.get('fpw-tbody').querySelectorAll('.btn-detalhe-ajuste[data-nome]').find(b => b.getAttribute() === 'ANA');
+    btnAna2.onclick({ stopPropagation() {} });
+    tbodyHTML = elementos.get('fpw-tbody').innerHTML;
+    assert.doesNotMatch(tbodyHTML, /class="detail-row"/);
+});
+
+test('celula mesclada de folha sem marcacoes tem colspan igual ao total de colunas do cabecalho menos 1', () => {
+    const AF = loadRelatorios();
+    AF.modelo.iniciarExecucao('analise', ['VAZIA']);
+    AF.modelo.registrarSemMarcacoes('VAZIA', 'analise');
+
+    const thead = AF.relatorios.gerarTheadHTML('nome', 1);
+    const totalTh = (thead.match(/<th\b/g) || []).length;
+    assert.equal(totalTh, 12); // 10 metricas + 1 irreg + 1 detalhe
+
+    const tbody = AF.relatorios.gerarTbodyHTML(['VAZIA'], null, null);
+    assert.match(tbody, new RegExp('<td class="cell-sem-marcacoes" colspan="' + (totalTh - 1) + '">Sem Marcações na Folha</td>'));
 });
