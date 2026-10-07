@@ -248,19 +248,19 @@
 
         docC.getElementById('btn-parar').onclick = function () {
             var execucaoAtiva = !!(AF.estado.execucaoAjuste && AF.estado.execucaoAjuste.ativa);
+            var emAndamento = !!AF.estado.rodando;
             AF.core.cancelarTudo();
             sessionStorage.removeItem('autodataTrocar');
             sessionStorage.removeItem('autodataFallback');
             sessionStorage.removeItem('autodatasCandidatasPopup');
             sessionStorage.removeItem('autopopupSemSucesso');
-            AF.sons.tocar('parada');
+            if (emAndamento) AF.sons.tocar('parada');
             if (!execucaoAtiva) setStatus(docC, 'Parando...', '#f87171');
             setBtnAtivo(docC, false);
         };
 
         docC.getElementById('btn-copiar').onclick = function () {
             AF.relatorios.abrirJanela();
-            AF.sons.tocar('copia');
         };
 
         // API pública para outros módulos

@@ -52,10 +52,10 @@ function createDocument() {
     };
 }
 
-function loadPanel(AF) {
+function loadPanel(AF, extras) {
     const window = { AutomacaoFolha: AF };
     const source = readFileSync(join(__dirname, '..', '80-painel.js'), 'utf8');
-    vm.runInNewContext(source, { window, console });
+    vm.runInNewContext(source, Object.assign({ window, console }, extras));
     return window.AutomacaoFolha.painel;
 }
 
@@ -170,4 +170,49 @@ test('report button is enabled from the start and opens the live report window',
     // Clique abre janela mesmo sem relatório anterior
     btnCopiar.onclick();
     assert.equal(relOpened, 1);
+});
+test('report button opens the window without playing any sound', () => {
+    const doc = createDocument();
+    const sons = [];
+    const AF = {
+        estado: { cancelado: false, rodando: false },
+        core: { getDocC: () => doc },
+        relatorios: { abrirJanela() {} },
+        sons: { tocar(tipo) { sons.push(tipo); } }
+    };
+    loadPanel(AF).iniciar(doc);
+
+    doc.getElementById('btn-copiar').onclick();
+
+    assert.deepEqual(sons, []);
+});
+
+function stopButtonHarness(rodando) {
+    const doc = createDocument();
+    const sons = [];
+    const AF = {
+        estado: { cancelado: false, rodando },
+        core: { getDocC: () => doc, cancelarTudo() { AF.estado.cancelado = true; } },
+        relatorios: {},
+        sons: { tocar(tipo) { sons.push(tipo); } }
+    };
+    loadPanel(AF, { sessionStorage: { removeItem() {} } }).iniciar(doc);
+    return { doc, sons, AF };
+}
+
+test('stop button plays the stop sound once when a run is in progress', () => {
+    const { doc, sons, AF } = stopButtonHarness(true);
+
+    doc.getElementById('btn-parar').onclick();
+
+    assert.deepEqual(sons, ['parada']);
+    assert.equal(AF.estado.cancelado, true);
+});
+
+test('stop button plays no sound when nothing is running', () => {
+    const { doc, sons } = stopButtonHarness(false);
+
+    doc.getElementById('btn-parar').onclick();
+
+    assert.deepEqual(sons, []);
 });

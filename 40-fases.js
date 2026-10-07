@@ -640,8 +640,8 @@
 
         try {
             AF.core.getDocC().getElementById('log-box').innerHTML = '';
-            AF.sons.tocar('inicio');
             if (!AF.core.exigirEstrutura('inicio do ajuste', null, true)) return;
+            AF.sons.tocar('inicio');
 
             AF.core.instalarInterceptorPopup(execucao);
             var sel = AF.core.getSelNome();

@@ -249,3 +249,40 @@ test('analysis event records counts and days for every category, including a cle
     assert.match(limpa, /sinalizada: false/);
     assert.match(limpa, /semEntradaSaida:\n\s+total: 0/);
 });
+
+async function runAnalysisSounds({ list = true, onSheet }) {
+    const AF = load(ALL);
+    wireSheet(AF, createSheet(SHEET));
+    const sons = [];
+    AF.sons = { tocar: tipo => sons.push(tipo) };
+    AF.core.getDocC = () => ({ getElementById: () => ({ innerHTML: '' }) });
+    AF.core.setBotoes = () => {};
+    AF.core.getSelNome = () => (list ? { selectedIndex: 0, options: [{ text: 'Funcionario Sintetico' }] } : null);
+    AF.core.nomeAtual = () => 'Funcionario Sintetico';
+    AF.core.avancarFuncionario = async () => 'fim';
+    AF.analisar.analisarFolhaAtual = () => {
+        if (onSheet) onSheet(AF);
+        return { vazia: true };
+    };
+    await AF.analisar.analisarTodas();
+    return { AF, sons };
+}
+
+test('analysis plays start and completion sounds when the employee list is found', async () => {
+    const { sons } = await runAnalysisSounds({});
+
+    assert.deepEqual(sons, ['inicio', 'fim']);
+});
+
+test('analysis without an employee list plays only the failure sound', async () => {
+    const { sons } = await runAnalysisSounds({ list: false });
+
+    assert.deepEqual(sons, ['falha']);
+});
+
+test('analysis stopped by the user plays no completion sound', async () => {
+    const { sons, AF } = await runAnalysisSounds({ onSheet: fakeAF => { fakeAF.estado.cancelado = true; } });
+
+    assert.deepEqual(sons, ['inicio']);
+    assert.equal(AF.estado.cancelado, true);
+});

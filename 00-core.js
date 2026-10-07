@@ -656,6 +656,7 @@ window.AutomacaoFolha = window.AutomacaoFolha || {
     AF.core.pararExecucaoAjuste = function (outcome, execucao) {
         var atual = AF.estado.execucaoAjuste;
         if (execucao && atual !== execucao) return false;
+        var estavaAtiva = !!(atual && atual.ativa);
 
         outcome = outcome || {
             status: 'cancelled',
@@ -697,6 +698,9 @@ window.AutomacaoFolha = window.AutomacaoFolha || {
         });
         if (AF.painel && typeof AF.painel.setStatus === 'function') {
             AF.painel.setStatus(texto, outcome.status === 'cancelled' ? '#f97316' : '#f87171');
+        }
+        if (outcome.status !== 'cancelled' && estavaAtiva && AF.sons && typeof AF.sons.tocar === 'function') {
+            AF.sons.tocar('falha');
         }
         AF.estado.rodando = false;
         AF.core.setBotoes(false);

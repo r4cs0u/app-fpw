@@ -160,7 +160,6 @@
         AF.estado.rodando = true;
         AF.core.setBotoes(true);
         AF.core.getDocC().getElementById('log-box').innerHTML = '';
-        AF.sons.tocar('inicio');
 
         var alvo = AF.utils.mesAlvoDaTabela
             ? (function () {
@@ -194,9 +193,11 @@
         if (!sel) {
             AF.core.log('ERRO: Lista de funcionarios nao encontrada.', '#f87171');
             logExecucao('encerrarExecucao', 'interrompida', 'lista de funcionarios nao encontrada');
+            AF.sons.tocar('falha');
             AF.core.setBotoes(false);
             return;
         }
+        AF.sons.tocar('inicio');
 
         // ── Snapshot de TODOS os nomes antes de iniciar o loop ──
         var todosNomes = [];

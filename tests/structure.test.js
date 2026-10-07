@@ -312,3 +312,50 @@ test('phase 4 fields modification and footer save stop when structure is invalid
     assert.equal(AF.estado.falhaPrecondicao, true);
     assert.equal(AF.estado.cancelado, true);
 });
+
+function loadCoreWithSounds() {
+    const window = { top: { location: { pathname: '/WebPonto/just_user/invalid.asp' }, frames: [] } };
+    const source = readFileSync(join(__dirname, '..', '00-core.js'), 'utf8');
+    vm.runInNewContext(source, { window, console: { log() {}, error() {} } });
+    const AF = window.AutomacaoFolha;
+    const sons = [];
+    AF.sons = { tocar(tipo) { sons.push(tipo); } };
+    return { AF, sons };
+}
+
+test('structure failure during an active adjustment plays the failure sound once and no completion sound', () => {
+    const { AF, sons } = loadCoreWithSounds();
+    AF.estado.execucaoAjuste = AF.core.iniciarExecucaoAjuste();
+
+    assert.equal(AF.core.exigirEstrutura('inicio do ajuste', null, true), false);
+
+    assert.deepEqual(sons, ['falha']);
+});
+
+test('an error after the user already stopped the run does not play a second sound', () => {
+    const { AF, sons } = loadCoreWithSounds();
+    const execucao = AF.core.iniciarExecucaoAjuste();
+    AF.estado.execucaoAjuste = execucao;
+
+    AF.core.pararExecucaoAjuste({ status: 'cancelled', stage: 'user-stop', reason: 'Parada solicitada pelo usuario.' }, execucao);
+    AF.core.pararExecucaoAjuste({ status: 'error', stage: 'popup-save', reason: 'falha tardia' }, execucao);
+
+    assert.deepEqual(sons, []);
+});
+
+test('a user-stop cancellation never plays the failure sound', () => {
+    const { AF, sons } = loadCoreWithSounds();
+    AF.estado.execucaoAjuste = AF.core.iniciarExecucaoAjuste();
+
+    AF.core.cancelarTudo();
+
+    assert.deepEqual(sons, []);
+});
+
+test('an error stop without an active adjustment does not play the failure sound', () => {
+    const { AF, sons } = loadCoreWithSounds();
+
+    AF.core.pararExecucaoAjuste({ status: 'error', stage: 'qualquer', reason: 'sem execucao' });
+
+    assert.deepEqual(sons, []);
+});

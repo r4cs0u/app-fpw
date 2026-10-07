@@ -1000,3 +1000,62 @@ test('shared analysis employee navigation keeps its legacy behavior without an a
     assert.equal(selector.selectedIndex, 1);
     assert.equal(updated, 1);
 });
+
+async function runAdjustmentSounds({ structureOk = true, sheet }) {
+    const clock = new SyntheticClock();
+    const env = createEnvironment(clock, null);
+    const sons = [];
+    const eventos = [];
+    env.AF.core.setBotoes = () => {};
+    env.AF.core.getDocC = () => ({ getElementById: id => id === 'log-box' ? { innerHTML: '' } : null });
+    env.AF.core.exigirEstrutura = stage => {
+        eventos.push('estrutura:' + stage);
+        if (!structureOk) {
+            env.AF.core.pararExecucaoAjuste({ status: 'error', stage, reason: 'estrutura invalida' });
+        }
+        return structureOk;
+    };
+    env.AF.core.getSelNome = () => ({ selectedIndex: 0, options: [{ text: 'Funcionario Sintetico' }] });
+    env.AF.core.getCabec = () => ({});
+    env.AF.core.nomeAtual = () => 'Funcionario Sintetico';
+    env.AF.core.instalarInterceptorPopup = () => {};
+    env.AF.core.avancarFuncionario = async () => ({ status: 'ready', value: 'fim' });
+    env.AF.core.log = () => {};
+    env.AF.relatorios.gerarFolgas = () => {};
+    env.AF.painel = { setStatus() {} };
+    env.AF.sons = { tocar: tipo => { sons.push(tipo); eventos.push('som:' + tipo); } };
+    env.AF.fases.processarFolhaAtual = sheet ? () => sheet(env) : async () => {};
+
+    await env.AF.fases.processarTodas();
+    return { sons, eventos, env };
+}
+
+test('adjustment plays the start sound only after the structure check passes and the end sound on completion', async () => {
+    const { sons, eventos } = await runAdjustmentSounds({});
+
+    assert.deepEqual(sons, ['inicio', 'fim']);
+    assert.ok(eventos.indexOf('estrutura:inicio do ajuste') < eventos.indexOf('som:inicio'));
+});
+
+test('adjustment refused by the structure check plays only the failure sound', async () => {
+    const { sons } = await runAdjustmentSounds({ structureOk: false });
+
+    assert.deepEqual(sons, ['falha']);
+});
+
+test('adjustment interrupted by an error plays start then failure and never the end sound', async () => {
+    const { sons } = await runAdjustmentSounds({
+        sheet: async () => { throw new Error('synthetic wait failure'); }
+    });
+
+    assert.deepEqual(sons, ['inicio', 'falha']);
+});
+
+test('adjustment stopped by the user plays no end or failure sound from the run itself', async () => {
+    const { sons, env } = await runAdjustmentSounds({
+        sheet: async fakeEnv => { fakeEnv.AF.core.cancelarTudo(); }
+    });
+
+    assert.deepEqual(sons, ['inicio']);
+    assert.equal(env.AF.estado.cancelado, true);
+});
