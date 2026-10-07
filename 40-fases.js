@@ -638,7 +638,11 @@
 
     // ── processarTodas — loop principal ───────────────────────────────
 
-    AF.fases.processarTodas = async function () {
+    AF.fases.processarTodas = async function (opcoes) {
+        opcoes = opcoes || {};
+        var somenteFolhaAtual = !!opcoes.somenteFolhaAtual;
+        var nomeEsperado = opcoes.nomeEsperado ? String(opcoes.nomeEsperado).trim() : null;
+
         AF.estado.cancelado = false;
         var execucao = AF.core.iniciarExecucaoAjuste();
         iniciarLogExecucao('ajuste');
@@ -665,10 +669,8 @@
 
         try {
             AF.core.getDocC().getElementById('log-box').innerHTML = '';
-            if (!AF.core.exigirEstrutura('inicio do ajuste', null, true)) return;
-            AF.sons.tocar('inicio');
+            if (!AF.core.exigirEstrutura('inicio do ajuste', null, !somenteFolhaAtual)) return;
 
-            AF.core.instalarInterceptorPopup(execucao);
             var sel = AF.core.getSelNome();
             if (!sel) {
                 AF.core.pararExecucaoAjuste({
@@ -678,6 +680,32 @@
                 }, execucao);
                 return;
             }
+
+            var nomeAtual = AF.core.nomeAtual();
+            if (somenteFolhaAtual) {
+                if (!nomeAtual) {
+                    AF.core.pararExecucaoAjuste({
+                        status: 'error',
+                        stage: 'supervised-revalidation',
+                        reason: 'Nenhuma folha selecionada.'
+                    }, execucao);
+                    return;
+                }
+                if (nomeEsperado) {
+                    var norm = function (s) { return String(s || '').replace(/\s+\d+$/, '').trim().toLowerCase(); };
+                    if (norm(nomeAtual) !== norm(nomeEsperado)) {
+                        AF.core.pararExecucaoAjuste({
+                            status: 'error',
+                            stage: 'supervised-revalidation',
+                            reason: 'Funcionario selecionado (' + nomeAtual + ') difere do esperado (' + nomeEsperado + ').'
+                        }, execucao);
+                        return;
+                    }
+                }
+            }
+
+            AF.sons.tocar('inicio');
+            AF.core.instalarInterceptorPopup(execucao);
 
             relLista = [];
             relListaMap = {};
@@ -697,7 +725,7 @@
                 relListaMap[nomeTxt] = obj;
             }
             if (AF.modelo && typeof AF.modelo.iniciarExecucao === 'function') {
-                AF.modelo.iniciarExecucao('ajuste', todosNomesAjuste);
+                AF.modelo.iniciarExecucao('ajuste', todosNomesAjuste, null, somenteFolhaAtual ? { total: 1 } : null);
             }
             var normSort = function (s) {
                 return (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
@@ -707,93 +735,99 @@
                     normSort(a.nome) > normSort(b.nome) ? 1 : 0;
             });
 
-            var cabec = AF.core.getCabec();
-            var docC = AF.core.getDocC();
-            var nomeSelecionado = (sel.options[sel.selectedIndex] &&
-                (sel.options[sel.selectedIndex].text || '').trim());
-
-            if (!nomeSelecionado) {
-                var primeiroValido = -1;
-                for (var pi2 = 0; pi2 < sel.options.length; pi2++) {
-                    if ((sel.options[pi2].text || '').trim()) { primeiroValido = pi2; break; }
-                }
-                if (primeiroValido < 0) {
-                    AF.core.pararExecucaoAjuste({
-                        status: 'error',
-                        stage: 'employee-list',
-                        reason: 'Nenhum funcionario encontrado.'
-                    }, execucao);
-                    return;
-                }
-
-                var prontidaoInicial;
-                var observadorInicial;
-                try {
-                    observadorInicial = AF.core.observarTransicaoCorpo(execucao, {});
-                    observadorInicial.armarTransicao();
-                    sel.selectedIndex = primeiroValido;
-                    try {
-                        cabec.AjustaCodEmpresaEmpregado(docC.yourform.lstNome, docC.yourform.CodEmpresaEmpregado);
-                    } catch (e) {}
-                    try {
-                        cabec.AtualizaFuncionario();
-                    } catch (e) {
-                        sel.dispatchEvent(new Event('change', { bubbles: true }));
-                    }
-
-                    AF.core.log('Iniciando pelo primeiro: ' + AF.core.nomeAtual(), '#0043ff');
-                    prontidaoInicial = await AF.core.aguardarTransicaoCorpo(
-                        execucao,
-                        observadorInicial,
-                        'employee-readiness',
-                        6000
-                    );
-                } catch (erroProntidaoInicial) {
-                    prontidaoInicial = {
-                        status: 'error',
-                        stage: 'employee-readiness',
-                        reason: erroProntidaoInicial && erroProntidaoInicial.message ?
-                            erroProntidaoInicial.message : String(erroProntidaoInicial)
-                    };
-                } finally {
-                    if (observadorInicial) observadorInicial.dispose();
-                }
-
-                if (!execucao.isActive()) return;
-                if (prontidaoInicial.status !== 'ready') {
-                    if (prontidaoInicial.status !== 'cancelled') {
-                        AF.core.pararExecucaoAjuste(prontidaoInicial, execucao);
-                    }
-                    return;
-                }
-            } else {
-                AF.core.log('Continuando de: ' + AF.core.nomeAtual(), '#0043ff');
-            }
-
-            var nomeInicial = AF.core.nomeAtual();
-            while (execucao.isActive()) {
-                if (!AF.core.exigirEstrutura('processamento da folha')) break;
-
+            if (somenteFolhaAtual) {
+                AF.core.log('Ajuste supervisionado da folha: ' + nomeAtual, '#0043ff');
                 await AF.fases.processarFolhaAtual(relStats, relLista, relListaMap, execucao);
-                if (!execucao.isActive()) break;
+                AF.core.log('Folha ajustada.', '#02ab19');
+            } else {
+                var cabec = AF.core.getCabec();
+                var docC = AF.core.getDocC();
+                var nomeSelecionado = (sel.options[sel.selectedIndex] &&
+                    (sel.options[sel.selectedIndex].text || '').trim());
 
-                var res = await AF.core.avancarFuncionario(execucao);
-                if (!execucao.isActive()) break;
-
-                if (res.status !== 'ready') {
-                    if (res.status !== 'cancelled') {
-                        AF.core.pararExecucaoAjuste(res, execucao);
+                if (!nomeSelecionado) {
+                    var primeiroValido = -1;
+                    for (var pi2 = 0; pi2 < sel.options.length; pi2++) {
+                        if ((sel.options[pi2].text || '').trim()) { primeiroValido = pi2; break; }
                     }
-                    break;
+                    if (primeiroValido < 0) {
+                        AF.core.pararExecucaoAjuste({
+                            status: 'error',
+                            stage: 'employee-list',
+                            reason: 'Nenhum funcionario encontrado.'
+                        }, execucao);
+                        return;
+                    }
+
+                    var prontidaoInicial;
+                    var observadorInicial;
+                    try {
+                        observadorInicial = AF.core.observarTransicaoCorpo(execucao, {});
+                        observadorInicial.armarTransicao();
+                        sel.selectedIndex = primeiroValido;
+                        try {
+                            cabec.AjustaCodEmpresaEmpregado(docC.yourform.lstNome, docC.yourform.CodEmpresaEmpregado);
+                        } catch (e) {}
+                        try {
+                            cabec.AtualizaFuncionario();
+                        } catch (e) {
+                            sel.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+
+                        AF.core.log('Iniciando pelo primeiro: ' + AF.core.nomeAtual(), '#0043ff');
+                        prontidaoInicial = await AF.core.aguardarTransicaoCorpo(
+                            execucao,
+                            observadorInicial,
+                            'employee-readiness',
+                            6000
+                        );
+                    } catch (erroProntidaoInicial) {
+                        prontidaoInicial = {
+                            status: 'error',
+                            stage: 'employee-readiness',
+                            reason: erroProntidaoInicial && erroProntidaoInicial.message ?
+                                erroProntidaoInicial.message : String(erroProntidaoInicial)
+                        };
+                    } finally {
+                        if (observadorInicial) observadorInicial.dispose();
+                    }
+
+                    if (!execucao.isActive()) return;
+                    if (prontidaoInicial.status !== 'ready') {
+                        if (prontidaoInicial.status !== 'cancelled') {
+                            AF.core.pararExecucaoAjuste(prontidaoInicial, execucao);
+                        }
+                        return;
+                    }
+                } else {
+                    AF.core.log('Continuando de: ' + AF.core.nomeAtual(), '#0043ff');
                 }
 
-                if (res.value === 'fim') {
-                    AF.core.log('Fim da lista.', '#02ab19');
-                    break;
-                }
-                if (AF.core.nomeAtual() === nomeInicial) {
-                    AF.core.log('Concluido.', '#02ab19');
-                    break;
+                var nomeInicial = AF.core.nomeAtual();
+                while (execucao.isActive()) {
+                    if (!AF.core.exigirEstrutura('processamento da folha')) break;
+
+                    await AF.fases.processarFolhaAtual(relStats, relLista, relListaMap, execucao);
+                    if (!execucao.isActive()) break;
+
+                    var res = await AF.core.avancarFuncionario(execucao);
+                    if (!execucao.isActive()) break;
+
+                    if (res.status !== 'ready') {
+                        if (res.status !== 'cancelled') {
+                            AF.core.pararExecucaoAjuste(res, execucao);
+                        }
+                        break;
+                    }
+
+                    if (res.value === 'fim') {
+                        AF.core.log('Fim da lista.', '#02ab19');
+                        break;
+                    }
+                    if (AF.core.nomeAtual() === nomeInicial) {
+                        AF.core.log('Concluido.', '#02ab19');
+                        break;
+                    }
                 }
             }
         } catch (erroAjuste) {

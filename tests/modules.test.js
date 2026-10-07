@@ -30,6 +30,8 @@ test('every listed module exists and the new modules load in dependency order', 
     assert.ok(indice('27-modelo-relatorio.js') < indice('40-fases.js'));
     assert.ok(indice('25-detector.js') < indice('40-fases.js'));
     assert.ok(indice('25-detector.js') < indice('50-analisar.js'));
+    assert.ok(indice('65-supervisionado.js') > indice('60-relatorios.js'));
+    assert.ok(indice('65-supervisionado.js') < indice('70-sons.js'));
 });
 
 test('all modules load in the listed order without using a module that is not loaded yet', () => {
@@ -48,6 +50,7 @@ test('all modules load in the listed order without using a module that is not lo
     assert.equal(typeof AF.preanalise.montar, 'function');
     assert.equal(typeof AF.fases.capturarEstadoFolha, 'function');
     assert.equal(typeof AF.analisar.analisarFolhaAtual, 'function');
+    assert.equal(typeof AF.supervisionado.iniciarConfirmacao, 'function');
 });
 
 test('the test build version is consistent between the entry script and the core', () => {

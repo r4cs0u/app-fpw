@@ -92,11 +92,19 @@
                 { freq: 700, dur: 0.15, delay: 0.18 },
                 { freq: 550, dur: 0.40, vol: 0.25, forma: 'sine' }
             ]);
+        },
+
+        // Atenção / Confirmação no modo supervisionado — dois tons suaves
+        atencao: function () {
+            sequencia([
+                { freq: 587, dur: 0.12, vol: 0.20, delay: 0.14 },
+                { freq: 740, dur: 0.18, vol: 0.20 }
+            ]);
         }
     };
 
     // ── API pública ────────────────────────────────────────────────────
-    // AF.sons.tocar('inicio' | 'fim' | 'falha' | 'parada')
+    // AF.sons.tocar('inicio' | 'fim' | 'falha' | 'parada' | 'atencao')
 
     AF.sons.tocar = function (tipo) {
         try {

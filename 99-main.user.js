@@ -57,6 +57,7 @@
         '40-fases.js',
         '50-analisar.js',
         '60-relatorios.js',
+        '65-supervisionado.js',
         '70-sons.js',
         '80-painel.js',
         '85-ambiente.js'

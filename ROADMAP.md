@@ -92,8 +92,8 @@ Ordem do mais simples ao mais complexo, confirmada em 2026-10-07: sons (item 0),
 | G | `report-row-adjustment-detail` | Melhoria 6 | Novo dado no modelo + UI | Médio |
 | Fase 4 | `extract-phase4-decision` (sem mudança de especificação) | Etapa 3 | Função pura testada, validada via MCP e arquivada em 2026-10-07 | Médio |
 | H | `oracle-session-keepalive` | Melhoria 1 | Investigação via MCP e sentinela implementados (234 testes) | Baixo |
-| I1 | `supervised-preanalysis` | Melhoria 3 | Pré-análise somente leitura validada via MCP (`38-preanalise.js`, 240 testes) | Médio |
-| I2 | `adjustment-mode-selector` | Melhoria 3 | Seletor Automático/Supervisionado, confirmação, travas | Alto |
+| I1 | `supervised-preanalysis` | Melhoria 3 | Pré-análise somente leitura validada via MCP e arquivada em 2026-10-07 | Médio |
+| I2 | `adjustment-mode-selector` | Melhoria 3 | Seletor Automático/Supervisionado implementado (`65-supervisionado.js`, 253 testes) | Médio |
 
 **0. Sons (`fix-run-sounds`).** O relatório é vivo, então o som de cópia ao abrir o Relatório deixa de existir e o som de conclusão perde o atraso de 900 ms. O som de início do Ajuste passa a tocar só depois das pré-condições; interrupção por erro ganha um som de falha próprio; Parar só toca com execução em andamento; cada execução toca um único som de desfecho (conclusão, parada ou falha). O modo Supervisionado (I2) reaproveita esse contrato e acrescenta um som de atenção ao abrir a confirmação. Estado: implementada e arquivada em 2026-10-07 (`2026-10-07-fix-run-sounds`; capacidade durável `run-sounds`), com a validação manual de som arquivada como tarefa não marcada.
 

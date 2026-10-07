@@ -120,7 +120,8 @@
 
     // ── Ciclo de Execução ───────────────────────────────────────────────
 
-    AF.modelo.iniciarExecucao = function (tipo, nomes, mes) {
+    AF.modelo.iniciarExecucao = function (tipo, nomes, mes, opcoes) {
+        opcoes = opcoes || {};
         if (mes) estado.mes = mes;
         if (Array.isArray(nomes)) {
             nomes.forEach(function (n) {
@@ -132,11 +133,12 @@
                 obterOuCriarFunc(n);
             });
         }
+        var totalFinal = opcoes.total != null ? opcoes.total : ((nomes && nomes.length) || estado.ordem.length);
         estado.execs[tipo] = {
             status: 'em-andamento',
             inicio: Date.now(),
             fim: null,
-            total: (nomes && nomes.length) || estado.ordem.length,
+            total: totalFinal,
             feitas: 0
         };
         estado.atual = null;

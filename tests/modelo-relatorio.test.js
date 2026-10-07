@@ -662,3 +662,16 @@ test('restauracao de registro antigo sem campos de detalhe funciona normalmente'
     assert.equal(dados.temAjuste, true);
     assert.equal(AF.modelo.textoDetalheAjuste('LEGADO'), 'LEGADO\n|_Nenhum ajuste registrado');
 });
+
+test('iniciarExecucao aceita opcoes.total sem alterar comportamento padrao', () => {
+    const { AF } = loadModelo();
+    // Sem opcoes: total e a quantidade de nomes
+    AF.modelo.iniciarExecucao('ajuste', ['ANA', 'BIA', 'CAIO']);
+    assert.equal(AF.modelo.obterEstado().execs.ajuste.total, 3);
+    assert.equal(AF.modelo.obterEstado().ordem.length, 3);
+
+    // Com opcoes.total: total segue o valor customizado (ex: 1 folha supervisionada)
+    AF.modelo.iniciarExecucao('ajuste', ['ANA', 'BIA', 'CAIO'], null, { total: 1 });
+    assert.equal(AF.modelo.obterEstado().execs.ajuste.total, 1);
+    assert.equal(AF.modelo.obterEstado().ordem.length, 3);
+});

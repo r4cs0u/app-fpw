@@ -40,6 +40,7 @@ Este repositório contém a base funcional do userscript para automação da fol
 5. Tratar a interface como sensível: o script pode operar em dados reais e deve priorizar segurança e previsibilidade.
 6. Tratar temporizadores de espera como limites de segurança e compatibilidade, não como previsão fixa da resposta do FPW; só evidência observada permite continuar.
 7. Detectar irregularidades e marcações lendo os `value` dos campos (`Marc1N`, `Marc2N`, `IrreN`, `CodJustN`) e o cabeçalho do dia. Nunca usar o `innerText` das linhas de marcação como evidência: ele inclui os textos das opções da lista de justificativas (por exemplo, uma opção de interjornada).
+8. No modo Supervisionado, o ajuste é executado exclusivamente folha a folha mediante confirmação humana prévia em janela dedicada, revalidando a folha e o funcionário selecionado antes de qualquer alteração ou gravação.
 
 ## Condições de parada
 

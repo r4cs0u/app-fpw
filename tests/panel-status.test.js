@@ -25,13 +25,14 @@ function createDocument() {
                 this.children = this.children.filter(item => item !== child);
             },
             set innerHTML(markup) {
+                this._html = markup;
                 for (const match of markup.matchAll(/\bid="([^"]+)"/g)) {
                     const button = createElement();
                     button.id = match[1];
                 }
             },
             get innerHTML() {
-                return '';
+                return this._html || '';
             }
         };
         Object.defineProperty(element, 'id', {
@@ -254,4 +255,120 @@ test('panel displays oracle badge across unknown, active, and inactive states an
     AF.painel.atualizarSessaoOracle({ estado: 'active' });
     assert.equal(badge.textContent, 'Oracle: ativa');
     assert.equal(warning.style.display, 'none');
+});
+
+test('panel mode selector initializes to automatico, toggles, persists in sessionStorage and falls back safely', () => {
+    const doc = createDocument();
+    const storage = new Map();
+    const sessionStorage = {
+        getItem: k => storage.get(k) || null,
+        setItem: (k, v) => storage.set(k, String(v)),
+        removeItem: k => storage.delete(k)
+    };
+    const AF = {
+        estado: { cancelado: false, rodando: false },
+        core: { getDocC: () => doc },
+        relatorios: {},
+        sons: { tocar() {} }
+    };
+    loadPanel(AF, { sessionStorage }).iniciar(doc);
+
+    const btnAuto = doc.getElementById('btn-modo-auto');
+    const btnSuperv = doc.getElementById('btn-modo-superv');
+    assert.ok(btnAuto);
+    assert.ok(btnSuperv);
+
+    // Inicial: automatico
+    assert.equal(AF.painel.obterModo(), 'automatico');
+
+    // Troca para supervisionado via clique
+    btnSuperv.onclick();
+    assert.equal(AF.painel.obterModo(), 'supervisionado');
+    assert.equal(sessionStorage.getItem('fpw.modoAjuste'), 'supervisionado');
+
+    // Troca para automatico via clique
+    btnAuto.onclick();
+    assert.equal(AF.painel.obterModo(), 'automatico');
+    assert.equal(sessionStorage.getItem('fpw.modoAjuste'), 'automatico');
+
+    // Valor invalido no armazenamento cai em automatico
+    sessionStorage.setItem('fpw.modoAjuste', 'invalido');
+    const AF2 = { estado: { cancelado: false, rodando: false }, core: { getDocC: () => doc }, relatorios: {}, sons: { tocar() {} } };
+    loadPanel(AF2, { sessionStorage }).iniciar(createDocument());
+    assert.equal(AF2.painel.obterModo(), 'automatico');
+});
+
+test('panel mode selector is disabled during execution or pending confirmation', () => {
+    const doc = createDocument();
+    const AF = {
+        estado: { cancelado: false, rodando: false, confirmacaoPendente: false },
+        core: { getDocC: () => doc },
+        relatorios: {},
+        sons: { tocar() {} }
+    };
+    loadPanel(AF, { sessionStorage: { getItem: () => null, setItem: () => {} } }).iniciar(doc);
+
+    const btnAuto = doc.getElementById('btn-modo-auto');
+    const btnSuperv = doc.getElementById('btn-modo-superv');
+
+    assert.equal(btnAuto.disabled, false);
+    assert.equal(btnSuperv.disabled, false);
+
+    // Durante execucao
+    AF.core.setBotoes(true);
+    assert.equal(btnAuto.disabled, true);
+    assert.equal(btnSuperv.disabled, true);
+
+    AF.core.setBotoes(false);
+    assert.equal(btnAuto.disabled, false);
+
+    // Durante confirmacao pendente
+    AF.estado.confirmacaoPendente = true;
+    AF.core.setBotoes(false);
+    assert.equal(btnAuto.disabled, true);
+    assert.equal(btnSuperv.disabled, true);
+});
+
+test('panel instruction text mentions both modes and popups', () => {
+    const doc = createDocument();
+    const AF = {
+        estado: {},
+        core: { getDocC: () => doc },
+        relatorios: {},
+        sons: { tocar() {} }
+    };
+    loadPanel(AF).iniciar(doc);
+
+    const side = doc.getElementById('fpw-sidepanel');
+    assert.ok(side);
+    assert.match(side.children[1].children[0].children[2].innerHTML, /Automático/);
+    assert.match(side.children[1].children[0].children[2].innerHTML, /Supervisionado/);
+    assert.match(side.children[1].children[0].children[2].innerHTML, /popups/);
+});
+
+test('adjust button routes to processarTodas in automatico and iniciarConfirmacao in supervisionado', async () => {
+    const doc = createDocument();
+    let processarTodasChamadas = 0;
+    let confirmacaoChamadas = 0;
+
+    const AF = {
+        estado: { cancelado: false, rodando: false },
+        core: { getDocC: () => doc },
+        fases: { processarTodas: async () => { processarTodasChamadas++; } },
+        supervisionado: { iniciarConfirmacao: async () => { confirmacaoChamadas++; } },
+        relatorios: {},
+        sons: { tocar() {} }
+    };
+    loadPanel(AF).iniciar(doc);
+
+    // Modo automatico (padrao)
+    await doc.getElementById('btn-executar').onclick();
+    assert.equal(processarTodasChamadas, 1);
+    assert.equal(confirmacaoChamadas, 0);
+
+    // Muda para modo supervisionado
+    AF.painel.definirModo('supervisionado');
+    await doc.getElementById('btn-executar').onclick();
+    assert.equal(processarTodasChamadas, 1);
+    assert.equal(confirmacaoChamadas, 1);
 });

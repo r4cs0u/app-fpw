@@ -29,7 +29,8 @@ Ele não substitui a decisão final do usuário, mas ajuda a acelerar o fluxo de
 - Resumo em indicadores (big numbers) com filtros rápidos por clique que se somam (cada indicador ativo acrescenta funcionários à tabela) e busca por nome combinada com eles;
 - Exportação copiável das irregularidades por funcionário ou da lista visível no relatório, com datas em `dd/mm`;
 - Janela de log estruturado acessível dentro e fora do relatório;
-- Painel visual com botões para analisar, ajustar e acompanhar o status da execução;
+- Painel visual com botões para analisar, ajustar, seletor de modo (Automático / Supervisionado) e acompanhamento do status da execução;
+- Seleção entre modos de ajuste Automático (lote) e Supervisionado (pré-análise e confirmação folha a folha);
 - Log e notificações visuais para acompanhar o progresso da operação;
 - Suporte a relatórios exportáveis (TSV) para revisão posterior.
 
@@ -39,7 +40,7 @@ Ao acessar a página do WebPonto, o script carrega os módulos necessários e in
 
 1. clicar em “Analisar” para revisar a folha atual e o conjunto de funcionários;
 2. verificar os dados coletados em relatórios;
-3. clicar em “Ajustar” para executar a correção automatizada de folgas e pendências;
+3. escolher o modo de ajuste no painel — **Automático** (percorre toda a lista) ou **Supervisionado** (confirmação prévia e detalhe folha a folha) — e clicar em “Ajustar”;
 4. revisar os resultados e confirmar manualmente as ações finais.
 
 Na janela do relatório, o ícone no fim de cada linha copia as irregularidades daquele funcionário. O botão **Exportar irregularidades** abre o texto dos funcionários atualmente visíveis; portanto, filtros por indicador, busca por nome e extremos ativos também limitam a exportação, e o título lista os filtros e a busca. O texto lista as irregularidades por pessoa, usa datas em `dd/mm` e pode ser copiado na própria janela. Quando Folha não preenchida está sinalizada, o texto mostra somente o aviso de preenchimento e a porcentagem, sem as outras linhas de irregularidade.

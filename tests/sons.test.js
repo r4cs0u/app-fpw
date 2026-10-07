@@ -62,6 +62,14 @@ test('failure sound plays two low square notes distinct from the stop sound', ()
     );
 });
 
+test('attention sound plays two soft notes on confirmation open', () => {
+    const { AF, osciladores } = loadSons();
+    AF.sons.tocar('atencao');
+    assert.equal(osciladores.length, 2);
+    assert.deepEqual(osciladores.map(o => o.type), ['sine', 'sine']);
+    assert.deepEqual(osciladores.map(o => o.frequency.value), [587, 740]);
+});
+
 test('unknown sound names are ignored', () => {
     const { AF, osciladores } = loadSons();
     AF.sons.tocar('inexistente');

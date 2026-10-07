@@ -360,3 +360,49 @@ test('folha interrompida passa acoes acumuladas e cod47Dias vazio para registrar
     ]);
     assert.deepEqual(plain(parciais[0].dados.cod47Dias), []);
 });
+
+test('processarTodas com somenteFolhaAtual executa apenas a folha atual sem avancar e valida funcionario esperado', async () => {
+    const h = harness();
+    let avancou = false;
+    let folhasProcessadas = 0;
+    let ativa = true;
+    h.AF.core.iniciarExecucaoAjuste = () => ({
+        isActive: () => ativa,
+        cancel: () => { ativa = false; },
+        addCleanup: () => {}
+    });
+    h.AF.core.pararExecucaoAjuste = outcome => {
+        h.AF.estado.falhaAjuste = outcome;
+        h.AF.estado.cancelado = true;
+    };
+    h.AF.core.setBotoes = () => {};
+    h.AF.core.getSelNome = () => ({
+        selectedIndex: 0,
+        options: [{ text: 'ANA' }, { text: 'BIA' }]
+    });
+    h.AF.core.getDocC = () => ({ getElementById: () => ({ innerHTML: '' }) });
+    h.AF.core.exigirEstrutura = () => true;
+    h.AF.core.instalarInterceptorPopup = () => {};
+    h.AF.core.avancarFuncionario = async () => { avancou = true; return 'fim'; };
+    h.AF.fases.processarFolhaAtual = async () => { folhasProcessadas++; };
+
+    // 1. Execucao supervisionada bem sucedida
+    await h.AF.fases.processarTodas({ somenteFolhaAtual: true, nomeEsperado: 'ANA' });
+
+    assert.equal(folhasProcessadas, 1);
+    assert.equal(avancou, false);
+    assert.equal(h.AF.estado.cancelado, false);
+
+    // 2. Funcionario diferente do esperado resulta em falha de revalidacao sem processar
+    folhasProcessadas = 0;
+    await h.AF.fases.processarTodas({ somenteFolhaAtual: true, nomeEsperado: 'BIA' });
+    assert.equal(folhasProcessadas, 0);
+    assert.equal(h.AF.estado.falhaAjuste.stage, 'supervised-revalidation');
+    assert.match(h.AF.estado.falhaAjuste.reason, /difere do esperado/);
+
+    // 3. Selecao vazia com somenteFolhaAtual e recusada
+    h.AF.core.nomeAtual = () => '';
+    await h.AF.fases.processarTodas({ somenteFolhaAtual: true });
+    assert.equal(h.AF.estado.falhaAjuste.stage, 'supervised-revalidation');
+    assert.match(h.AF.estado.falhaAjuste.reason, /Nenhuma folha selecionada/);
+});

@@ -50,19 +50,67 @@
         }
     }
 
+    var CHAVE_STORAGE_MODO = 'fpw.modoAjuste';
+    var modoEmMemoria = 'automatico';
+
+    function obterModoAjuste() {
+        try {
+            var m = sessionStorage.getItem(CHAVE_STORAGE_MODO);
+            if (m === 'supervisionado' || m === 'automatico') return m;
+        } catch (e) {}
+        return modoEmMemoria || 'automatico';
+    }
+
+    function salvarModoAjuste(m) {
+        modoEmMemoria = m;
+        try {
+            sessionStorage.setItem(CHAVE_STORAGE_MODO, m);
+        } catch (e) {}
+    }
+
+    function renderizarModo(docC, modo) {
+        var bAuto = docC.getElementById('btn-modo-auto');
+        var bSuperv = docC.getElementById('btn-modo-superv');
+        if (!bAuto || !bSuperv) return;
+        if (modo === 'supervisionado') {
+            bSuperv.style.background = '#7c3aed';
+            bSuperv.style.color = '#ffffff';
+            bSuperv.style.borderColor = '#7c3aed';
+            bAuto.style.background = 'transparent';
+            bAuto.style.color = '#9ca3af';
+            bAuto.style.borderColor = '#374151';
+        } else {
+            bAuto.style.background = '#2563eb';
+            bAuto.style.color = '#ffffff';
+            bAuto.style.borderColor = '#2563eb';
+            bSuperv.style.background = 'transparent';
+            bSuperv.style.color = '#9ca3af';
+            bSuperv.style.borderColor = '#374151';
+        }
+    }
+
     function setBtnAtivo(docC, rodando) {
+        var bloqueado = !!(rodando || (AF.estado && (AF.estado.rodando || AF.estado.confirmacaoPendente)));
         ['btn-analisar', 'btn-executar'].forEach(function (id) {
             var b = docC.getElementById(id);
             if (!b) return;
-            b.disabled      = rodando;
-            b.style.opacity = rodando ? '.35' : '1';
-            b.style.cursor  = rodando ? 'not-allowed' : 'pointer';
+            b.disabled      = bloqueado;
+            b.style.opacity = bloqueado ? '.35' : '1';
+            b.style.cursor  = bloqueado ? 'not-allowed' : 'pointer';
+        });
+        ['btn-modo-auto', 'btn-modo-superv'].forEach(function (id) {
+            var b = docC.getElementById(id);
+            if (!b) return;
+            b.disabled      = bloqueado;
+            b.style.opacity = bloqueado ? '.4' : '1';
+            b.style.cursor  = bloqueado ? 'not-allowed' : 'pointer';
         });
         var btnP = docC.getElementById('btn-parar');
         if (btnP) {
-            btnP.disabled      = !rodando;
-            btnP.style.opacity = !rodando ? '.35' : '1';
-            btnP.style.cursor  = !rodando ? 'not-allowed' : 'pointer';
+            var emExecucao = !!(rodando || (AF.estado && AF.estado.rodando));
+            btnP.disabled      = !emExecucao;
+            btnP.style.opacity = !emExecucao ? '.35' : '1';
+            btnP.style.cursor  = !emExecucao ? 'not-allowed' : 'pointer';
         }
     }
 
@@ -117,7 +165,7 @@
         var itens = [
             'Analise <strong>todas</strong> as folhas de ponto.',
             'Gere o relat\u00F3rio e atue <strong>manualmente</strong> nas irregularidades encontradas.',
-            'Ap\u00F3s os ajustes manuais, clique em <strong>Ajustar</strong> e deixe o aplicativo mover e corrigir as folgas automaticamente.',
+            'Ap\u00F3s os ajustes manuais, clique em <strong>Ajustar</strong>. Escolha o modo <strong>Autom\u00E1tico</strong> (processa toda a lista) ou <strong>Supervisionado</strong> (confirma\u00E7\u00E3o pr\u00E9via folha a folha). Certifique-se de permitir popups do site.',
             'Gere o relat\u00F3rio novamente e navegue pelas folhas que ainda merecem aten\u00E7\u00E3o.',
             'A <strong>aprova\u00E7\u00E3o final</strong> de cada folha \u00E9 manual.'
         ];
@@ -188,6 +236,13 @@
 
             // log-box oculto — mantido para compatibilidade com 50-analisar.js e 40-fases.js
             '<div id="log-box" style="display:none;"></div>' +
+
+            // Controle de modo
+            '<div id="fpw-modo-container" style="display:flex;align-items:center;justify-content:center;gap:6px;padding:3px 10px;background:#0d1117;border-top:1px solid #1f2937;flex-shrink:0;">' +
+            '<span style="font-size:10px;color:#9ca3af;">Modo:</span>' +
+            '<button id="btn-modo-auto" type="button" title="Modo Autom\u00E1tico: percorre toda a lista" style="padding:2px 8px;font-size:10px;font-weight:600;border-radius:4px;border:1px solid #374151;cursor:pointer;font-family:inherit;">Autom\u00E1tico</button>' +
+            '<button id="btn-modo-superv" type="button" title="Modo Supervisionado: confirma\u00E7\u00E3o pr\u00E9via folha a folha" style="padding:2px 8px;font-size:10px;font-weight:600;border-radius:4px;border:1px solid #374151;cursor:pointer;font-family:inherit;">Supervisionado</button>' +
+            '</div>' +
 
             // Barra de status
             '<div style="display:flex;align-items:center;gap:6px;padding:5px 10px;' +
@@ -275,9 +330,41 @@
 
         docC.getElementById('btn-executar').onclick = async function () {
             AF.estado.cancelado = false;
-            setStatus(docC, 'Ajustando...', '#a78bfa');
-            await AF.fases.processarTodas();
+            var modo = obterModoAjuste();
+            if (modo === 'supervisionado') {
+                if (AF.supervisionado && typeof AF.supervisionado.iniciarConfirmacao === 'function') {
+                    await AF.supervisionado.iniciarConfirmacao();
+                } else {
+                    setStatus(docC, 'M\u00F3dulo supervisionado indispon\u00EDvel', '#f87171');
+                }
+            } else {
+                setStatus(docC, 'Ajustando...', '#a78bfa');
+                await AF.fases.processarTodas();
+            }
         };
+
+        var modoAtual = obterModoAjuste();
+        renderizarModo(docC, modoAtual);
+
+        var btnModoAuto = docC.getElementById('btn-modo-auto');
+        if (btnModoAuto) {
+            btnModoAuto.onclick = function () {
+                if (this.disabled) return;
+                modoAtual = 'automatico';
+                salvarModoAjuste(modoAtual);
+                renderizarModo(docC, modoAtual);
+            };
+        }
+
+        var btnModoSuperv = docC.getElementById('btn-modo-superv');
+        if (btnModoSuperv) {
+            btnModoSuperv.onclick = function () {
+                if (this.disabled) return;
+                modoAtual = 'supervisionado';
+                salvarModoAjuste(modoAtual);
+                renderizarModo(docC, modoAtual);
+            };
+        }
 
         docC.getElementById('btn-parar').onclick = function () {
             var execucaoAtiva = !!(AF.estado.execucaoAjuste && AF.estado.execucaoAjuste.ativa);
@@ -299,6 +386,13 @@
         // API pública para outros módulos
         AF.painel.setStatus    = function (t, c) { setStatus(docC, t, c); };
         AF.painel.setBtnCopiar = function (a)    { setBtnCopiar(docC, a); };
+        AF.painel.obterModo    = function ()     { return modoAtual; };
+        AF.painel.definirModo  = function (m) {
+            if (m !== 'automatico' && m !== 'supervisionado') return;
+            modoAtual = m;
+            salvarModoAjuste(modoAtual);
+            renderizarModo(docC, modoAtual);
+        };
         AF.painel.atualizarSessaoOracle = function (avaliacao) {
             atualizarSessaoOracle(docC, avaliacao);
         };
