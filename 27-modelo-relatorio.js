@@ -549,21 +549,50 @@
 
     // ── Filtros e Ordenação ─────────────────────────────────────────────
 
-    AF.modelo.filtrar = function (filtro) {
+    // Cada indicador filtrável decide, a partir dos dados derivados do funcionário, se ele o compõe.
+    var predicadosFiltro = {
+        semES: function (f) { return f.semES.total > 0; },
+        interj: function (f) { return f.interj.total > 0; },
+        britanica: function (f) { return f.britanica.total > 0; },
+        naoPreenchida: function (f) { return f.naoPreenchida.sinalizada; },
+        presas: function (f) { return f.folgas.presas > 0; },
+        // Movim.: tem folgas no indicador (a movimentar, movidas ou presas), antes e depois do Ajuste.
+        pendentes: function (f) { return f.folgas.den > 0; }
+    };
+
+    function normalizarFiltros(filtros) {
+        var lista = Array.isArray(filtros) ? filtros : (filtros ? [filtros] : []);
+        var vistos = {};
+        return lista.filter(function (id) {
+            if (!predicadosFiltro[id] || vistos[id]) return false;
+            vistos[id] = true;
+            return true;
+        });
+    }
+
+    function tokensDaBusca(busca) {
+        return normSort(String(busca == null ? '' : busca)).split(/\s+/).filter(Boolean);
+    }
+
+    function casaComBusca(nome, tokens) {
+        var alvo = normSort(nomeParaExportacao(nome));
+        return tokens.every(function (t) { return alvo.indexOf(t) !== -1; });
+    }
+
+    // filtros: lista de ids (ou um id); os indicadores se somam (união) e a busca por nome se combina por interseção.
+    AF.modelo.filtrar = function (filtros, busca) {
         var nomes = estado.ordem.length ? estado.ordem : Object.keys(estado.funcs);
-        if (!filtro) return nomes.slice();
+        var ids = normalizarFiltros(filtros);
+        var tokens = tokensDaBusca(busca);
+        if (!ids.length && !tokens.length) return nomes.slice();
 
         return nomes.filter(function (nome) {
-            var f = AF.modelo.obterDadosFunc(nome);
-            if (!f.processado) return false;
+            if (tokens.length && !casaComBusca(nome, tokens)) return false;
+            if (!ids.length) return true;
 
-            if (filtro === 'semES') return f.semES.total > 0;
-            if (filtro === 'interj') return f.interj.total > 0;
-            if (filtro === 'britanica') return f.britanica.total > 0;
-            if (filtro === 'naoPreenchida') return f.naoPreenchida.sinalizada;
-            if (filtro === 'presas') return f.folgas.presas > 0;
-            if (filtro === 'pendentes') return f.folgas.estado === 'pendente' && f.folgas.den > 0;
-            return true;
+            var f = AF.modelo.obterDadosFunc(nome);
+            if (!f.processado || f.vazia) return false;
+            return ids.some(function (id) { return predicadosFiltro[id](f); });
         });
     };
 
@@ -725,10 +754,19 @@
         pendentes: 'Movim.'
     };
 
-    AF.modelo.textoIrregularidadesTime = function (nomes, filtro) {
+    AF.modelo.rotuloFiltro = function (id) {
+        return rotulosFiltroIrregularidade[id] || String(id);
+    };
+
+    // filtros: lista de ids (ou um id); busca: texto digitado no campo de busca por nome.
+    AF.modelo.textoIrregularidadesTime = function (nomes, filtros, busca) {
         var mes = estado.mes || 'Não definido';
-        var rotulo = rotulosFiltroIrregularidade[filtro] || (filtro ? String(filtro) : '');
-        var titulo = '*Irregularidades – ' + mes + (rotulo ? ' – ' + rotulo : '');
+        var rotulos = (Array.isArray(filtros) ? filtros : (filtros ? [filtros] : []))
+            .map(AF.modelo.rotuloFiltro);
+        var textoBusca = String(busca == null ? '' : busca).trim();
+        var titulo = '*Irregularidades – ' + mes
+            + (rotulos.length ? ' – ' + rotulos.join(' + ') : '')
+            + (textoBusca ? ' – Busca: "' + textoBusca + '"' : '');
         var blocos = [];
         (nomes || []).forEach(function (nome) {
             var texto = AF.modelo.textoIrregularidades(nome);

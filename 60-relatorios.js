@@ -11,7 +11,8 @@
     var estadoVisao = {
         col: 'nome',
         dir: 1,
-        filtro: null,
+        filtros: [],
+        busca: '',
         extremo: null,
         selecionado: null
     };
@@ -107,9 +108,14 @@
             + 'tbody tr:hover{background:var(--tbl-row-hover)}'
             + 'tbody tr.active-row{background:var(--tbl-row-active)!important;outline:1px solid var(--tbl-row-active-outline)}'
             + 'tbody tr.row-unread{opacity:.45}'
-            + 'tbody tr.row-processing{background:rgba(59,130,246,.08);font-weight:500}'
+            + 'tbody tr.row-processing{font-weight:500;animation:pulse-row 1.4s ease-in-out infinite}'
+            + '@keyframes pulse-row{0%,100%{background:rgba(59,130,246,.08)}50%{background:rgba(59,130,246,.30)}}'
+            + '@media (prefers-reduced-motion:reduce){tbody tr.row-processing{animation:none;background:rgba(59,130,246,.18)}}'
             + 'td{padding:5px 10px;text-align:right;border-bottom:1px solid var(--border);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
             + 'td:first-child{text-align:left}'
+            + '.cell-nome{display:flex;align-items:center;min-width:0}'
+            + '.nome-txt{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}'
+            + 'td.cell-sem-marcacoes{text-align:center;color:var(--text-faint);font-style:italic}'
             + '.cell-chip{display:inline-block;padding:1px 6px;border-radius:4px;font-weight:600;font-size:11px}'
             + '.chip-blue{background:rgba(59,130,246,.15);color:#93c5fd}'
             + '.chip-orange{background:rgba(249,115,22,.15);color:#fdba74}'
@@ -119,15 +125,14 @@
             + '.btn-copy-irreg{border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text-muted);border-radius:4px;padding:2px 6px;cursor:pointer;font-size:11px}'
             + '.btn-copy-irreg:hover:not(:disabled){background:rgba(59,130,246,.2);color:#bfdbfe}'
             + '.btn-copy-irreg:disabled{opacity:.35;cursor:default}'
-            + '.badge{font-size:9px;padding:1px 5px;border-radius:99px;font-weight:600;margin-left:4px;vertical-align:middle}'
+            + '.badge{font-size:9px;padding:1px 5px;border-radius:99px;font-weight:600;margin-left:4px;vertical-align:middle;flex-shrink:0}'
             + '.badge-parcial{background:rgba(249,115,22,.2);color:#fdba74}'
-            + '.badge-vazia{background:rgba(148,163,184,.15);color:#94a3b8}'
-            + '.badge-proc{background:rgba(59,130,246,.25);color:#93c5fd;animation:pulse 1.5s infinite}'
-            + '@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}'
             + '.action-bar{display:flex;align-items:center;justify-content:space-between;padding:7px 14px;background:var(--surface2);border-top:1px solid var(--border);flex-shrink:0}'
             + '.btn{display:inline-flex;align-items:center;gap:5px;border:none;border-radius:5px;padding:5px 12px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit}'
             + '.btn-blue{background:#3b82f6;color:#fff}.btn-blue:hover{filter:brightness(1.15)}.btn-blue.ok{background:#22c55e}'
             + '.btn-gray{background:rgba(255,255,255,.08);color:var(--text);border:1px solid var(--border)}.btn-gray:hover{background:rgba(255,255,255,.14)}'
+            + '.busca{width:210px;background:rgba(255,255,255,.06);color:var(--text);border:1px solid var(--border);border-radius:5px;padding:5px 9px;font-size:11px;font-family:inherit}'
+            + '.busca:focus{outline:none;border-color:var(--blue)}'
             + '.notice-bar{display:none;background:#7c2d12;color:#ffedd5;padding:4px 12px;font-size:11px;text-align:center}'
             + '</style></head><body>'
             + '<div class="frame">'
@@ -135,6 +140,7 @@
             +   '<div class="hdr-row1">'
             +     '<div class="hdr-title" id="fpw-hdr-title">📊 Relatório do Time</div>'
             +     '<div class="hdr-actions">'
+            +       '<input type="search" class="busca" id="fpw-busca" placeholder="Buscar funcionário..." autocomplete="off" title="Buscar por nome (combina com os indicadores ativos)">'
             +       '<button class="btn btn-gray" id="btn-janela-log" title="Abrir janela de log completo">📜 Log</button>'
             +       '<button class="btn btn-blue" id="btn-janela-copiar">📋 Copiar TSV</button>'
             +     '</div>'
@@ -169,10 +175,11 @@
         return s + escaparHTML(semSinal(v));
     }
 
-    AF.relatorios.gerarCardsHTML = function (resumo, filtroAtivo, extremoAtivo) {
+    AF.relatorios.gerarCardsHTML = function (resumo, filtrosAtivos, extremoAtivo) {
+        var ativos = Array.isArray(filtrosAtivos) ? filtrosAtivos : (filtrosAtivos ? [filtrosAtivos] : []);
         function card(id, titulo, valor, sub, tip, extraClass) {
             var clicavel = !!id;
-            var ativo = clicavel && filtroAtivo === id;
+            var ativo = clicavel && ativos.indexOf(id) !== -1;
             var cls = 'card ' + (clicavel ? '' : 'card-static ') + (ativo ? 'card-active ' : '') + (extraClass || '');
             var dataAttr = clicavel ? ' data-filtro="' + id + '"' : '';
             var titleAttr = tip ? ' title="' + escaparHTML(tip) + '"' : '';
@@ -241,19 +248,24 @@
     };
     // ── Renderização do Cabeçalho da Tabela ───────────────────────────────
 
+    var COLUNAS_TABELA = [
+        { id: 'nome', label: 'Nome', align: 'left' },
+        { id: 'folgas', label: 'Folgas', align: 'right' },
+        { id: 'cod47', label: 'Cód 47', align: 'right' },
+        { id: 'semES', label: 'Sem E/S', align: 'right' },
+        { id: 'interj', label: 'Interj.', align: 'right' },
+        { id: 'britanica', label: 'Britânicas', align: 'right' },
+        { id: 'naoPreenchida', label: '% Não Preench.', align: 'right' },
+        { id: 'he', label: 'HE 100%', align: 'right' },
+        { id: 'hef', label: 'HEF 100%', align: 'right' },
+        { id: 'hec', label: 'HEC 70%', align: 'right' }
+    ];
+
+    // Colunas após o nome: as de dados e a do ícone de cópia.
+    var COLUNAS_APOS_NOME = COLUNAS_TABELA.length;
+
     AF.relatorios.gerarTheadHTML = function (sortCol, sortDir) {
-        var colunas = [
-            { id: 'nome', label: 'Nome', align: 'left' },
-            { id: 'folgas', label: 'Folgas', align: 'right' },
-            { id: 'cod47', label: 'Cód 47', align: 'right' },
-            { id: 'semES', label: 'Sem E/S', align: 'right' },
-            { id: 'interj', label: 'Interj.', align: 'right' },
-            { id: 'britanica', label: 'Britânicas', align: 'right' },
-            { id: 'naoPreenchida', label: '% Não Preench.', align: 'right' },
-            { id: 'he', label: 'HE 100%', align: 'right' },
-            { id: 'hef', label: 'HEF 100%', align: 'right' },
-            { id: 'hec', label: 'HEC 70%', align: 'right' }
-        ];
+        var colunas = COLUNAS_TABELA;
 
         var h = '';
         for (var i = 0; i < colunas.length; i++) {
@@ -308,10 +320,19 @@
             if (ehSel) trCls.push('active-row');
 
             var badges = '';
-            if (ehAtual) badges += '<span class="badge badge-proc">processando</span>';
             if (d.parcial) badges += '<span class="badge badge-parcial">parcial</span>';
-            if (d.vazia) badges += '<span class="badge badge-vazia">s/ marcações</span>';
 
+            var celulaNome = '<td title="' + escaparHTML(nome) + '"><div class="cell-nome"><span class="nome-txt">'
+                + escaparHTML(abrevNome(nome)) + '</span>' + badges + '</div></td>';
+            var atributosLinha = ' data-nome="' + escaparHTML(nome) + '"' + (ehAtual ? ' aria-current="true"' : '');
+
+            if (d.vazia) {
+                h += '<tr class="' + trCls.join(' ') + '"' + atributosLinha + '>'
+                    + celulaNome
+                    + '<td class="cell-sem-marcacoes" colspan="' + COLUNAS_APOS_NOME + '">Sem Marcações na Folha</td>'
+                    + '</tr>';
+                continue;
+            }
             // Chips de folgas e cod47
             var chipF = d.folgas.texto === '-' ? '<span class="chip-dash">-</span>' :
                 (d.folgas.estado === 'concluida' ? '<span class="cell-chip chip-blue">' + d.folgas.texto + '</span>' :
@@ -348,8 +369,8 @@
                 return '<span style="color:' + (neg ? 'var(--red)' : 'var(--green)') + ';font-weight:600">' + escaparHTML(v) + '</span>';
             }
 
-            h += '<tr class="' + trCls.join(' ') + '" data-nome="' + escaparHTML(nome) + '">'
-                + '<td title="' + escaparHTML(nome) + '">' + escaparHTML(abrevNome(nome)) + badges + '</td>'
+            h += '<tr class="' + trCls.join(' ') + '"' + atributosLinha + '>'
+                + celulaNome
                 + '<td>' + chipF + '</td>'
                 + '<td>' + chipC + '</td>'
                 + '<td>' + chipIrreg(d.semES.total, d.semES.dias, 'Sem Entrada/Saída') + '</td>'
@@ -409,7 +430,8 @@
 
     function obterNomesVisiveis(visao) {
         visao = visao || estadoVisao;
-        var filtrados = AF.modelo.filtrar(visao.filtro);
+        var filtros = visao.filtros || (visao.filtro ? [visao.filtro] : []);
+        var filtrados = AF.modelo.filtrar(filtros, visao.busca);
         return visao.extremo
             ? AF.modelo.ordenarPorExtremo(filtrados, visao.extremo.col, visao.extremo.modo, visao.extremo.sinal)
             : AF.modelo.ordenar(filtrados, visao.col, visao.dir);
@@ -435,7 +457,7 @@
             var resumo = AF.modelo.resumo();
             var cardsGrid = doc.getElementById('fpw-cards-grid');
             if (cardsGrid) {
-                cardsGrid.innerHTML = AF.relatorios.gerarCardsHTML(resumo, estadoVisao.filtro, estadoVisao.extremo);
+                cardsGrid.innerHTML = AF.relatorios.gerarCardsHTML(resumo, estadoVisao.filtros, estadoVisao.extremo);
                 cardsGrid.querySelectorAll('.mm[data-mm]').forEach(function (m) {
                     m.onclick = function (ev) {
                         if (ev && ev.stopPropagation) ev.stopPropagation();
@@ -450,7 +472,9 @@
                 cardsGrid.querySelectorAll('.card[data-filtro]').forEach(function (c) {
                     c.onclick = function () {
                         var f = this.getAttribute('data-filtro');
-                        estadoVisao.filtro = estadoVisao.filtro === f ? null : f;
+                        var pos = estadoVisao.filtros.indexOf(f);
+                        if (pos === -1) estadoVisao.filtros.push(f);
+                        else estadoVisao.filtros.splice(pos, 1);
                         atualizarJanelaDOM(win, true);
                     };
                 });
@@ -533,7 +557,8 @@
             var rodape = doc.getElementById('fpw-rodape-contagem');
             if (rodape) {
                 rodape.textContent = 'Exibindo ' + nomesOrdenados.length + ' de ' + est.ordem.length + ' funcionários'
-                    + (estadoVisao.filtro ? ' (Filtro ativo: ' + estadoVisao.filtro + ')' : '')
+                    + (estadoVisao.filtros.length ? ' (Filtros ativos: ' + estadoVisao.filtros.map(AF.modelo.rotuloFiltro).join(' + ') + ')' : '')
+                    + (estadoVisao.busca.trim() ? ' (Busca: "' + estadoVisao.busca.trim() + '")' : '')
                     + (ex ? ' (' + (ex.modo === 'min' ? 'menores' : 'maiores') + ' ' + ex.col.toUpperCase() + ', sem zerados)' : '');
             }
 
@@ -668,7 +693,7 @@
     }
 
     AF.relatorios.abrirExportacaoIrregularidades = function () {
-        var texto = AF.modelo.textoIrregularidadesTime(obterNomesVisiveis(), estadoVisao.filtro);
+        var texto = AF.modelo.textoIrregularidadesTime(obterNomesVisiveis(), estadoVisao.filtros, estadoVisao.busca);
         if (janelaIrregularidades && !janelaIrregularidades.closed) {
             janelaIrregularidades.focus();
             preencherJanelaIrregularidades(janelaIrregularidades, texto);
@@ -725,6 +750,22 @@
         if (btnCopiar) {
             btnCopiar.onclick = function () { copiarTSV(win); };
         }
+        var campoBusca = win.document.getElementById('fpw-busca');
+        if (campoBusca) {
+            var timerBusca = null;
+            campoBusca.value = estadoVisao.busca;
+            campoBusca.oninput = function () {
+                estadoVisao.busca = campoBusca.value;
+                var aplicar = function () { atualizarJanelaDOM(win, true); };
+                if (typeof win.setTimeout === 'function') {
+                    if (timerBusca !== null && typeof win.clearTimeout === 'function') win.clearTimeout(timerBusca);
+                    timerBusca = win.setTimeout(aplicar, 120);
+                } else {
+                    aplicar();
+                }
+            };
+        }
+
         var btnExportar = win.document.getElementById('btn-exportar-irregularidades');
         if (btnExportar) {
             btnExportar.onclick = function () { AF.relatorios.abrirExportacaoIrregularidades(); };

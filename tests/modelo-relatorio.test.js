@@ -453,3 +453,77 @@ test('exportacao usa a leitura mais recente e persiste os dias apos recarga', ()
     assert.equal(restored.AF.modelo.restaurar(), true);
     assert.equal(restored.AF.modelo.textoIrregularidades('ANA'), textoAntes);
 });
+function equipeParaFiltros() {
+    const { AF } = loadModelo();
+    AF.modelo.iniciarExecucao('analise', ['ANA SILVA 12', 'BIA SOUZA', 'CAIO ÁVILA', 'DINA', 'VAZIA SILVA', 'NOVO'], 'Setembro 2026');
+    AF.modelo.registrarAnalise('ANA SILVA 12', { folgas: 2, irregs: 1, interj: 1 });
+    AF.modelo.registrarAnalise('BIA SOUZA', { folgas: 0, interj: 2 });
+    AF.modelo.registrarAnalise('CAIO ÁVILA', { folgas: 0, britanica: 1 });
+    AF.modelo.registrarAnalise('DINA', { folgas: 0 });
+    AF.modelo.registrarSemMarcacoes('VAZIA SILVA', 'analise');
+    return AF;
+}
+
+test('filtros por indicador se somam sem duplicar quem tem mais de um', () => {
+    const AF = equipeParaFiltros();
+
+    assert.deepEqual(plain(AF.modelo.filtrar(['semES'])), ['ANA SILVA 12']);
+    assert.deepEqual(plain(AF.modelo.filtrar(['semES', 'interj'])), ['ANA SILVA 12', 'BIA SOUZA']);
+    assert.deepEqual(plain(AF.modelo.filtrar(['interj', 'britanica', 'semES'])),
+        ['ANA SILVA 12', 'BIA SOUZA', 'CAIO ÁVILA']);
+    assert.deepEqual(plain(AF.modelo.filtrar(['semES', 'semES'])), ['ANA SILVA 12']);
+});
+
+test('indicadores ativos excluem nao processados e folhas sem marcacoes; sem indicador tudo aparece', () => {
+    const AF = equipeParaFiltros();
+
+    assert.equal(AF.modelo.filtrar([]).length, 6);
+    assert.equal(AF.modelo.filtrar(null).length, 6);
+    const comIndicador = plain(AF.modelo.filtrar(['semES', 'interj', 'britanica', 'pendentes', 'presas', 'naoPreenchida']));
+    assert.ok(!comIndicador.includes('NOVO'));
+    assert.ok(!comIndicador.includes('VAZIA SILVA'));
+});
+
+test('Movim. lista quem tem folgas depois da Analise e depois do Ajuste, inclusive presas', () => {
+    const AF = equipeParaFiltros();
+    assert.deepEqual(plain(AF.modelo.filtrar(['pendentes'])), ['ANA SILVA 12']);
+
+    AF.modelo.iniciarExecucao('ajuste', null);
+    AF.modelo.registrarAjuste('ANA SILVA 12', { movidas: 2, presas: [], cod47Conv: 0, cod47Rest: 0 });
+    AF.modelo.registrarAjuste('BIA SOUZA', { movidas: 0, presas: [{ fase: 1, dataFolga: '02/09/2026', motivo: 'x' }], cod47Conv: 0, cod47Rest: 0 });
+    AF.modelo.registrarAjuste('DINA', { movidas: 0, presas: [], cod47Conv: 0, cod47Rest: 0 });
+
+    assert.deepEqual(plain(AF.modelo.filtrar(['pendentes'])), ['ANA SILVA 12', 'BIA SOUZA']);
+    assert.deepEqual(plain(AF.modelo.filtrar(['presas'])), ['BIA SOUZA']);
+    assert.deepEqual(plain(AF.modelo.filtrar('pendentes')), ['ANA SILVA 12', 'BIA SOUZA']);
+});
+
+test('busca por nome ignora acentos, caixa e sufixo numerico e exige todas as palavras', () => {
+    const AF = equipeParaFiltros();
+
+    assert.deepEqual(plain(AF.modelo.filtrar([], 'silva')), ['ANA SILVA 12', 'VAZIA SILVA']);
+    assert.deepEqual(plain(AF.modelo.filtrar([], 'avila')), ['CAIO ÁVILA']);
+    assert.deepEqual(plain(AF.modelo.filtrar([], 'ÁVILA caio')), ['CAIO ÁVILA']);
+    assert.deepEqual(plain(AF.modelo.filtrar([], '12')), []);
+    assert.deepEqual(plain(AF.modelo.filtrar([], 'ana souza')), []);
+    assert.equal(AF.modelo.filtrar([], '   ').length, 6);
+});
+
+test('busca se combina por intersecao com os indicadores e sem indicador inclui nao processados', () => {
+    const AF = equipeParaFiltros();
+
+    assert.deepEqual(plain(AF.modelo.filtrar(['interj'], 'silva')), ['ANA SILVA 12']);
+    assert.deepEqual(plain(AF.modelo.filtrar(['interj', 'britanica'], 'souza')), ['BIA SOUZA']);
+    assert.deepEqual(plain(AF.modelo.filtrar([], 'novo')), ['NOVO']);
+    assert.deepEqual(plain(AF.modelo.filtrar(['interj'], 'novo')), []);
+});
+
+test('titulo da exportacao indica todos os filtros e a busca, preservando o formato com um filtro', () => {
+    const AF = equipeParaFiltros();
+
+    assert.match(AF.modelo.textoIrregularidadesTime([], ['semES', 'interj']), /^\*Irregularidades – Setembro 2026 – Sem Entrada\/Saída \+ Interjornada\n/);
+    assert.match(AF.modelo.textoIrregularidadesTime([], ['britanica']), /^\*Irregularidades – Setembro 2026 – Marc\. Britânicas\n/);
+    assert.match(AF.modelo.textoIrregularidadesTime([], [], ' silva '), /^\*Irregularidades – Setembro 2026 – Busca: "silva"\n/);
+    assert.match(AF.modelo.textoIrregularidadesTime([], ['interj'], 'souza'), /^\*Irregularidades – Setembro 2026 – Interjornada – Busca: "souza"\n/);
+    assert.match(AF.modelo.textoIrregularidadesTime([], []), /^\*Irregularidades – Setembro 2026\n/);
+});

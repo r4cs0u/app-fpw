@@ -65,7 +65,8 @@ test('3.1: gerarTheadHTML, gerarCardsHTML e gerarTbodyHTML produzem marcação c
 
     const tbody = AF.relatorios.gerarTbodyHTML(['ANA', 'BIA'], 'ANA', null);
     assert.match(tbody, /row-processing/);
-    assert.match(tbody, /badge-proc/);
+    assert.match(tbody, /aria-current="true"/);
+    assert.doesNotMatch(tbody, /processando|badge-proc/);
     assert.match(tbody, /chip-blue/); // folgas 5
     assert.match(tbody, /73%/); // nao preenchida
     assert.match(tbody, /Sem Entrada\/Saída: 02\/09\/2026/); // tooltip
@@ -170,14 +171,58 @@ test('cliques dos indicadores: Movim. filtra pendentes, Presas filtra presas, e 
     assert.equal((comFiltro.match(/card-active/g) || []).length, 1);
 });
 
-test('linha de folha sem marcacoes mostra "-" nas colunas e o selo s/ marcacoes', () => {
+test('linha de folha sem marcacoes mostra o nome e uma unica celula mesclada, sem selo nem "-" por coluna', () => {
     const AF = loadRelatorios();
     AF.modelo.iniciarExecucao('analise', ['VAZIA']);
     AF.modelo.registrarSemMarcacoes('VAZIA', 'analise');
     const tbody = AF.relatorios.gerarTbodyHTML(['VAZIA'], null, null);
-    assert.match(tbody, /badge-vazia/);
-    assert.equal((tbody.match(/chip-dash/g) || []).length, 9);
-    assert.doesNotMatch(tbody, /chip-zero/);
+    const thead = AF.relatorios.gerarTheadHTML('nome', 1);
+    const colunas = (thead.match(/<th\b/g) || []).length;
+
+    assert.equal((tbody.match(/<td\b/g) || []).length, 2);
+    assert.match(tbody, new RegExp('<td class="cell-sem-marcacoes" colspan="' + (colunas - 1) + '">Sem Marcações na Folha</td>'));
+    assert.doesNotMatch(tbody, /badge-vazia|s\/ marca/);
+    assert.doesNotMatch(tbody, /chip-dash|chip-zero/);
+});
+
+test('linha em processamento pulsa sem texto de status e as demais nao', () => {
+    const AF = loadRelatorios();
+    AF.modelo.iniciarExecucao('analise', ['ANA', 'BIA']);
+    AF.modelo.registrarAnalise('ANA', { folgas: 1, cod47: 0, irregs: 0, interj: 0, britanica: 0 });
+
+    const tbody = AF.relatorios.gerarTbodyHTML(['ANA', 'BIA'], 'BIA', null);
+    const linhas = tbody.split('</tr>').filter(Boolean);
+
+    assert.match(linhas[1], /row-processing/);
+    assert.doesNotMatch(linhas[0], /row-processing|aria-current/);
+    assert.doesNotMatch(tbody, /processando/);
+    const esqueleto = AF.relatorios.gerarEsqueletoHTML();
+    assert.match(esqueleto, /@keyframes pulse-row/);
+    assert.match(esqueleto, /prefers-reduced-motion/);
+    assert.doesNotMatch(esqueleto, /badge-proc/);
+});
+
+test('selo de parcial fica fora do trecho truncavel do nome', () => {
+    const AF = loadRelatorios();
+    AF.modelo.iniciarExecucao('ajuste', ['MARIA DA SILVA SOUZA']);
+    AF.modelo.registrarAjusteParcial('MARIA DA SILVA SOUZA', { movidas: 1, presas: [] });
+
+    const tbody = AF.relatorios.gerarTbodyHTML(['MARIA DA SILVA SOUZA'], null, null);
+
+    assert.match(tbody, /<span class="nome-txt">[^<]+<\/span><span class="badge badge-parcial">parcial<\/span>/);
+    const esqueleto = AF.relatorios.gerarEsqueletoHTML();
+    assert.match(esqueleto, /\.nome-txt\{[^}]*text-overflow:ellipsis/);
+    assert.match(esqueleto, /\.badge\{[^}]*flex-shrink:0/);
+});
+
+test('linha sem marcacoes some com filtro por indicador e aparece sem filtro', () => {
+    const AF = loadRelatorios();
+    AF.modelo.iniciarExecucao('analise', ['VAZIA', 'ANA']);
+    AF.modelo.registrarSemMarcacoes('VAZIA', 'analise');
+    AF.modelo.registrarAnalise('ANA', { folgas: 0, cod47: 0, irregs: 2, interj: 0, britanica: 0 });
+
+    assert.deepEqual(Array.from(AF.modelo.filtrar(null)), ['VAZIA', 'ANA']);
+    assert.deepEqual(Array.from(AF.modelo.filtrar('semES')), ['ANA']);
 });
 function equipeParaCards(AF) {
     AF.modelo.iniciarExecucao('analise', ['ANA', 'BIA', 'CAIO']);
@@ -268,7 +313,7 @@ function janelaComElementos(copiados = [], timeouts = []) {
         return e;
     }
     ['fpw-hdr-meta', 'fpw-cards-grid', 'fpw-thead-tr', 'fpw-tbody', 'fpw-rodape-contagem', 'fpw-notice-bar',
-        'btn-janela-log', 'btn-janela-copiar', 'btn-exportar-irregularidades'].forEach(el);
+        'btn-janela-log', 'btn-janela-copiar', 'btn-exportar-irregularidades', 'fpw-busca'].forEach(el);
     const win = {
         closed: false, focus() {},
         setTimeout: callback => { timeouts.push(callback); return timeouts.length; },
@@ -446,4 +491,101 @@ test('relatorio copia por funcionario sem propagar clique e exporta a mesma list
     botaoFalha.onclick({ stopPropagation() {} });
     await new Promise(resolve => setImmediate(resolve));
     assert.match(elementos.get('fpw-notice-bar').textContent, /Não foi possível copiar/);
+});
+test('linha sem marcacoes continua fora do TSV, do texto de irregularidades e da exportacao do time', () => {
+    const AF = loadRelatorios();
+    AF.modelo.iniciarExecucao('analise', ['VAZIA', 'ANA']);
+    AF.modelo.registrarSemMarcacoes('VAZIA', 'analise');
+    AF.modelo.registrarAnalise('ANA', { folgas: 0, cod47: 0, irregs: 1, interj: 0, britanica: 0, dias: { semES: [{ data: '02/09/2026' }] } });
+
+    assert.equal(AF.modelo.textoIrregularidades('VAZIA'), '');
+    assert.doesNotMatch(AF.modelo.tsv(), /VAZIA/);
+    const exportacao = AF.modelo.textoIrregularidadesTime(['VAZIA', 'ANA'], null);
+    assert.doesNotMatch(exportacao, /VAZIA/);
+    assert.match(exportacao, /\*ANA/);
+});
+
+function equipeParaJanela(AF) {
+    AF.modelo.iniciarExecucao('analise', ['ANA SILVA', 'BIA SOUZA', 'CAIO SILVA', 'DINA'], 'Outubro 2026');
+    AF.modelo.registrarAnalise('ANA SILVA', { irregs: 1, dias: { semES: ['03/10/2026'] } });
+    AF.modelo.registrarAnalise('BIA SOUZA', { interj: 1, dias: { interj: ['04/10/2026'] } });
+    AF.modelo.registrarAnalise('CAIO SILVA', { interj: 1, irregs: 1, dias: { interj: ['05/10/2026'], semES: ['06/10/2026'] } });
+    AF.modelo.registrarAnalise('DINA', { folgas: 0 });
+}
+
+function cardPorFiltro(elementos, id) {
+    return elementos.get('fpw-cards-grid').querySelectorAll('.card[data-filtro]')
+        .find(card => card.getAttribute() === id);
+}
+
+test('janela: indicadores se somam, cada clique liga ou desliga so o indicador clicado e o rodape lista os filtros', () => {
+    const { win, elementos } = janelaComElementos();
+    const AF = loadRelatorios(() => win);
+    equipeParaJanela(AF);
+    AF.relatorios.abrirJanela();
+
+    cardPorFiltro(elementos, 'semES').onclick();
+    assert.deepEqual(ordemDaTabela(elementos), ['ANA SILVA', 'CAIO SILVA']);
+
+    cardPorFiltro(elementos, 'interj').onclick();
+    assert.deepEqual(ordemDaTabela(elementos), ['ANA SILVA', 'BIA SOUZA', 'CAIO SILVA']);
+    assert.equal((elementos.get('fpw-cards-grid').innerHTML.match(/card-active/g) || []).length, 2);
+    assert.match(elementos.get('fpw-rodape-contagem').textContent, /Filtros ativos: Sem Entrada\/Saída \+ Interjornada/);
+
+    cardPorFiltro(elementos, 'interj').onclick();
+    assert.deepEqual(ordemDaTabela(elementos), ['ANA SILVA', 'CAIO SILVA']);
+
+    cardPorFiltro(elementos, 'semES').onclick();
+    assert.deepEqual(ordemDaTabela(elementos).length, 4);
+    assert.doesNotMatch(elementos.get('fpw-rodape-contagem').textContent, /Filtros ativos/);
+});
+
+test('janela: busca por nome filtra, combina com indicadores, persiste nas atualizacoes e entra na exportacao', () => {
+    const timeouts = [];
+    const { win, elementos } = janelaComElementos([], timeouts);
+    const exportElements = new Map();
+    const exportWin = {
+        closed: false, focus() {},
+        setTimeout() { return 1; },
+        navigator: { clipboard: { writeText: () => Promise.resolve() } },
+        document: {
+            open() {}, close() {},
+            write(html) {
+                for (const m of html.matchAll(/id="([^"]+)"/g)) {
+                    exportElements.set(m[1], { textContent: '', classList: { add() {}, remove() {} }, onclick: null });
+                }
+            },
+            getElementById: id => exportElements.get(id) || null
+        }
+    };
+    const AF = loadRelatorios((url, name) => name === 'fpw-relatorio' ? win : exportWin);
+    equipeParaJanela(AF);
+    AF.relatorios.abrirJanela();
+
+    const busca = elementos.get('fpw-busca');
+    busca.value = 'silva';
+    busca.oninput();
+    while (timeouts.length) timeouts.shift()();
+    assert.deepEqual(ordemDaTabela(elementos), ['ANA SILVA', 'CAIO SILVA']);
+
+    cardPorFiltro(elementos, 'interj').onclick();
+    assert.deepEqual(ordemDaTabela(elementos), ['CAIO SILVA']);
+    assert.match(elementos.get('fpw-rodape-contagem').textContent, /Busca: "silva"/);
+
+    // atualizacao do modelo com busca e indicador ativos: ambos permanecem e o campo nao e reconstruido
+    AF.modelo.registrarAnalise('DINA', { folgas: 0, interj: 1, dias: { interj: ['07/10/2026'] } });
+    AF.relatorios.abrirJanela();
+    assert.deepEqual(ordemDaTabela(elementos), ['CAIO SILVA']);
+    assert.equal(busca.value, 'silva');
+
+    elementos.get('btn-exportar-irregularidades').onclick();
+    const texto = exportElements.get('fpw-irregularidades-texto').textContent;
+    assert.match(texto, /^\*Irregularidades – Outubro 2026 – Interjornada – Busca: "silva"\n/);
+    assert.match(texto, /\*CAIO SILVA/);
+    assert.doesNotMatch(texto, /\*BIA SOUZA|\*DINA/);
+
+    busca.value = '';
+    busca.oninput();
+    while (timeouts.length) timeouts.shift()();
+    assert.deepEqual(ordemDaTabela(elementos), ['BIA SOUZA', 'CAIO SILVA', 'DINA']);
 });
