@@ -15,4 +15,4 @@
 
 - [x] 3.1 Atualizar `SSD.md` (módulo `38-preanalise.js` e a regra de listagem de folgas) e o `ROADMAP.md`; verificar com `Select-String -Pattern 'preanalise|pré-análise' SSD.md ROADMAP.md`.
 - [x] 3.2 Rodar `node --test` completo e `openspec validate supervised-preanalysis --strict`, sem falhas.
-- [ ] 3.3 Validação de runtime somente de leitura na branch `test`: em algumas folhas, comparar o texto da pré-análise com a leitura da Análise e com a folha exibida, sem Ajustar; registrar no `ROADMAP.md`.
+- [x] 3.3 Validação de runtime somente de leitura na branch `test`: em algumas folhas, comparar o texto da pré-análise com a leitura da Análise e com a folha exibida, sem Ajustar; registrar no `ROADMAP.md`.

@@ -92,7 +92,7 @@ Ordem do mais simples ao mais complexo, confirmada em 2026-10-07: sons (item 0),
 | G | `report-row-adjustment-detail` | Melhoria 6 | Novo dado no modelo + UI | Médio |
 | Fase 4 | `extract-phase4-decision` (sem mudança de especificação) | Etapa 3 | Função pura testada, validada via MCP e arquivada em 2026-10-07 | Médio |
 | H | `oracle-session-keepalive` | Melhoria 1 | Investigação via MCP e sentinela implementados (234 testes) | Baixo |
-| I1 | `supervised-preanalysis` | Melhoria 3 | Pré-análise somente leitura implementada (`38-preanalise.js`, 239 testes) | Médio |
+| I1 | `supervised-preanalysis` | Melhoria 3 | Pré-análise somente leitura validada via MCP (`38-preanalise.js`, 240 testes) | Médio |
 | I2 | `adjustment-mode-selector` | Melhoria 3 | Seletor Automático/Supervisionado, confirmação, travas | Alto |
 
 **0. Sons (`fix-run-sounds`).** O relatório é vivo, então o som de cópia ao abrir o Relatório deixa de existir e o som de conclusão perde o atraso de 900 ms. O som de início do Ajuste passa a tocar só depois das pré-condições; interrupção por erro ganha um som de falha próprio; Parar só toca com execução em andamento; cada execução toca um único som de desfecho (conclusão, parada ou falha). O modo Supervisionado (I2) reaproveita esse contrato e acrescenta um som de atenção ao abrir a confirmação. Estado: implementada e arquivada em 2026-10-07 (`2026-10-07-fix-run-sounds`; capacidade durável `run-sounds`), com a validação manual de som arquivada como tarefa não marcada.
@@ -116,7 +116,7 @@ Ordem do mais simples ao mais complexo, confirmada em 2026-10-07: sons (item 0),
 - Descobertas: a pré-análise é leitura e pode reutilizar `AF.analisar` (folgas, código 47, horas), o detector e o intervalo de `selecionarDiasCod47`. O planejamento das Fases 1 a 3 é por rodada e refeito após cada popup (`planejarFase1Rodada` retorna uma ação por vez), então destino e origem de cada folga não podem ser previstos por completo sem executar. A pré-análise deve listar as folgas a movimentar e os dias de código 47, não o plano completo; os valores finais aparecem em G.
 - Pré-requisito recomendado: a extração pura da decisão da Fase 4 (próximo passo da Etapa 3), que dá à pré-análise a mesma regra usada na gravação.
 - A pré-análise não grava nada; a confirmação humana antes da gravação reforça a Etapa 4 e exige validação de runtime controlada.
-- Divisão sugerida: I1 (`supervised-preanalysis`), pré-análise somente leitura e testada (implementada em 2026-10-07 com 239 testes); I2 (`adjustment-mode-selector`), seletor de modo, confirmação e travas (modo fixo durante execução, persistência da escolha, interação com Parar).
+- Divisão sugerida: I1 (`supervised-preanalysis`), pré-análise somente leitura implementada e validada em runtime via MCP em 2026-10-07 (`38-preanalise.js`, 240 testes aprovados); I2 (`adjustment-mode-selector`), seletor de modo, confirmação e travas (modo fixo durante execução, persistência da escolha, interação com Parar).
 
 Decisões do responsável em 2026-10-07:
 1. Ordem: sons, D+E, F, G, extração da Fase 4, H, I1, I2. A extração da Fase 4 precede H e I, que reutilizam a mesma regra; isso substitui a ordem do acordo de 2026-10-06 (Fase 4 e keepalive antes das melhorias).
