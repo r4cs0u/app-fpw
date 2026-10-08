@@ -72,7 +72,7 @@ Evoluir primeiro a previsibilidade, a capacidade de testar e a segurança operac
 
 **Concluída quando:** não é uma entrega única. Cada funcionalidade aprovada tem critérios de aceitação, validação compatível com seu risco e decisão explícita sobre eventual promoção para a linha estável.
 
-**Progresso:** A, B e C foram concluídas e arquivadas; seus requisitos duráveis estão em `openspec/specs/`. Todas estão publicadas apenas na branch `test`, sem promoção para `main`; a promoção fica para depois de mais melhorias e validações na versão de teste. A validação de C em runtime foi somente leitura via MCP e não incluiu Análise nem Ajuste. Ao promover, considerar que `main` tem o commit `74524c6` (reversão de uma promoção anterior) que `test` não tem; verificar o que ele reverteu antes de integrar.
+**Progresso:** A, B e C foram concluídas e arquivadas; seus requisitos duráveis estão em `openspec/specs/`. Todas estão publicadas na linha `test` e foram promovidas para `main` na versão 10.0 em 2026-10-07 (ver Pendências conhecidas). A validação de C em runtime foi somente leitura via MCP e não incluiu Análise nem Ajuste. A observação sobre o commit `74524c6` (reversão de uma promoção anterior, só em `main`) foi tratada na promoção: a árvore de `main` foi forçada para a da release.
 
 1. **`sheet-detector-and-log` (A, concluída e arquivada):** fundação com detector de folha unificado e log estruturado.
 2. **`unified-live-report` (B, concluída e arquivada):** modelo único por funcionário (`27-modelo-relatorio.js`), Análise e Ajuste coexistindo, botão Relatório sempre disponível com janela ao vivo (`60-relatorios.js`), frações de progresso (`movidas/(movidas+presas)`), cores por estado, colunas abertas de irregularidade, indicadores no topo com filtros rápidos e persistência na sessão.
@@ -132,7 +132,7 @@ Interpretações assumidas nas changes, a corrigir se não forem a intenção: (
 
 ## Pendências conhecidas
 
-- **Promoção para `main`:** adiada por decisão do responsável; ainda há melhorias e validações previstas na versão de teste. Ver a observação sobre o commit `74524c6` na Etapa 5.
+- **Promoção para `main` (concluída em 2026-10-07, versão 10.0):** a linha `test` (commit `bdb96ed`) foi promovida por um commit de merge em `main` (`3aa28a0`) cuja árvore é exatamente a da branch `release/10.0`, e não por um merge comum: o commit `74524c6` (reversão de uma promoção anterior, só em `main`) faria um merge direto manter arquivos apagados, como os módulos novos. A release removeu a identidade de teste (`85-ambiente.js`, versão `-test`, `BASE` e `@updateURL` de `test`), passou a apontar o loader e o `@updateURL` para `main` e levou tudo (código, testes, OpenSpec e documentação). Rollback: tag `main-9.4-estavel` (v9.4, `74524c6`). Procedimento para as próximas promoções: criar `release/X` a partir de `test`, trocar a identidade, rodar `node --test`, validar a disponibilidade dos arquivos e integrar com o mesmo método. Validação de runtime pós-corte: ver o fim desta seção quando for feita.
 - **Keepalive (`iniciarKeepAlive`), segunda ação prevista, depois da extração da Fase 4:** hoje faz um `GET` no WebPonto a cada 2 min e, com `oracle-session-keepalive`, monitora e acompanha a sessão da aba Oracle via pulso sentinela compartilhado sem afetar automações. Pendente apenas promoção conjunta para a linha estável.
 
 ## Princípios para a execução
