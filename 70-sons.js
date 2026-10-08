@@ -69,22 +69,20 @@
             ]);
         },
 
-        // Fim bem-sucedido — jingle positivo Dó-Mi-Sol
-        // offsetMs: 900ms para aguardar o som de 'copia' terminar (~200ms)
-        // pois habilitarCopiar() dispara copia antes de retornar ao caller que dispara fim
+        // Fim bem-sucedido — jingle positivo Dó-Mi-Sol, sem atraso inicial
         fim: function () {
             sequencia([
                 { freq: 523, dur: 0.12, delay: 0.14 },   // Dó
                 { freq: 659, dur: 0.12, delay: 0.14 },   // Mi
                 { freq: 784, dur: 0.25 }                 // Sol
-            ], 900);
+            ]);
         },
 
-        // Relatório pronto para copiar — clique duplo suave (toca imediatamente)
-        copia: function () {
+        // Falha — duas notas graves descendentes em onda quadrada, distintas da parada
+        falha: function () {
             sequencia([
-                { freq: 1000, dur: 0.08, vol: 0.2, delay: 0.12 },
-                { freq: 1000, dur: 0.08, vol: 0.2 }
+                { freq: 330, dur: 0.15, vol: 0.22, forma: 'square', delay: 0.18 },
+                { freq: 220, dur: 0.35, vol: 0.22, forma: 'square' }
             ]);
         },
 
@@ -94,11 +92,19 @@
                 { freq: 700, dur: 0.15, delay: 0.18 },
                 { freq: 550, dur: 0.40, vol: 0.25, forma: 'sine' }
             ]);
+        },
+
+        // Atenção / Confirmação no modo supervisionado — dois tons suaves
+        atencao: function () {
+            sequencia([
+                { freq: 587, dur: 0.12, vol: 0.20, delay: 0.14 },
+                { freq: 740, dur: 0.18, vol: 0.20 }
+            ]);
         }
     };
 
     // ── API pública ────────────────────────────────────────────────────
-    // AF.sons.tocar('inicio' | 'fim' | 'copia' | 'parada')
+    // AF.sons.tocar('inicio' | 'fim' | 'falha' | 'parada' | 'atencao')
 
     AF.sons.tocar = function (tipo) {
         try {

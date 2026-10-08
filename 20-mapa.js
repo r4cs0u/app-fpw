@@ -4,34 +4,29 @@
     var AF = window.AutomacaoFolha;
     AF.mapa = AF.mapa || {};
 
-    AF.mapa.obterDataDoInput = function (inp) {
-        var el = inp.closest('tr');
-        while (el) {
-            var anterior = el.previousElementSibling;
-            if (anterior) {
-                var texto = (anterior.innerText || anterior.textContent || '');
-                var m = texto.match(/(\d{2}\/\d{2}\/\d{4})/);
-                if (m) return m[1];
-                el = anterior;
-                continue;
-            }
-            var pai = el.parentElement;
-            if (!pai) break;
-            var paiAnterior = pai.previousElementSibling;
-            if (paiAnterior) {
-                var filhos = paiAnterior.querySelectorAll('tr');
-                if (filhos.length > 0) {
-                    var ultima = filhos[filhos.length - 1];
-                    var texto2 = (ultima.innerText || ultima.textContent || '');
-                    var m2 = texto2.match(/(\d{2}\/\d{2}\/\d{4})/);
-                    if (m2) return m2[1];
-                    el = ultima;
-                    continue;
-                }
-            }
-            el = pai;
+    function obterTextoDaLinhaComData(el) {
+        if (!el) return '';
+
+        var tag = String(el.tagName || '').toUpperCase();
+        if (tag === 'TR') {
+            var textoLinha = String(el.innerText || el.textContent || '');
+            return /\d{2}\/\d{2}\/\d{4}/.test(textoLinha) ? textoLinha : '';
         }
-        return null;
+
+        var linhas = typeof el.querySelectorAll === 'function'
+            ? el.querySelectorAll('tr')
+            : [];
+        for (var i = linhas.length - 1; i >= 0; i--) {
+            var texto = String(linhas[i].innerText || linhas[i].textContent || '');
+            if (/\d{2}\/\d{2}\/\d{4}/.test(texto)) return texto;
+        }
+        return '';
+    }
+
+    AF.mapa.obterDataDoInput = function (inp) {
+        var texto = AF.mapa.obterCabecalhoDoDia(inp);
+        var m = String(texto || '').match(/(\d{2}\/\d{2}\/\d{4})/);
+        return m ? m[1] : null;
     };
 
     AF.mapa.obterCabecalhoDoDia = function (inp) {
@@ -39,8 +34,8 @@
         while (el) {
             var anterior = el.previousElementSibling;
             if (anterior) {
-                var texto = (anterior.innerText || anterior.textContent || '');
-                if (/\d{2}\/\d{2}\/\d{4}/.test(texto)) return texto;
+                var texto = obterTextoDaLinhaComData(anterior);
+                if (texto) return texto;
                 el = anterior;
                 continue;
             }
@@ -48,12 +43,13 @@
             if (!pai) break;
             var paiAnterior = pai.previousElementSibling;
             if (paiAnterior) {
-                var filhos = paiAnterior.querySelectorAll('tr');
+                var texto2 = obterTextoDaLinhaComData(paiAnterior);
+                if (texto2) return texto2;
+                var filhos = typeof paiAnterior.querySelectorAll === 'function'
+                    ? paiAnterior.querySelectorAll('tr')
+                    : [];
                 if (filhos.length > 0) {
-                    var ultima = filhos[filhos.length - 1];
-                    var texto2 = (ultima.innerText || ultima.textContent || '');
-                    if (/\d{2}\/\d{2}\/\d{4}/.test(texto2)) return texto2;
-                    el = ultima;
+                    el = filhos[filhos.length - 1];
                     continue;
                 }
             }
@@ -62,22 +58,25 @@
         return '';
     };
 
-    AF.mapa.mapearFolhaAtual = function () {
-        var dataAlvo = AF.utils.mesAlvoDaTabela();
+    AF.mapa.construirMapaFolha = function (dataAlvo, itens) {
+        dataAlvo = dataAlvo || new Date();
+        itens = itens || [];
+
         var ultimoDia = new Date(dataAlvo.getFullYear(), dataAlvo.getMonth() + 1, 0);
         var ultimaSemanaId = AF.utils.semanaIdBR(ultimoDia);
         var inicioUltimaSemana = AF.utils.inicioSemanaBR(ultimoDia);
 
         var semanas = {};
         var lista = [];
-        var inputs = Array.from(AF.core.getDoc1().querySelectorAll('input[name^="Irre"]'));
 
-        for (var i = 0; i < inputs.length; i++) {
-            var inp = inputs[i];
-            var dataStr = AF.mapa.obterDataDoInput(inp);
+        for (var i = 0; i < itens.length; i++) {
+            var rawItem = itens[i];
+            if (!rawItem) continue;
+
+            var dataStr = rawItem.dataStr;
             if (!dataStr) continue;
 
-            var dataObj = AF.utils.parseDataBR(dataStr);
+            var dataObj = rawItem.dataObj || AF.utils.parseDataBR(dataStr);
             if (!dataObj) continue;
 
             var ehMesAlvo = AF.utils.ehMesAlvo(dataObj, dataAlvo);
@@ -92,6 +91,7 @@
                     folgas: [],
                     folgasVisiveis: [],
                     folgasOcultas: [],
+                    domingosOcultos: [],
                     ausencias: [],
                     ausenciasMes: [],
                     feriados: [],
@@ -101,12 +101,12 @@
             }
 
             var item = {
-                inp: inp,
-                num: (inp.name || '').replace('Irre', ''),
+                inp: rawItem.inp,
+                num: String(rawItem.num != null ? rawItem.num : (rawItem.name || '').replace('Irre', '')),
                 dataStr: dataStr,
                 dataObj: dataObj,
-                valor: String(inp.value || '').trim(),
-                cabecalho: AF.mapa.obterCabecalhoDoDia(inp) || '',
+                valor: String(rawItem.valor != null ? rawItem.valor : (rawItem.value || '')).trim(),
+                cabecalho: String(rawItem.cabecalho || ''),
                 semanaId: semId,
                 foraDoMes: !ehMesAlvo
             };
@@ -160,6 +160,9 @@
                     inicioSem.getDate() + dd
                 );
                 var ddtStr = AF.utils.fmtDataBR(ddt);
+                if (ddt.getDay() === 0 && !sem.datasRegistradas[ddtStr]) {
+                    sem.domingosOcultos.push(ddtStr);
+                }
                 if (!sem.datasRegistradas[ddtStr] && feriadosRJ.has(ddtStr)) {
                     sem.feriadosOcultos.push(ddtStr);
                 }
@@ -172,6 +175,32 @@
             semanas: semanas,
             lista: lista
         };
+    };
+
+    AF.mapa.coletarItensFolha = function () {
+        var itens = [];
+        var inputs = Array.from(AF.core.getDoc1().querySelectorAll('input[name^="Irre"]'));
+
+        for (var i = 0; i < inputs.length; i++) {
+            var inp = inputs[i];
+            var dataStr = AF.mapa.obterDataDoInput(inp);
+            if (!dataStr) continue;
+
+            itens.push({
+                inp: inp,
+                num: (inp.name || '').replace('Irre', ''),
+                dataStr: dataStr,
+                valor: String(inp.value || '').trim(),
+                cabecalho: AF.mapa.obterCabecalhoDoDia(inp) || ''
+            });
+        }
+        return itens;
+    };
+
+    AF.mapa.mapearFolhaAtual = function () {
+        var dataAlvo = AF.utils.mesAlvoDaTabela();
+        var itens = AF.mapa.coletarItensFolha();
+        return AF.mapa.construirMapaFolha(dataAlvo, itens);
     };
 
     console.log('[FPW] 20-mapa carregado.versão 1.2 - Log loading message for 20-mapa version 1.2');
