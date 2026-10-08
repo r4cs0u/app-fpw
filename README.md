@@ -10,7 +10,7 @@ Este repositório contém o userscript para automatizar a análise e o ajuste da
 2. Abra `https://github.com/r4cs0u/app-fpw/raw/refs/heads/main/99-main.user.js` e confirme a instalação do script `app-fpw`.
 3. Desative qualquer versão anterior do script (por exemplo, "Automacao Folha de Ponto" ou a instalação da branch `test`): todas usam o mesmo endereço e duplicariam o painel.
 4. Recarregue o MyWay. O loader baixa os módulos da branch `main` a cada carregamento e se atualiza sozinho (`@updateURL`) quando uma versão maior é publicada.
-5. Mantenha também aberta a página do Oracle Fusion: o script roda nela de forma mínima para acompanhar e manter a sessão ativa.
+5. Mantenha também aberta a página do Oracle Fusion: o script roda nela de forma mínima para manter a sessão ativa.
 
 ## Visão geral
 

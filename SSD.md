@@ -12,7 +12,7 @@ The repository uses branch `main` as its stable production reference and branch 
 
 | Module | Current responsibility |
 | --- | --- |
-| `00-core.js` | Shared `AutomacaoFolha` state, frame access, logging entry point (`AF.core.log`), employee navigation, popup interception, session heartbeat, and Oracle companion session liveness evaluation and monitor (`AF.sessao`). |
+| `00-core.js` | Shared `AutomacaoFolha` state, frame access, logging entry point (`AF.core.log`), employee navigation, popup interception, and session heartbeat. |
 | `05-log.js` | Structured, accumulated activity log (events with time, execution, employee, phase, and data), plain-text rendering, `sessionStorage` persistence for the tab lifetime, and the log window (view/copy). |
 | `10-utils.js` | Date parsing/formatting, week and target-month helpers, and RJ holiday calculation. |
 | `35-planejamento.js` | Pure phase 1–3 adjustment planning over structured maps; no DOM, frame, popup, or write access. |
@@ -27,7 +27,7 @@ The repository uses branch `main` as its stable production reference and branch 
 | `60-relatorios.js` | Builds the live HTML report, copies per-employee irregularity text, opens expandable per-employee adjustment detail rows, opens the team irregularity export window for the visible table rows (title lists active filters and search), provides the name-search field, and supports report navigation and TSV copying. |
 | `65-supervisionado.js` | Orchestrates supervised adjustment mode workflow (idle, confirming, applying, completed, stopped, interrupted), confirmation popup with pre-analysis and adjustment detail results. |
 | `70-sons.js` | Provides optional audio cues for execution events: start, completion, user stop, failure and attention cue. Opening the live report plays no sound. |
-| `80-painel.js` | Builds the injected controls (including mode selector Automático/Supervisionado and the always-available Log button), status display, Oracle companion session status indicator/warning, and instruction side panel. |
+| `80-painel.js` | Builds the injected controls (including mode selector Automático/Supervisionado and the always-available Log button), status display, and instruction side panel. |
 | `85-ambiente.js` | Present only on the `test` line: sets experimental environment, version, repository, and branch metadata. Not part of release 10.0 (the loader sets the `main` identity itself). |
 
 The modules share a global `window.AutomacaoFolha` namespace rather than using a bundler or module system. The core and workflow modules access the legacy same-origin frames through `window.top`; the analysis, mapping, popup, and adjustment flows are consequently coupled to the WebPonto DOM and its navigation behavior.
