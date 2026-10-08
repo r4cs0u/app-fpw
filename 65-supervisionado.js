@@ -95,8 +95,24 @@
         win.document.write(gerarHTMLConfirmacao(resumo, nomeAtual));
         win.document.close();
 
+        function abortarSeEstiverAtivo() {
+            try {
+                if (estadoFluxo === 'aplicando' || (AF.estado && AF.estado.rodando)) {
+                    if (AF.core && typeof AF.core.cancelarTudo === 'function') {
+                        AF.core.cancelarTudo();
+                    }
+                }
+            } catch (e) {}
+            if (AF.estado) {
+                AF.estado.confirmacaoPendente = false;
+            }
+            if (AF.core && typeof AF.core.setBotoes === 'function') {
+                AF.core.setBotoes(false);
+            }
+        }
+
         function encerrarConfirmacao(motivo) {
-            if (estadoFluxo === 'confirmando') {
+            if (estadoFluxo === 'confirmando' || estadoFluxo === 'aplicando') {
                 estadoFluxo = 'ocioso';
                 if (AF.estado) AF.estado.confirmacaoPendente = false;
                 if (AF.core && typeof AF.core.setBotoes === 'function') AF.core.setBotoes(false);
@@ -106,27 +122,32 @@
             }
         }
 
+        try {
+            win.onbeforeunload = function () {
+                clearInterval(timerFechamento);
+                abortarSeEstiverAtivo();
+                encerrarConfirmacao('fechado');
+            };
+            win.onunload = function () {
+                clearInterval(timerFechamento);
+                abortarSeEstiverAtivo();
+                encerrarConfirmacao('fechado');
+            };
+        } catch (eUnload) {}
+
         var timerFechamento = setInterval(function () {
             if (!janelaSupervisionado || janelaSupervisionado.closed) {
                 clearInterval(timerFechamento);
-                if (estadoFluxo === 'aplicando' || (AF.estado && AF.estado.rodando)) {
-                    if (AF.core && typeof AF.core.cancelarTudo === 'function') {
-                        AF.core.cancelarTudo();
-                    }
-                }
+                abortarSeEstiverAtivo();
                 encerrarConfirmacao('fechado');
             }
-        }, 500);
+        }, 300);
 
         var btnCancelar = win.document.getElementById('btn-cancelar');
         if (btnCancelar) {
             btnCancelar.onclick = function () {
                 clearInterval(timerFechamento);
-                if (estadoFluxo === 'aplicando' || (AF.estado && AF.estado.rodando)) {
-                    if (AF.core && typeof AF.core.cancelarTudo === 'function') {
-                        AF.core.cancelarTudo();
-                    }
-                }
+                abortarSeEstiverAtivo();
                 try { win.close(); } catch (e) {}
                 encerrarConfirmacao('cancelado');
             };
@@ -140,7 +161,8 @@
                 estadoFluxo = 'aplicando';
                 btnAplicar.disabled = true;
                 if (btnProxima) btnProxima.style.display = 'none';
-                btnCancelar.disabled = false; // Permite fechar/parar pelo botão cancelar/fechar
+                btnCancelar.disabled = false;
+                btnCancelar.textContent = 'Parar e fechar';
 
                 var boxStatus = win.document.getElementById('box-status');
                 if (boxStatus) {
@@ -180,9 +202,12 @@
                             boxStatus.className = 'status-box status-concluido';
                             boxStatus.textContent = 'Ajuste concluído com sucesso!';
                         }
-                        btnAplicar.style.display = 'none';
-                        if (btnProxima) {
-                            btnProxima.style.display = 'inline-flex';
+                        var bApl = win.document.getElementById('btn-aplicar');
+                        if (bApl) bApl.style.display = 'none';
+                        var bProx = win.document.getElementById('btn-proxima');
+                        if (bProx) {
+                            bProx.style.display = 'inline-flex';
+                            bProx.disabled = false;
                         }
                     }
 

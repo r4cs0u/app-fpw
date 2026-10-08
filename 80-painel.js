@@ -350,7 +350,8 @@
             }
         };
 
-        var modoAtual = obterModoAjuste();
+        var modoAtual = 'supervisionado';
+        salvarModoAjuste(modoAtual);
         renderizarModo(docC, modoAtual);
 
         var btnModoAuto = docC.getElementById('btn-modo-auto');

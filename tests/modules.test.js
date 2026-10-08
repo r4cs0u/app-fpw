@@ -55,7 +55,7 @@ test('all modules load in the listed order without using a module that is not lo
 
 test('the test build version is consistent between the entry script and the core', () => {
     const versaoMeta = /@version\s+(\S+)/.exec(main)[1];
-    assert.equal(versaoMeta, '9.11-test');
+    assert.equal(versaoMeta, '9.12-test');
     const core = readFileSync(join(root, '00-core.js'), 'utf8');
     assert.ok(core.includes("versao: '" + versaoMeta + "'"));
     assert.ok(main.includes("AF.versao = '" + versaoMeta + "'"));

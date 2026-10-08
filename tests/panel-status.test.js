@@ -257,7 +257,7 @@ test('panel displays oracle badge across unknown, active, and inactive states an
     assert.equal(warning.style.display, 'none');
 });
 
-test('panel mode selector initializes to automatico, toggles, persists in sessionStorage and falls back safely', () => {
+test('panel mode selector initializes to supervisionado, toggles, persists in sessionStorage and falls back safely', () => {
     const doc = createDocument();
     const storage = new Map();
     const sessionStorage = {
@@ -278,24 +278,23 @@ test('panel mode selector initializes to automatico, toggles, persists in sessio
     assert.ok(btnAuto);
     assert.ok(btnSuperv);
 
-    // Inicial: automatico
-    assert.equal(AF.painel.obterModo(), 'automatico');
-
-    // Troca para supervisionado via clique
-    btnSuperv.onclick();
+    // Inicial sempre supervisionado por regra de carregamento
     assert.equal(AF.painel.obterModo(), 'supervisionado');
-    assert.equal(sessionStorage.getItem('fpw.modoAjuste'), 'supervisionado');
 
     // Troca para automatico via clique
     btnAuto.onclick();
     assert.equal(AF.painel.obterModo(), 'automatico');
     assert.equal(sessionStorage.getItem('fpw.modoAjuste'), 'automatico');
 
-    // Valor invalido no armazenamento cai em automatico
-    sessionStorage.setItem('fpw.modoAjuste', 'invalido');
+    // Troca para supervisionado via clique
+    btnSuperv.onclick();
+    assert.equal(AF.painel.obterModo(), 'supervisionado');
+    assert.equal(sessionStorage.getItem('fpw.modoAjuste'), 'supervisionado');
+
+    // Carregamento de novo painel sempre inicializa em supervisionado
     const AF2 = { estado: { cancelado: false, rodando: false }, core: { getDocC: () => doc }, relatorios: {}, sons: { tocar() {} } };
     loadPanel(AF2, { sessionStorage }).iniciar(createDocument());
-    assert.equal(AF2.painel.obterModo(), 'automatico');
+    assert.equal(AF2.painel.obterModo(), 'supervisionado');
 });
 
 test('panel mode selector is disabled during execution or pending confirmation', () => {
@@ -346,7 +345,7 @@ test('panel instruction text mentions both modes and popups', () => {
     assert.match(side.children[1].children[0].children[2].innerHTML, /popups/);
 });
 
-test('adjust button routes to processarTodas in automatico and iniciarConfirmacao in supervisionado', async () => {
+test('adjust button routes to iniciarConfirmacao in supervisionado and processarTodas in automatico', async () => {
     const doc = createDocument();
     let processarTodasChamadas = 0;
     let confirmacaoChamadas = 0;
@@ -361,13 +360,13 @@ test('adjust button routes to processarTodas in automatico and iniciarConfirmaca
     };
     loadPanel(AF).iniciar(doc);
 
-    // Modo automatico (padrao)
+    // Modo supervisionado (padrao no carregamento)
     await doc.getElementById('btn-executar').onclick();
-    assert.equal(processarTodasChamadas, 1);
-    assert.equal(confirmacaoChamadas, 0);
+    assert.equal(confirmacaoChamadas, 1);
+    assert.equal(processarTodasChamadas, 0);
 
-    // Muda para modo supervisionado
-    AF.painel.definirModo('supervisionado');
+    // Muda para modo automatico
+    AF.painel.definirModo('automatico');
     await doc.getElementById('btn-executar').onclick();
     assert.equal(processarTodasChamadas, 1);
     assert.equal(confirmacaoChamadas, 1);
