@@ -17,4 +17,4 @@
 
 - [x] 3.1 Atualizar `AGENT.md` (procedimento de instalação de teste com as novas concessões e o `@match`), `SSD.md` e `ROADMAP.md (pendência do keepalive)`; verificar com `Select-String -Pattern 'Oracle' AGENT.md SSD.md ROADMAP.md`.
 - [x] 3.2 Rodar `node --test` completo e `openspec validate oracle-session-keepalive --strict`, sem falhas.
-- [x] 3.3 Validação de runtime na branch `test`: com a página Oracle aberta, deixar o MyWay ocioso por mais que o tempo de inatividade observado e registrar o período e o resultado; depois fechar a página Oracle e confirmar o estado inativo e o aviso, sem executar Ajuste. Registrar no `ROADMAP.md` e em `session-liveness`.
+- [ ] 3.3 Validação de runtime na branch `test`: com a página Oracle aberta, deixar o MyWay ocioso por mais que o tempo de inatividade observado e registrar o período e o resultado; depois fechar a página Oracle e confirmar o estado inativo e o aviso, sem executar Ajuste. Registrar no `ROADMAP.md` e em `session-liveness`.
