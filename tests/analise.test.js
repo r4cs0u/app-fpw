@@ -286,3 +286,44 @@ test('analysis stopped by the user plays no completion sound', async () => {
     assert.deepEqual(sons, ['inicio']);
     assert.equal(AF.estado.cancelado, true);
 });
+
+test('analysis releases the panel buttons only after the running flag is cleared', async () => {
+    const AF = load(ALL);
+    wireSheet(AF, createSheet(SHEET));
+    const chamadas = [];
+    AF.sons = { tocar() {} };
+    AF.core.getDocC = () => ({ getElementById: () => ({ innerHTML: '' }) });
+    AF.core.setBotoes = ativo => chamadas.push({ ativo, rodando: AF.estado.rodando });
+    AF.core.getSelNome = () => ({ selectedIndex: 0, options: [{ text: 'Funcionario Sintetico' }] });
+    AF.core.nomeAtual = () => 'Funcionario Sintetico';
+    AF.core.avancarFuncionario = async () => 'fim';
+    AF.analisar.analisarFolhaAtual = () => ({ vazia: true });
+
+    await AF.analisar.analisarTodas();
+
+    const liberacao = chamadas.filter(c => c.ativo === false);
+    assert.equal(liberacao.length, 1);
+    assert.equal(liberacao[0].rodando, false, 'o painel recalcula o bloqueio a partir de AF.estado.rodando');
+    assert.equal(AF.estado.rodando, false);
+});
+
+test('analysis aborted for a missing employee list leaves the run flag cleared', async () => {
+    const { AF } = await runAnalysisSounds({ list: false });
+
+    assert.equal(AF.estado.rodando, false);
+});
+
+test('analysis writes the final panel status when it completes or is stopped', async () => {
+    const concluida = [];
+    await runAnalysisSounds({ onSheet: fakeAF => { fakeAF.relatorios.habilitarCopiar = t => concluida.push(t); } });
+    assert.deepEqual(concluida, ['Relatório de Análise']);
+
+    const parada = [];
+    await runAnalysisSounds({
+        onSheet: fakeAF => {
+            fakeAF.relatorios.habilitarCopiar = t => parada.push(t);
+            fakeAF.estado.cancelado = true;
+        }
+    });
+    assert.deepEqual(parada, ['Relatório de Análise']);
+});

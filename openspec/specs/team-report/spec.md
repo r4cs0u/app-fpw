@@ -245,18 +245,18 @@ O sistema SHALL guardar, no registro de cada funcionário ajustado, a lista das 
 - **AND** nenhum dia de código 47 SHALL constar como convertido
 
 ### Requirement: Detalhe dos ajustes expansível por linha
-Cada linha da tabela SHALL ter um botão que expande, abaixo dela, o detalhe dos ajustes do funcionário, e que recolhe o detalhe ao ser acionado de novo. O botão SHALL ficar desabilitado, com indicação de que não há ajustes, quando o funcionário não tem Ajuste registrado. Acionar o botão SHALL NOT selecionar a linha nem alterar o funcionário selecionado na página, SHALL ser somente leitura e SHALL NOT interromper nem alterar uma execução em andamento. O detalhe expandido SHALL permanecer aberto quando a tabela for atualizada, ordenada ou filtrada, enquanto o funcionário estiver visível, e SHALL refletir o modelo atualizado.
+Cada linha da tabela SHALL ter um botão que expande, abaixo dela, o detalhe dos ajustes e irregularidades do funcionário, e que recolhe o detalhe ao ser acionado de novo. O botão SHALL ficar habilitado quando o funcionário tiver ajustes registrados OU qualquer irregularidade registrada, e desabilitado quando não houver nenhum dado detalhável. Acionar o botão SHALL NOT selecionar a linha nem alterar o funcionário selecionado na página, SHALL ser somente leitura e SHALL NOT interromper nem alterar uma execução em andamento. O detalhe expandido SHALL permanecer aberto quando a tabela for atualizada, ordenada ou filtrada, enquanto o funcionário estiver visível, e SHALL refletir o modelo atualizado.
 
 #### Scenario: Expandir o detalhe
-- **WHEN** o usuário aciona o botão de detalhe da linha de um funcionário com Ajuste registrado
-- **THEN** uma linha de detalhe SHALL aparecer abaixo dela, com o texto dos ajustes
+- **WHEN** o usuário aciona o botão de detalhe da linha de um funcionário com Ajuste registrado ou irregularidades
+- **THEN** uma linha de detalhe SHALL aparecer abaixo dela, com o texto dos detalhes
 
 #### Scenario: Recolher o detalhe
 - **WHEN** o usuário aciona novamente o botão de uma linha expandida
 - **THEN** a linha de detalhe SHALL desaparecer
 
 #### Scenario: Funcionário sem Ajuste
-- **WHEN** a linha é de um funcionário apenas analisado, não processado ou sem marcações
+- **WHEN** a linha é de um funcionário não processado, sem marcações ou sem ajustes nem irregularidades registradas
 - **THEN** o botão SHALL aparecer desabilitado e acioná-lo SHALL NOT expandir nada
 
 #### Scenario: Botão não navega
@@ -268,10 +268,14 @@ Cada linha da tabela SHALL ter um botão que expande, abaixo dela, o detalhe dos
 - **THEN** o detalhe SHALL continuar expandido e SHALL mostrar o conteúdo atualizado
 
 ### Requirement: Texto do detalhe dos ajustes
-O texto do detalhe SHALL começar com o nome do funcionário sem o sufixo numérico do seletor FPW, preservando números que façam parte do restante do nome, seguido de uma árvore com as seções abaixo, nesta ordem, cada uma só quando tiver conteúdo:
-- `|_Folgas movimentadas`, com uma linha `  |_ <dd/mm/aaaa> <- origem <dd/mm/aaaa> => <resultado>` por ação, na ordem em que ocorreram, em que o primeiro dia é o destino, o segundo é a origem e o resultado é `alterado`, `sem alteração` ou `falha`;
-- `|_Folgas Presas`, com uma linha `  |_Dias: <dias>` com os dias das folgas presas em `dd/mm/aaaa`, em ordem cronológica e sem repetição, separados por vírgula;
-- `|_Códigos 47`, com uma linha `  |_ Dias: <dias>` com os dias convertidos em `dd/mm/aaaa`, em ordem cronológica e sem repetição, separados por vírgula, e, quando restarem dias de código 47 sem converter, uma linha `  |_ Restantes: <quantidade>`.
+O texto do detalhe SHALL começar com o nome do funcionário sem o sufixo numérico do seletor FPW, preservando números que façam parte do restante do nome, seguido de uma árvore com as seções de ajustes e irregularidades, cada uma só quando tiver conteúdo:
+- `|_Folgas movimentadas`, com uma linha `  |_ <dd/mm/aaaa> <- origem <dd/mm/aaaa> => <resultado>` por ação, na ordem em que ocorreram;
+- `|_Folgas Presas`, com uma linha `  |_Dias: <dias>` com os dias das folgas presas em `dd/mm/aaaa`, em ordem cronológica e sem repetição;
+- `|_Códigos 47`, com uma linha `  |_ Dias: <dias>` e/ou `  |_ Restantes: <quantidade>`;
+- `|_Sem Entrada/Saída`, com uma linha `  |_ Dias: <dias>` com os dias em `dd/mm/aaaa` em ordem cronológica;
+- `|_Interjornada`, com uma linha `  |_ Dias: <dias>` com os dias em `dd/mm/aaaa` em ordem cronológica;
+- `|_Marcações Britânicas`, com uma linha `  |_ Dias: <dias>` com os dias em `dd/mm/aaaa` em ordem cronológica;
+- `|_Folha Não Preenchida`, com uma linha `  |_ Percentual: <pct>%` (sem listar datas).
 Um Ajuste interrompido na folha SHALL acrescentar a linha `|_Ajuste parcial (interrompido)` logo abaixo do nome. Quando nenhuma seção tiver conteúdo, o texto SHALL conter o nome e a linha `|_Nenhum ajuste registrado`. O texto SHALL usar somente os dados do modelo e SHALL NOT depender do log.
 
 #### Scenario: Ajuste com folgas, presas e códigos 47
@@ -287,7 +291,7 @@ Um Ajuste interrompido na folha SHALL acrescentar a linha `|_Ajuste parcial (int
 - **THEN** a primeira linha SHALL ser `MARIA 2 SILVA`
 
 #### Scenario: Ajuste sem nada a registrar
-- **WHEN** o Ajuste foi executado e não movimentou folgas, não deixou folgas presas e não converteu códigos
+- **WHEN** o Ajuste foi executado e não movimentou folgas, não deixou folgas presas, não converteu códigos e não há irregularidades
 - **THEN** o texto SHALL conter o nome e a linha `|_Nenhum ajuste registrado`
 
 #### Scenario: Ajuste parcial

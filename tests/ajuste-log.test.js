@@ -406,3 +406,34 @@ test('processarTodas com somenteFolhaAtual executa apenas a folha atual sem avan
     assert.equal(h.AF.estado.falhaAjuste.stage, 'supervised-revalidation');
     assert.match(h.AF.estado.falhaAjuste.reason, /Nenhuma folha selecionada/);
 });
+
+test('processarTodas libera os botoes somente depois de limpar o estado rodando', async () => {
+    const h = harness();
+    let ativa = true;
+    const chamadas = [];
+    const execucao = {
+        isActive: () => ativa,
+        cancel: () => { ativa = false; },
+        addCleanup: () => {}
+    };
+    h.AF.core.iniciarExecucaoAjuste = () => { h.AF.estado.execucaoAjuste = execucao; return execucao; };
+    h.AF.core.pararExecucaoAjuste = () => {};
+    h.AF.relatorios = { gerarFolgas() {}, habilitarCopiar: titulo => h.titulos.push(titulo) };
+    h.titulos = [];
+    h.AF.sons = { tocar() {} };
+    h.AF.core.setBotoes = ativo => chamadas.push({ ativo, rodando: h.AF.estado.rodando });
+    h.AF.core.getSelNome = () => ({ selectedIndex: 0, options: [{ text: 'ANA' }] });
+    h.AF.core.getDocC = () => ({ getElementById: () => ({ innerHTML: '' }) });
+    h.AF.core.exigirEstrutura = () => true;
+    h.AF.core.instalarInterceptorPopup = () => {};
+    h.AF.core.nomeAtual = () => 'ANA';
+    h.AF.fases.processarFolhaAtual = async () => {};
+
+    await h.AF.fases.processarTodas({ somenteFolhaAtual: true, nomeEsperado: 'ANA' });
+
+    const liberacao = chamadas.filter(c => c.ativo === false);
+    assert.equal(liberacao.length, 1);
+    assert.equal(liberacao[0].rodando, false);
+    assert.equal(h.AF.estado.rodando, false);
+    assert.deepEqual(h.titulos, ['Relatório de Ajuste']);
+});

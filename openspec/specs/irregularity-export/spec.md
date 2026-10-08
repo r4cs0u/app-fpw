@@ -7,7 +7,7 @@ Gerar, a partir do relatório do time, textos de irregularidades prontos para co
 ## Requirements
 
 ### Requirement: Texto de irregularidades por funcionário
-O sistema SHALL gerar, para um funcionário, um texto cuja primeira linha é `*` seguido do nome da pessoa sem o sufixo numérico do seletor FPW (espaço seguido de um ou mais dígitos), preservando números que façam parte do restante do nome. Quando Folha não preenchida estiver sinalizada, o texto SHALL conter somente o aviso de preenchimento da folha e SHALL NOT incluir linhas das outras irregularidades. Caso contrário, SHALL conter uma linha para cada irregularidade existente, nesta ordem: Sem Entrada/Saída, Interjornada e Marcações britânicas. As linhas de Sem Entrada/Saída, Interjornada e Marcações britânicas SHALL listar os dias da irregularidade em `dd/mm`, em ordem cronológica e sem repetição, separados por vírgula, e terminar com ponto. A linha de Folha não preenchida SHALL conter o aviso para realizar o preenchimento da folha e a porcentagem de dias sem marcação, sem listar dias. Irregularidades inexistentes SHALL NOT gerar linha. O texto SHALL usar a leitura mais recente do funcionário, seja da Análise ou do Ajuste.
+O sistema SHALL gerar, para um funcionário, um texto cuja primeira linha é `*` seguido do nome da pessoa sem o sufixo numérico do seletor FPW (espaço seguido de um ou mais dígitos), preservando números que façam parte do restante do nome. Quando Folha não preenchida estiver sinalizada, o texto SHALL conter o aviso de preenchimento da folha E TAMBÉM as linhas de todas as outras irregularidades existentes. As linhas de irregularidades presentes SHALL aparecer na seguinte ordem: aviso de Folha não preenchida (se sinalizada), Sem Entrada/Saída, Interjornada e Marcações britânicas. As linhas de Sem Entrada/Saída, Interjornada e Marcações britânicas SHALL listar os dias da irregularidade em `dd/mm`, em ordem cronológica e sem repetição, separados por vírgula, e terminar com ponto. A linha de Folha não preenchida SHALL conter o aviso para realizar o preenchimento da folha e a porcentagem de dias sem marcação, sem listar dias. Irregularidades inexistentes SHALL NOT gerar linha. O texto SHALL usar a leitura mais recente do funcionário, seja da Análise ou do Ajuste.
 
 Os textos das linhas SHALL ser:
 - Sem Entrada/Saída: `- s/marcação de entrada ou saída nos dias, <dias>.`
@@ -22,8 +22,7 @@ Os textos das linhas SHALL ser:
 
 #### Scenario: Folha não preenchida suprime as outras irregularidades
 - **WHEN** um funcionário tem Sem Entrada/Saída, Interjornada e Marcações britânicas, e Folha não preenchida está sinalizada com 79%
-- **THEN** o texto SHALL conter somente `*<nome>` e `- Realizar o preenchimento da folha (79% dos dias sem marcação).`
-- **AND** nenhuma linha de Sem Entrada/Saída, Interjornada ou Marcações britânicas SHALL aparecer
+- **THEN** o texto SHALL conter `*<nome>`, a linha `- Realizar o preenchimento da folha (79% dos dias sem marcação).` e as linhas correspondentes de Sem Entrada/Saída, Interjornada e Marcações britânicas com suas respectivas datas
 
 #### Scenario: Irregularidade ausente não gera linha
 - **WHEN** um funcionário tem apenas marcações britânicas

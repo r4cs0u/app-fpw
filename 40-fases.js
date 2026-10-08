@@ -872,8 +872,11 @@
                 if (execucao.ativa) {
                     execucao.cancel(AF.estado.cancelado ? 'Ajuste cancelado.' : 'Ajuste concluido.');
                 }
-                AF.core.setBotoes(false);
                 AF.estado.rodando = false;
+                AF.core.setBotoes(false);
+                if (AF.relatorios && typeof AF.relatorios.habilitarCopiar === 'function') {
+                    AF.relatorios.habilitarCopiar('Relat\u00F3rio de Ajuste');
+                }
             }
         }
     };

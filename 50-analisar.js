@@ -198,6 +198,7 @@
             AF.core.log('ERRO: Lista de funcionarios nao encontrada.', '#f87171');
             logExecucao('encerrarExecucao', 'interrompida', 'lista de funcionarios nao encontrada');
             AF.sons.tocar('falha');
+            AF.estado.rodando = false;
             AF.core.setBotoes(false);
             return;
         }
@@ -328,8 +329,12 @@
 
         if (!AF.estado.cancelado) AF.sons.tocar('fim');
 
-        AF.core.setBotoes(false);
+        // O painel deriva o bloqueio dos botões de AF.estado.rodando; limpá-lo antes de liberar.
         AF.estado.rodando = false;
+        AF.core.setBotoes(false);
+        if (AF.relatorios && typeof AF.relatorios.habilitarCopiar === 'function') {
+            AF.relatorios.habilitarCopiar('Relat\u00F3rio de An\u00E1lise');
+        }
     };
     console.log('[FPW] 50-analisar carregado. versão 1.4 - detector unificado e log estruturado');
 })();

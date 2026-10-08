@@ -395,7 +395,8 @@
             sessionStorage.removeItem('autodatasCandidatasPopup');
             sessionStorage.removeItem('autopopupSemSucesso');
             if (emAndamento) AF.sons.tocar('parada');
-            if (!execucaoAtiva) setStatus(docC, 'Parando...', '#f87171');
+            // Só mostra "Parando..." se uma execução ainda está encerrando; o fim dela grava o status final.
+            if (emAndamento && !execucaoAtiva) setStatus(docC, 'Parando...', '#f87171');
             setBtnAtivo(docC, false);
         };
 

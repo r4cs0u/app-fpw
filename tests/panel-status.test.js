@@ -218,6 +218,20 @@ test('stop button plays no sound when nothing is running', () => {
     assert.deepEqual(sons, []);
 });
 
+test('stop button shows "Parando..." only while a run is ending and never when idle', () => {
+    const ocioso = stopButtonHarness(false);
+    ocioso.doc.getElementById('btn-parar').onclick();
+    assert.notEqual(ocioso.doc.getElementById('fpw-status-text').textContent, 'Parando...');
+
+    const emAndamento = stopButtonHarness(true);
+    emAndamento.doc.getElementById('btn-parar').onclick();
+    assert.equal(emAndamento.doc.getElementById('fpw-status-text').textContent, 'Parando...');
+
+    // o fim da execução grava o status final e substitui o "Parando..."
+    emAndamento.AF.relatorios.habilitarCopiar('Relatório de Análise');
+    assert.equal(emAndamento.doc.getElementById('fpw-status-text').textContent, 'Parado \u2014 Relatório de Análise pronto');
+});
+
 test('panel displays oracle badge across unknown, active, and inactive states and does not stop running automation on loss', () => {
     const doc = createDocument();
     const AF = {
