@@ -53,12 +53,20 @@ test('all modules load in the listed order without using a module that is not lo
     assert.equal(typeof AF.supervisionado.iniciarConfirmacao, 'function');
 });
 
-test('the test build version is consistent between the entry script and the core', () => {
+test('the release version is consistent between the entry script and the core', () => {
     const versaoMeta = /@version\s+(\S+)/.exec(main)[1];
-    assert.equal(versaoMeta, '9.12-test');
+    assert.equal(versaoMeta, '10.0');
     const core = readFileSync(join(root, '00-core.js'), 'utf8');
     assert.ok(core.includes("versao: '" + versaoMeta + "'"));
     assert.ok(main.includes("AF.versao = '" + versaoMeta + "'"));
+});
+
+test('the release loader points to main, auto-updates from main and carries no test identity', () => {
+    assert.ok(main.includes("var BASE = 'https://raw.githubusercontent.com/r4cs0u/app-fpw/main/';"));
+    assert.match(main, /@updateURL\s+https:\/\/raw\.githubusercontent\.com\/r4cs0u\/app-fpw\/main\/99-main\.user\.js/);
+    assert.match(main, /@downloadURL\s+https:\/\/raw\.githubusercontent\.com\/r4cs0u\/app-fpw\/main\/99-main\.user\.js/);
+    assert.doesNotMatch(main, /app-fpw\/test\/|-test|85-ambiente/);
+    assert.equal(existsSync(join(root, '85-ambiente.js')), false);
 });
 
 test('entry script running on oraclecloud.com runs sentinel only and does not load automation modules', () => {

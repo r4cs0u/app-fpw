@@ -8,7 +8,7 @@ The repository uses branch `main` as its stable production reference and branch 
 
 ## Runtime architecture
 
-`99-main.user.js` is the Tampermonkey entrypoint. It declares the userscript metadata and loads the following modules sequentially from the `test` branch raw GitHub URL using `GM_xmlhttpRequest` and `eval`:
+`99-main.user.js` is the Tampermonkey entrypoint. It declares the userscript metadata and loads the following modules sequentially from the raw GitHub URL of its own branch (`main` in release 10.0; the `test` line points to `test`) using `GM_xmlhttpRequest` and `eval`:
 
 | Module | Current responsibility |
 | --- | --- |
@@ -28,7 +28,7 @@ The repository uses branch `main` as its stable production reference and branch 
 | `65-supervisionado.js` | Orchestrates supervised adjustment mode workflow (idle, confirming, applying, completed, stopped, interrupted), confirmation popup with pre-analysis and adjustment detail results. |
 | `70-sons.js` | Provides optional audio cues for execution events: start, completion, user stop, failure and attention cue. Opening the live report plays no sound. |
 | `80-painel.js` | Builds the injected controls (including mode selector Automático/Supervisionado and the always-available Log button), status display, Oracle companion session status indicator/warning, and instruction side panel. |
-| `85-ambiente.js` | Sets experimental environment, version, repository, and branch metadata. |
+| `85-ambiente.js` | Present only on the `test` line: sets experimental environment, version, repository, and branch metadata. Not part of release 10.0 (the loader sets the `main` identity itself). |
 
 The modules share a global `window.AutomacaoFolha` namespace rather than using a bundler or module system. The core and workflow modules access the legacy same-origin frames through `window.top`; the analysis, mapping, popup, and adjustment flows are consequently coupled to the WebPonto DOM and its navigation behavior.
 

@@ -2,7 +2,15 @@
 
 Este repositório contém o userscript para automatizar a análise e o ajuste da folha de ponto no sistema WebPonto/MyWay da Globo. Desenvolvido para facilitar o trabalho de revisão de marcações, ele injeta um painel direto na interface do sistema e permite executar ações de forma mais rápida, segura e organizada.
 
-> Branch de teste: esta linha mantém a base estável do projeto e prepara a evolução experimental em ambiente controlado.
+> Versão 10.0: linha estável (`main`). A evolução experimental continua na branch `test`, validada antes de qualquer nova promoção.
+
+## Instalação
+
+1. Instale o Tampermonkey no Chrome.
+2. Abra `https://github.com/r4cs0u/app-fpw/raw/refs/heads/main/99-main.user.js` e confirme a instalação do script `app-fpw`.
+3. Desative qualquer versão anterior do script (por exemplo, "Automacao Folha de Ponto" ou a instalação da branch `test`): todas usam o mesmo endereço e duplicariam o painel.
+4. Recarregue o MyWay. O loader baixa os módulos da branch `main` a cada carregamento e se atualiza sozinho (`@updateURL`) quando uma versão maior é publicada.
+5. Mantenha também aberta a página do Oracle Fusion: o script roda nela de forma mínima para acompanhar e manter a sessão ativa.
 
 ## Visão geral
 
@@ -25,7 +33,7 @@ Ele não substitui a decisão final do usuário, mas ajuda a acelerar o fluxo de
 - Ajuste automático de folgas e deslocamentos de registros;
 - Correção de ocorrências do código 47 para 48 quando aplicável;
 - Relatório unificado ao vivo: sempre disponível, com frações de progresso, cores por estado e colunas abertas de irregularidade; a linha do funcionário em processamento pulsa e folhas sem marcações aparecem como "Sem Marcações na Folha";
-- Detalhe compacto dos ajustes expansível por linha no relatório, com resumo em árvore das folgas movimentadas, folgas presas e códigos 47 convertidos;
+- Detalhe compacto por linha no relatório (lupa), com resumo em árvore das folgas movimentadas, folgas presas, códigos 47 convertidos e das datas de sem E/S, interjornada e marcação britânica, além da porcentagem de folha não preenchida;
 - Resumo em indicadores (big numbers) com filtros rápidos por clique que se somam (cada indicador ativo acrescenta funcionários à tabela) e busca por nome combinada com eles;
 - Exportação copiável das irregularidades por funcionário ou da lista visível no relatório, com datas em `dd/mm`;
 - Janela de log estruturado acessível dentro e fora do relatório;
@@ -43,7 +51,7 @@ Ao acessar a página do WebPonto, o script carrega os módulos necessários e in
 3. escolher o modo de ajuste no painel — **Automático** (percorre toda a lista) ou **Supervisionado** (confirmação prévia e detalhe folha a folha) — e clicar em “Ajustar”;
 4. revisar os resultados e confirmar manualmente as ações finais.
 
-Na janela do relatório, o ícone no fim de cada linha copia as irregularidades daquele funcionário. O botão **Exportar irregularidades** abre o texto dos funcionários atualmente visíveis; portanto, filtros por indicador, busca por nome e extremos ativos também limitam a exportação, e o título lista os filtros e a busca. O texto lista as irregularidades por pessoa, usa datas em `dd/mm` e pode ser copiado na própria janela. Quando Folha não preenchida está sinalizada, o texto mostra somente o aviso de preenchimento e a porcentagem, sem as outras linhas de irregularidade.
+Na janela do relatório, o ícone no fim de cada linha copia as irregularidades daquele funcionário. O botão **Exportar irregularidades** abre o texto dos funcionários atualmente visíveis; portanto, filtros por indicador, busca por nome e extremos ativos também limitam a exportação, e o título lista os filtros e a busca. O texto lista as irregularidades por pessoa, usa datas em `dd/mm` e pode ser copiado na própria janela. Quando Folha não preenchida está sinalizada, o texto traz o aviso de preenchimento com a porcentagem e também as demais irregularidades existentes.
 
 ## Benefícios
 
