@@ -369,11 +369,11 @@ test('exportacao gera todas as linhas na ordem definida e informa quando faltam 
         '*BIA\n- s/marcação de entrada ou saída nos dias, (2 ocorrências; datas não disponíveis).');
 });
 
-test('folha nao preenchida exporta somente o aviso e suprime as outras irregularidades', () => {
+test('folha nao preenchida exporta o aviso e tambem inclui as outras irregularidades presentes', () => {
     const { AF } = loadModelo();
     AF.modelo.iniciarExecucao('analise', ['THALES']);
     AF.modelo.registrarAnalise('THALES', {
-        irregs: 5,
+        irregs: 2,
         interj: 2,
         britanica: 3,
         dias: {
@@ -384,8 +384,13 @@ test('folha nao preenchida exporta somente o aviso e suprime as outras irregular
         naoPreenchida: { avaliada: true, flag: true, pctNaoPreenchida: 79 }
     });
 
-    assert.equal(AF.modelo.textoIrregularidades('THALES'),
-        '*THALES\n- Realizar o preenchimento da folha (79% dos dias sem marcação).');
+    assert.equal(AF.modelo.textoIrregularidades('THALES'), [
+        '*THALES',
+        '- Realizar o preenchimento da folha (79% dos dias sem marcação).',
+        '- s/marcação de entrada ou saída nos dias, 01/09, 03/09.',
+        '- Checar se interjornada é devida nos dias, 05/09, 06/09.',
+        '- Ajustar marcações britânicas, nos dias 02/09, 08/09, 15/09.'
+    ].join('\n'));
 });
 
 test('exportacao omite sem irregularidades, folha vazia e funcionario nao processado', () => {
@@ -560,7 +565,7 @@ test('registrarAjuste acumula acoes e cod47Dias entre execucoes e descarta na An
     AF.modelo.registrarAnalise('ANA', { folgas: 3 });
     dados = AF.modelo.obterDadosFunc('ANA');
     assert.equal(dados.temAjuste, false);
-    assert.equal(AF.modelo.textoDetalheAjuste('ANA'), 'ANA\n|_Nenhum ajuste registrado');
+    assert.equal(AF.modelo.textoDetalheAjuste('ANA'), 'ANA\n|_Nenhum detalhe registrado');
 });
 
 test('registrarAjusteParcial mantem acoes e parcial flag sem registrar cod47 nao confirmados', () => {
@@ -693,4 +698,31 @@ test('textoDetalheAjuste consolida acoes com mesmo destino e origem para resulta
     const acoesLinhas = linhas.filter(l => l.includes('13/09/2026 <- origem 07/09/2026'));
     assert.equal(acoesLinhas.length, 1);
     assert.match(acoesLinhas[0], /=> sem alteração$/);
+});
+
+test('textoDetalheAjuste inclui datas de irregularidades e percentual de folha nao preenchida', () => {
+    const { AF } = loadModelo();
+    AF.modelo.iniciarExecucao('analise', ['ANA']);
+    AF.modelo.registrarAnalise('ANA', {
+        folgas: 2,
+        irregs: 2,
+        interj: 1,
+        britanica: 1,
+        dias: {
+            semES: ['01/09/2026', '04/09/2026'],
+            interj: ['07/09/2026'],
+            britanica: ['10/09/2026']
+        },
+        naoPreenchida: { avaliada: true, flag: true, pctNaoPreenchida: 45 }
+    });
+
+    const texto = AF.modelo.textoDetalheAjuste('ANA');
+    assert.match(texto, /^ANA/);
+    assert.match(texto, /\|_Sem Entrada\/Saída\n\s+\|_ Dias: 01\/09\/2026, 04\/09\/2026/);
+    assert.match(texto, /\|_Interjornada\n\s+\|_ Dias: 07\/09\/2026/);
+    assert.match(texto, /\|_Marcações Britânicas\n\s+\|_ Dias: 10\/09\/2026/);
+    assert.match(texto, /\|_Folha Não Preenchida\n\s+\|_ Percentual: 45%/);
+
+    const dados = AF.modelo.obterDadosFunc('ANA');
+    assert.equal(dados.temDetalhes, true);
 });

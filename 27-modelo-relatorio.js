@@ -311,6 +311,7 @@
                 vazia: false,
                 parcial: false,
                 temAjuste: false,
+                temDetalhes: false,
                 folgas: { texto: '-', estado: 'nao-processado', num: 0, den: 0, presas: 0 },
                 cod47: { texto: '-', estado: 'nao-processado', num: 0, den: 0, rest: 0 },
                 semES: { total: null, dias: [] },
@@ -334,6 +335,7 @@
                 vazia: true,
                 parcial: false,
                 temAjuste: false,
+                temDetalhes: false,
                 folgas: { texto: '-', estado: 'nao-processado', num: 0, den: 0, presas: 0, presasDetalhe: [] },
                 cod47: { texto: '-', estado: 'nao-processado', num: 0, den: 0, rest: 0, dias: [] },
                 semES: { total: null, dias: [] },
@@ -398,17 +400,26 @@
             npTexto = (np.pctNaoPreenchida != null ? np.pctNaoPreenchida : 0) + '%';
         }
 
+        var semES = l.semES || { total: 0, dias: [] };
+        var interj = l.interj || { total: 0, dias: [] };
+        var britanica = l.britanica || { total: 0, dias: [] };
+
+        var temAjuste = !!f.ajuste;
+        var temIrreg = (semES.total > 0) || (interj.total > 0) || (britanica.total > 0) || (np.avaliada && np.flag);
+        var temDetalhes = temAjuste || temIrreg;
+
         return {
             nome: nome,
             processado: true,
             vazia: vazia,
             parcial: parcial,
-            temAjuste: !!f.ajuste,
+            temAjuste: temAjuste,
+            temDetalhes: temDetalhes,
             folgas: folgasInfo,
             cod47: cod47Info,
-            semES: l.semES || { total: 0, dias: [] },
-            interj: l.interj || { total: 0, dias: [] },
-            britanica: l.britanica || { total: 0, dias: [] },
+            semES: semES,
+            interj: interj,
+            britanica: britanica,
             naoPreenchida: {
                 texto: npTexto,
                 pct: np.pctNaoPreenchida,
@@ -759,14 +770,14 @@
         if (f.naoPreenchida.sinalizada) {
             var pct = f.naoPreenchida.pct;
             linhas.push('- Realizar o preenchimento da folha (' + (pct == null ? '-' : pct) + '% dos dias sem marcação).');
-        } else {
-            var semES = linhaIrregularidade(f.semES, '- s/marcação de entrada ou saída nos dias,');
-            var interj = linhaIrregularidade(f.interj, '- Checar se interjornada é devida nos dias,');
-            var britanica = linhaIrregularidade(f.britanica, '- Ajustar marcações britânicas, nos dias');
-            if (semES) linhas.push(semES);
-            if (interj) linhas.push(interj);
-            if (britanica) linhas.push(britanica);
         }
+        var semES = linhaIrregularidade(f.semES, '- s/marcação de entrada ou saída nos dias,');
+        var interj = linhaIrregularidade(f.interj, '- Checar se interjornada é devida nos dias,');
+        var britanica = linhaIrregularidade(f.britanica, '- Ajustar marcações britânicas, nos dias');
+        if (semES) linhas.push(semES);
+        if (interj) linhas.push(interj);
+        if (britanica) linhas.push(britanica);
+
         return linhas.length ? '*' + nomeParaExportacao(f.nome) + '\n' + linhas.join('\n') : '';
     };
 
@@ -853,81 +864,112 @@
     AF.modelo.textoDetalheAjuste = function (nome) {
         nome = String(nome || '').trim();
         var f = estado.funcs[nome];
+        var d = AF.modelo.obterDadosFunc(nome);
         var nomeCabecalho = nomeParaExportacao(nome);
-        if (!f || !f.ajuste) {
-            return nomeCabecalho + '\n|_Nenhum ajuste registrado';
+        if (!f || (!f.ajuste && !f.analise)) {
+            return nomeCabecalho + '\n|_Nenhum detalhe registrado';
         }
 
         var aj = f.ajuste;
         var linhas = [nomeCabecalho];
-        if (aj.parcial) {
+        if (aj && aj.parcial) {
             linhas.push('|_Ajuste parcial (interrompido)');
         }
 
         var temConteudo = false;
 
         // 1. Folgas movimentadas
-        var acoes = aj.acoes || [];
-        if (acoes.length > 0) {
-            var ordemPesos = { 'alterado': 3, 'sem alteração': 2, 'falha': 1 };
-            var mapaAcoes = Object.create(null);
-            var chavesOrdenadas = [];
+        if (aj) {
+            var acoes = aj.acoes || [];
+            if (acoes.length > 0) {
+                var ordemPesos = { 'alterado': 3, 'sem alteração': 2, 'falha': 1 };
+                var mapaAcoes = Object.create(null);
+                var chavesOrdenadas = [];
 
-            acoes.forEach(function (ac) {
-                var dest = extrairDataCompleta(ac.ausencia || ac.destino).dataFmt;
-                var orig = extrairDataCompleta(ac.origem).dataFmt;
-                var res = normalizarResultadoAcao(ac.resultado);
-                var chave = dest + '<-' + orig;
-                if (!mapaAcoes[chave]) {
-                    mapaAcoes[chave] = { dest: dest, orig: orig, res: res };
-                    chavesOrdenadas.push(chave);
-                } else {
-                    var pesoAtual = ordemPesos[mapaAcoes[chave].res] || 0;
-                    var novoPeso = ordemPesos[res] || 0;
-                    if (novoPeso > pesoAtual) {
-                        mapaAcoes[chave].res = res;
+                acoes.forEach(function (ac) {
+                    var dest = extrairDataCompleta(ac.ausencia || ac.destino).dataFmt;
+                    var orig = extrairDataCompleta(ac.origem).dataFmt;
+                    var res = normalizarResultadoAcao(ac.resultado);
+                    var chave = dest + '<-' + orig;
+                    if (!mapaAcoes[chave]) {
+                        mapaAcoes[chave] = { dest: dest, orig: orig, res: res };
+                        chavesOrdenadas.push(chave);
+                    } else {
+                        var pesoAtual = ordemPesos[mapaAcoes[chave].res] || 0;
+                        var novoPeso = ordemPesos[res] || 0;
+                        if (novoPeso > pesoAtual) {
+                            mapaAcoes[chave].res = res;
+                        }
                     }
-                }
-            });
-
-            if (chavesOrdenadas.length > 0) {
-                temConteudo = true;
-                linhas.push('|_Folgas movimentadas');
-                chavesOrdenadas.forEach(function (k) {
-                    var item = mapaAcoes[k];
-                    linhas.push('  |_ ' + item.dest + ' <- origem ' + item.orig + ' => ' + item.res);
                 });
-            }
-        }
 
-        // 2. Folgas Presas
-        var presas = aj.presas || [];
-        if (presas.length > 0) {
-            var datasPresas = formatarDatasCompletasUnicas(presas);
-            if (datasPresas.length > 0) {
+                if (chavesOrdenadas.length > 0) {
+                    temConteudo = true;
+                    linhas.push('|_Folgas movimentadas');
+                    chavesOrdenadas.forEach(function (k) {
+                        var item = mapaAcoes[k];
+                        linhas.push('  |_ ' + item.dest + ' <- origem ' + item.orig + ' => ' + item.res);
+                    });
+                }
+            }
+
+            // 2. Folgas Presas
+            var presas = aj.presas || [];
+            if (presas.length > 0) {
+                var datasPresas = formatarDatasCompletasUnicas(presas);
+                if (datasPresas.length > 0) {
+                    temConteudo = true;
+                    linhas.push('|_Folgas Presas');
+                    linhas.push('  |_Dias: ' + datasPresas.join(', '));
+                }
+            }
+
+            // 3. Códigos 47
+            var cod47Dias = aj.cod47Dias || [];
+            var cod47Rest = aj.cod47Rest != null ? aj.cod47Rest : 0;
+            var datas47 = formatarDatasCompletasUnicas(cod47Dias);
+            if (datas47.length > 0 || cod47Rest > 0) {
                 temConteudo = true;
-                linhas.push('|_Folgas Presas');
-                linhas.push('  |_Dias: ' + datasPresas.join(', '));
+                linhas.push('|_Códigos 47');
+                if (datas47.length > 0) {
+                    linhas.push('  |_ Dias: ' + datas47.join(', '));
+                }
+                if (cod47Rest > 0) {
+                    linhas.push('  |_ Restantes: ' + cod47Rest);
+                }
             }
         }
 
-        // 3. Códigos 47
-        var cod47Dias = aj.cod47Dias || [];
-        var cod47Rest = aj.cod47Rest != null ? aj.cod47Rest : 0;
-        var datas47 = formatarDatasCompletasUnicas(cod47Dias);
-        if (datas47.length > 0 || cod47Rest > 0) {
+        // 4. Irregularidades (Sem E/S, Interjornada, Britânicas, % Não Preenchida)
+        if (d.semES && d.semES.total > 0) {
+            var diasSemES = formatarDatasCompletasUnicas(d.semES.dias);
             temConteudo = true;
-            linhas.push('|_Códigos 47');
-            if (datas47.length > 0) {
-                linhas.push('  |_ Dias: ' + datas47.join(', '));
-            }
-            if (cod47Rest > 0) {
-                linhas.push('  |_ Restantes: ' + cod47Rest);
-            }
+            linhas.push('|_Sem Entrada/Saída');
+            linhas.push('  |_ Dias: ' + (diasSemES.length ? diasSemES.join(', ') : d.semES.total + ' ocorrência(s)'));
+        }
+
+        if (d.interj && d.interj.total > 0) {
+            var diasInterj = formatarDatasCompletasUnicas(d.interj.dias);
+            temConteudo = true;
+            linhas.push('|_Interjornada');
+            linhas.push('  |_ Dias: ' + (diasInterj.length ? diasInterj.join(', ') : d.interj.total + ' ocorrência(s)'));
+        }
+
+        if (d.britanica && d.britanica.total > 0) {
+            var diasBrit = formatarDatasCompletasUnicas(d.britanica.dias);
+            temConteudo = true;
+            linhas.push('|_Marcações Britânicas');
+            linhas.push('  |_ Dias: ' + (diasBrit.length ? diasBrit.join(', ') : d.britanica.total + ' ocorrência(s)'));
+        }
+
+        if (d.naoPreenchida && d.naoPreenchida.sinalizada) {
+            temConteudo = true;
+            linhas.push('|_Folha Não Preenchida');
+            linhas.push('  |_ Percentual: ' + (d.naoPreenchida.pct != null ? d.naoPreenchida.pct : 0) + '%');
         }
 
         if (!temConteudo) {
-            linhas.push('|_Nenhum ajuste registrado');
+            linhas.push(aj ? '|_Nenhum ajuste registrado' : '|_Nenhum detalhe registrado');
         }
 
         return linhas.join('\n');

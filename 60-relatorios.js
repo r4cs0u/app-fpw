@@ -380,11 +380,12 @@
             }
 
             var isExpandido = !!expandidos[nome];
+            var podeDetalhar = !!d.temDetalhes;
             var botaoDetalhe = '<button type="button" class="btn-detalhe-ajuste' + (isExpandido ? ' expanded' : '') + '" data-nome="' + escaparHTML(nome) + '"'
-                + (d.temAjuste ? '' : ' disabled')
+                + (podeDetalhar ? '' : ' disabled')
                 + ' aria-expanded="' + (isExpandido ? 'true' : 'false') + '"'
-                + ' aria-label="' + (d.temAjuste ? 'Detalhe dos ajustes de ' + escaparHTML(nome) : 'Sem ajustes para detalhar') + '"'
-                + ' title="' + (d.temAjuste ? (isExpandido ? 'Recolher detalhe dos ajustes' : 'Expandir detalhe dos ajustes') : 'Sem ajustes para detalhar') + '">🔍</button>';
+                + ' aria-label="' + (podeDetalhar ? 'Detalhes da linha de ' + escaparHTML(nome) : 'Sem detalhes para exibir') + '"'
+                + ' title="' + (podeDetalhar ? (isExpandido ? 'Recolher detalhes da linha' : 'Expandir detalhes da linha') : 'Sem detalhes para exibir') + '">🔍</button>';
 
             h += '<tr class="' + trCls.join(' ') + '"' + atributosLinha + '>'
                 + celulaNome

@@ -95,7 +95,7 @@ Ordem do mais simples ao mais complexo, confirmada em 2026-10-07: sons (item 0),
 | H2 | `oracle-active-keepalive` | Melhoria 1 (continuação) | Diagnóstico passivo, estado expirado e pulso ativo automático arquivados em 2026-10-07 | Médio |
 | I1 | `supervised-preanalysis` | Melhoria 3 | Pré-análise somente leitura validada via MCP e arquivada em 2026-10-07 | Médio |
 | I2 | `adjustment-mode-selector` | Melhoria 3 | Seletor Automático/Supervisionado implementado e arquivado em 2026-10-07 | Médio |
-| J | `expandable-row-summary` | Melhoria 6 (evolução) | Detalhe completo na lupa (ajustes + irregularidades) e exportação sem supressão | Baixo |
+| J | `expandable-row-summary` | Melhoria 6 (evolução) | Detalhe completo na lupa (ajustes + irregularidades) e exportação sem supressão implementados e testados (260 testes) | Baixo |
 
 **0. Sons (`fix-run-sounds`).** O relatório é vivo, então o som de cópia ao abrir o Relatório deixa de existir e o som de conclusão perde o atraso de 900 ms. O som de início do Ajuste passa a tocar só depois das pré-condições; interrupção por erro ganha um som de falha próprio; Parar só toca com execução em andamento; cada execução toca um único som de desfecho (conclusão, parada ou falha). O modo Supervisionado (I2) reaproveita esse contrato e acrescenta um som de atenção ao abrir a confirmação. Estado: implementada e arquivada em 2026-10-07 (`2026-10-07-fix-run-sounds`; capacidade durável `run-sounds`), com a validação manual de som arquivada como tarefa não marcada.
 

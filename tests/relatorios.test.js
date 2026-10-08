@@ -662,3 +662,27 @@ test('celula mesclada de folha sem marcacoes tem colspan igual ao total de colun
     const tbody = AF.relatorios.gerarTbodyHTML(['VAZIA'], null, null);
     assert.match(tbody, new RegExp('<td class="cell-sem-marcacoes" colspan="' + (totalTh - 1) + '">Sem Marcações na Folha</td>'));
 });
+
+test('botao de detalhe fica habilitado para funcionario com irregularidades mesmo sem ajustes', () => {
+    const { win, elementos } = janelaComElementos();
+    const AF = loadRelatorios(() => win);
+    AF.modelo.iniciarExecucao('analise', ['CARLOS', 'DINA']);
+    AF.modelo.registrarAnalise('CARLOS', { irregs: 1, dias: { semES: ['01/10/2026'] } });
+    AF.modelo.registrarAnalise('DINA', { folgas: 0 });
+
+    AF.relatorios.abrirJanela();
+
+    const btns = elementos.get('fpw-tbody').querySelectorAll('.btn-detalhe-ajuste[data-nome]');
+    const btnCarlos = btns.find(b => b.getAttribute() === 'CARLOS');
+    const btnDina = btns.find(b => b.getAttribute() === 'DINA');
+
+    assert.ok(btnCarlos && !btnCarlos.disabled);
+    assert.ok(btnDina && btnDina.disabled);
+
+    // Clicar em CARLOS expande a linha com dados de irregularidade
+    btnCarlos.onclick({ stopPropagation() {} });
+    const tbodyHTML = elementos.get('fpw-tbody').innerHTML;
+    assert.match(tbodyHTML, /class="detail-row" data-detalhe-de="CARLOS"/);
+    assert.match(tbodyHTML, /Sem Entrada\/Saída/);
+    assert.match(tbodyHTML, /01\/10\/2026/);
+});
