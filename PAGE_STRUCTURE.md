@@ -144,4 +144,4 @@ The automation verifies structural contracts before starting adjustments and bef
 - **Keepalive Ativo e Diagnóstico Passivo (oracle-active-keepalive)**:
   - Registro passivo de diagnósticos em `fpw_oracle_diag` (abertura, atividade recente, expiração) sem segredos ou tokens.
   - Detecção ativa de expiração com sinalização em `fpw_oracle_estado = 'expired'`.
-  - Opção no painel ("Manter Oracle: ON/OFF") que comanda pulsos periódicos de leitura inócua (`HEAD /fscmUI/faces/...`) na própria aba aberta para renovar a sessão perante o Oracle sem navegação ou envio de dados.
+  - Manutenção ativa automática: pulsos periódicos de leitura inócua (`HEAD /fscmUI/faces/...`) executados automaticamente a cada 3 minutos na própria aba Oracle aberta para manter a sessão renovada sem necessidade de intervenção do usuário, cessando se houver expiração detectada.

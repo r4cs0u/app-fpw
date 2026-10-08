@@ -17,7 +17,7 @@
 
 - [x] 3.1 Implementar no sentinela Oracle a detecção de expiração (sinais da medição) e a publicação do estado e do último pulso via `GM_setValue`. Verificar em teste com `document`/`location` simulados: sinal de expirada publica `expired`, página normal não, e nada além do previsto é lido.
 - [x] 3.2 Implementar o pulso ativo escolhido na medição, respeitando `decidirPulsoAtivo`, sem navegar, recarregar, enviar formulários nem ler dados. Verificar em teste com `fetch`/DOM simulados: um pulso por intervalo, nenhum com a opção desligada ou expirada, falha registrada sem repetição agressiva.
-- [x] 3.3 Em `80-painel.js` e `00-core.js`, adicionar a opção "Manter Oracle ativa" (persistida em `fpw.oracleKeepalive`, padrão desligada), o indicador do último pulso, o estado `expired` com aviso único e o registro de log. Verificar em `tests/panel-status.test.js` e `tests/log.test.js`: opção persiste e é propagada, estados exibidos, aviso e log uma vez por expiração, execução em andamento intacta.
+- [x] 3.3 Em `80-painel.js` e `00-core.js`, adicionar suporte ao estado `expired` com aviso único e registro de log (keepalive ativo agora roda de forma transparente e automática sempre que a aba estiver aberta). Verificar em `tests/panel-status.test.js` e `tests/log.test.js`: estados exibidos, aviso e log uma vez por expiração, execução em andamento intacta.
 
 ## 4. Documentação e validação
 

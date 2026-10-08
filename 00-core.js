@@ -998,15 +998,11 @@ window.AutomacaoFolha = window.AutomacaoFolha || {
 
     AF.sessao.decidirPulsoAtivo = function (entrada) {
         entrada = entrada || {};
-        var ativo = !!entrada.ativo;
         var estado = entrada.estado || 'unknown';
         var agora = entrada.agora !== undefined ? entrada.agora : Date.now();
         var ultimoPulso = entrada.ultimoPulso || 0;
-        var intervalo = entrada.intervalo || (5 * 60 * 1000); // 5 min padrão seguro
+        var intervalo = entrada.intervalo || (3 * 60 * 1000); // 3 min padrão
 
-        if (!ativo) {
-            return { devePulsar: false, motivo: 'desligado' };
-        }
         if (estado === 'expired') {
             return { devePulsar: false, motivo: 'expirado' };
         }

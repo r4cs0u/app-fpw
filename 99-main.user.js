@@ -120,12 +120,11 @@
             window.addEventListener('keydown', onInteracao, { passive: true });
         }
 
-        function executarPulsoAtivoSeHabilitado() {
+        function executarPulsoAtivo() {
             try {
                 if (typeof GM_getValue !== 'function' || typeof GM_setValue !== 'function') return;
-                var ativo = !!GM_getValue('fpw_oracle_keepalive_ativo', false);
                 var estadoExplicito = GM_getValue('fpw_oracle_estado', null);
-                if (!ativo || estadoExplicito === 'expired') return;
+                if (estadoExplicito === 'expired') return;
 
                 var agora = Date.now();
                 var ultimoPulso = GM_getValue('fpw_oracle_ultimo_pulso_ts', 0);
@@ -135,7 +134,7 @@
 
                 GM_setValue('fpw_oracle_ultimo_pulso_ts', agora);
 
-                // Executa fetch de leitura inócua na própria origem Oracle
+                // Executa fetch de leitura inócua na própria origem Oracle para renovar sessão
                 if (typeof fetch === 'function') {
                     fetch(sanitizarCaminho(typeof window !== 'undefined' ? window.location : null) || '/fscmUI/faces/FuseWelcome', {
                         method: 'HEAD',
@@ -155,11 +154,11 @@
         }
 
         emitirPulso();
-        executarPulsoAtivoSeHabilitado();
+        executarPulsoAtivo();
         if (typeof setInterval === 'function') {
             setInterval(function () {
                 emitirPulso();
-                executarPulsoAtivoSeHabilitado();
+                executarPulsoAtivo();
             }, 30000);
         }
     }

@@ -121,24 +121,21 @@ test('decidirPulsoAtivo evaluates keepalive policy properly', () => {
     const agora = 1000000;
     const intervalo = 300000; // 5 min
 
-    // Desligado
-    assert.equal(AF.sessao.decidirPulsoAtivo({ ativo: false, estado: 'active' }).devePulsar, false);
-
-    // Expirado ou inativo
-    assert.equal(AF.sessao.decidirPulsoAtivo({ ativo: true, estado: 'expired' }).devePulsar, false);
-    assert.equal(AF.sessao.decidirPulsoAtivo({ ativo: true, estado: 'inactive' }).devePulsar, false);
+    // Expirado ou inativo não pulsa
+    assert.equal(AF.sessao.decidirPulsoAtivo({ estado: 'expired' }).devePulsar, false);
+    assert.equal(AF.sessao.decidirPulsoAtivo({ estado: 'inactive' }).devePulsar, false);
 
     // Primeiro pulso (ultimoPulso 0)
-    const p1 = AF.sessao.decidirPulsoAtivo({ ativo: true, estado: 'active', agora, ultimoPulso: 0, intervalo });
+    const p1 = AF.sessao.decidirPulsoAtivo({ estado: 'active', agora, ultimoPulso: 0, intervalo });
     assert.equal(p1.devePulsar, true);
 
     // Aguardando intervalo
-    const p2 = AF.sessao.decidirPulsoAtivo({ ativo: true, estado: 'active', agora: agora + 100000, ultimoPulso: agora, intervalo });
+    const p2 = AF.sessao.decidirPulsoAtivo({ estado: 'active', agora: agora + 100000, ultimoPulso: agora, intervalo });
     assert.equal(p2.devePulsar, false);
     assert.equal(p2.motivo, 'aguardando_intervalo');
 
     // Intervalo decorrido
-    const p3 = AF.sessao.decidirPulsoAtivo({ ativo: true, estado: 'active', agora: agora + 300001, ultimoPulso: agora, intervalo });
+    const p3 = AF.sessao.decidirPulsoAtivo({ estado: 'active', agora: agora + 300001, ultimoPulso: agora, intervalo });
     assert.equal(p3.devePulsar, true);
     assert.equal(p3.motivo, 'intervalo_decorrido');
 });

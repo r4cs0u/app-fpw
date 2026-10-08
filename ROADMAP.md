@@ -92,7 +92,7 @@ Ordem do mais simples ao mais complexo, confirmada em 2026-10-07: sons (item 0),
 | G | `report-row-adjustment-detail` | Melhoria 6 | Novo dado no modelo + UI | Médio |
 | Fase 4 | `extract-phase4-decision` (sem mudança de especificação) | Etapa 3 | Função pura testada, validada via MCP e arquivada em 2026-10-07 | Médio |
 | H | `oracle-session-keepalive` | Melhoria 1 | Monitor e sentinela implementados (256 testes); validação de runtime pendente | Baixo |
-| H2 | `oracle-active-keepalive` | Melhoria 1 (continuação) | Diagnóstico passivo, estado expirado e pulso ativo com toggle implementados e testados (260 testes); validação de runtime no Oracle pendente | Médio |
+| H2 | `oracle-active-keepalive` | Melhoria 1 (continuação) | Diagnóstico passivo, estado expirado e pulso ativo automático implementados e testados (259 testes); validação de runtime no Oracle pendente | Médio |
 | I1 | `supervised-preanalysis` | Melhoria 3 | Pré-análise somente leitura validada via MCP e arquivada em 2026-10-07 | Médio |
 | I2 | `adjustment-mode-selector` | Melhoria 3 | Seletor Automático/Supervisionado implementado (`65-supervisionado.js`, 253 testes) | Médio |
 
