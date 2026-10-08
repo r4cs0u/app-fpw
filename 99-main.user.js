@@ -24,16 +24,143 @@
 
     function iniciarSentinelaOracle() {
         console.info('[FPW] Sentinela de sessao Oracle ativo nesta aba.');
+        var MAX_DIAG = 20;
+
+        function sanitizarCaminho(loc) {
+            try {
+                return (loc && loc.pathname) ? loc.pathname : '';
+            } catch (e) {
+                return '';
+            }
+        }
+
+        function registrarDiagnostico(evento, detalhes) {
+            try {
+                if (typeof GM_getValue !== 'function' || typeof GM_setValue !== 'function') return;
+                var raw = GM_getValue('fpw_oracle_diag', []);
+                var lista = Array.isArray(raw) ? raw : [];
+                var item = {
+                    t: Date.now(),
+                    ev: evento,
+                    path: sanitizarCaminho(typeof window !== 'undefined' ? window.location : null)
+                };
+                if (detalhes && typeof detalhes === 'object') {
+                    for (var k in detalhes) {
+                        if (Object.prototype.hasOwnProperty.call(detalhes, k)) {
+                            // Não salvar strings longas ou sensíveis
+                            if (typeof detalhes[k] === 'number' || typeof detalhes[k] === 'boolean' || typeof detalhes[k] === 'string') {
+                                item[k] = detalhes[k];
+                            }
+                        }
+                    }
+                }
+                lista.push(item);
+                if (lista.length > MAX_DIAG) {
+                    lista = lista.slice(lista.length - MAX_DIAG);
+                }
+                GM_setValue('fpw_oracle_diag', lista);
+            } catch (e) {}
+        }
+
+        var aberturaRegistrada = false;
         function emitirPulso() {
             try {
+                var agora = Date.now();
                 if (typeof GM_setValue === 'function') {
-                    GM_setValue('fpw_oracle_liveness', Date.now());
+                    GM_setValue('fpw_oracle_liveness', agora);
+                }
+                if (!aberturaRegistrada) {
+                    aberturaRegistrada = true;
+                    registrarDiagnostico('abertura', { inicio: agora });
+                }
+                verificarSinaisExpiracao();
+            } catch (e) {}
+        }
+
+        var expiracaoNotificada = false;
+        function verificarSinaisExpiracao() {
+            try {
+                if (typeof document === 'undefined') return;
+                var loc = typeof window !== 'undefined' ? window.location : null;
+                var pathname = (loc && loc.pathname) ? loc.pathname.toLowerCase() : '';
+                // Sinais típicos de redirecionamento para login / expiração
+                var ehLogin = pathname.indexOf('login') !== -1 || pathname.indexOf('auth') !== -1 || pathname.indexOf('signin') !== -1;
+                var textoDoc = (document.body && document.body.innerText) ? document.body.innerText.toLowerCase() : '';
+                var temAvisoExpirada = textoDoc.indexOf('sessão expirou') !== -1 ||
+                                      textoDoc.indexOf('session expired') !== -1 ||
+                                      textoDoc.indexOf('session has expired') !== -1 ||
+                                      textoDoc.indexOf('sua sessão terminou') !== -1;
+
+                if ((ehLogin || temAvisoExpirada) && !expiracaoNotificada) {
+                    expiracaoNotificada = true;
+                    if (typeof GM_setValue === 'function') {
+                        GM_setValue('fpw_oracle_estado', 'expired');
+                    }
+                    registrarDiagnostico('expirada', { ehLogin: ehLogin, temAviso: temAvisoExpirada });
                 }
             } catch (e) {}
         }
+
+        function registrarAtividadeUsuario(ev) {
+            try {
+                registrarDiagnostico('atividade', { tipo: ev ? ev.type : 'manual' });
+            } catch (e) {}
+        }
+
+        if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+            var throttleAtividade = 0;
+            function onInteracao(ev) {
+                var agora = Date.now();
+                if (agora - throttleAtividade > 60000) { // registra no máximo 1x por minuto
+                    throttleAtividade = agora;
+                    registrarAtividadeUsuario(ev);
+                }
+            }
+            window.addEventListener('mousedown', onInteracao, { passive: true });
+            window.addEventListener('keydown', onInteracao, { passive: true });
+        }
+
+        function executarPulsoAtivoSeHabilitado() {
+            try {
+                if (typeof GM_getValue !== 'function' || typeof GM_setValue !== 'function') return;
+                var ativo = !!GM_getValue('fpw_oracle_keepalive_ativo', false);
+                var estadoExplicito = GM_getValue('fpw_oracle_estado', null);
+                if (!ativo || estadoExplicito === 'expired') return;
+
+                var agora = Date.now();
+                var ultimoPulso = GM_getValue('fpw_oracle_ultimo_pulso_ts', 0);
+                var intervalo = 3 * 60 * 1000; // 3 minutos
+
+                if (agora - ultimoPulso < intervalo) return;
+
+                GM_setValue('fpw_oracle_ultimo_pulso_ts', agora);
+
+                // Executa fetch de leitura inócua na própria origem Oracle
+                if (typeof fetch === 'function') {
+                    fetch(sanitizarCaminho(typeof window !== 'undefined' ? window.location : null) || '/fscmUI/faces/FuseWelcome', {
+                        method: 'HEAD',
+                        credentials: 'same-origin',
+                        cache: 'no-store'
+                    }).then(function (res) {
+                        var resData = { quando: Date.now(), ok: res.ok, status: res.status };
+                        GM_setValue('fpw_oracle_ultimo_pulso_resultado', resData);
+                        registrarDiagnostico('pulso_ativo', resData);
+                    }).catch(function (err) {
+                        var errData = { quando: Date.now(), ok: false, status: 0, erro: String(err) };
+                        GM_setValue('fpw_oracle_ultimo_pulso_resultado', errData);
+                        registrarDiagnostico('pulso_ativo', errData);
+                    });
+                }
+            } catch (e) {}
+        }
+
         emitirPulso();
+        executarPulsoAtivoSeHabilitado();
         if (typeof setInterval === 'function') {
-            setInterval(emitirPulso, 30000);
+            setInterval(function () {
+                emitirPulso();
+                executarPulsoAtivoSeHabilitado();
+            }, 30000);
         }
     }
 

@@ -255,6 +255,41 @@ test('panel displays oracle badge across unknown, active, and inactive states an
     AF.painel.atualizarSessaoOracle({ estado: 'active' });
     assert.equal(badge.textContent, 'Oracle: ativa');
     assert.equal(warning.style.display, 'none');
+
+    // Estado expired
+    AF.painel.atualizarSessaoOracle({ estado: 'expired', houvePerda: true });
+    assert.equal(badge.textContent, 'Oracle: expirada');
+    assert.equal(warning.style.display, 'block');
+    assert.ok(warning.textContent.includes('expirou'));
+});
+
+test('panel oracle keepalive toggle persists and updates button label', () => {
+    const doc = createDocument();
+    const storage = new Map();
+    const sessionStorage = {
+        getItem: k => storage.get(k) || null,
+        setItem: (k, v) => storage.set(k, String(v)),
+        removeItem: k => storage.delete(k)
+    };
+    const AF = {
+        estado: { cancelado: false, rodando: false },
+        core: { getDocC: () => doc },
+        relatorios: {},
+        sons: { tocar() {} }
+    };
+    loadPanel(AF, { sessionStorage }).iniciar(doc);
+
+    const btnKeepalive = doc.getElementById('btn-oracle-keepalive');
+    assert.ok(btnKeepalive);
+    assert.equal(btnKeepalive.textContent, 'Manter Oracle: OFF');
+
+    btnKeepalive.onclick();
+    assert.equal(btnKeepalive.textContent, 'Manter Oracle: ON');
+    assert.equal(sessionStorage.getItem('fpw.oracleKeepalive'), 'true');
+
+    btnKeepalive.onclick();
+    assert.equal(btnKeepalive.textContent, 'Manter Oracle: OFF');
+    assert.equal(sessionStorage.getItem('fpw.oracleKeepalive'), 'false');
 });
 
 test('panel mode selector initializes to supervisionado, toggles, persists in sessionStorage and falls back safely', () => {

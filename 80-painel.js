@@ -35,12 +35,24 @@
             badge.textContent = 'Oracle: ativa';
             badge.title = 'Sess\u00E3o Oracle ativa e comunicando';
             if (aviso) aviso.style.display = 'none';
+        } else if (st === 'expired') {
+            badge.style.background = 'rgba(239,68,68,.35)';
+            badge.style.color = '#f87171';
+            badge.textContent = 'Oracle: expirada';
+            badge.title = 'Sess\u00E3o Oracle expirou (tela de login/aviso de expira\u00E7\u00E3o)';
+            if (aviso) {
+                aviso.textContent = '\u26A0\uFE0F Sess\u00E3o Oracle expirou por inatividade. Fa\u00E7a login novamente na aba Oracle.';
+                aviso.style.display = 'block';
+            }
         } else if (st === 'inactive') {
             badge.style.background = 'rgba(239,68,68,.25)';
             badge.style.color = '#fca5a5';
             badge.textContent = 'Oracle: inativa';
-            badge.title = 'Sess\u00E3o Oracle inativa ou expirada';
-            if (aviso) aviso.style.display = 'block';
+            badge.title = 'Sess\u00E3o Oracle inativa ou aba fechada';
+            if (aviso) {
+                aviso.textContent = '\u26A0\uFE0F Sess\u00E3o Oracle inativa. Abra ou recarregue a aba do Oracle para manter o MyWay conectado.';
+                aviso.style.display = 'block';
+            }
         } else {
             badge.style.background = '#374151';
             badge.style.color = '#9ca3af';
@@ -48,6 +60,39 @@
             badge.title = 'Sess\u00E3o Oracle: sem evid\u00EAncia recente';
             if (aviso) aviso.style.display = 'none';
         }
+    }
+
+    var CHAVE_STORAGE_ORACLE_KEEPALIVE = 'fpw.oracleKeepalive';
+
+    function obterOracleKeepaliveAtivo() {
+        try {
+            if (typeof GM_getValue === 'function') {
+                return !!GM_getValue('fpw_oracle_keepalive_ativo', false);
+            }
+        } catch (e) {}
+        try {
+            return sessionStorage.getItem(CHAVE_STORAGE_ORACLE_KEEPALIVE) === 'true';
+        } catch (e) {}
+        return false;
+    }
+
+    function salvarOracleKeepaliveAtivo(ativo) {
+        try {
+            if (typeof GM_setValue === 'function') {
+                GM_setValue('fpw_oracle_keepalive_ativo', !!ativo);
+            }
+        } catch (e) {}
+        try {
+            sessionStorage.setItem(CHAVE_STORAGE_ORACLE_KEEPALIVE, String(!!ativo));
+        } catch (e) {}
+    }
+
+    function renderizarOracleKeepalive(docC, ativo) {
+        var btn = docC.getElementById('btn-oracle-keepalive');
+        if (!btn) return;
+        btn.style.background = ativo ? '#059669' : '#374151';
+        btn.style.color = ativo ? '#ffffff' : '#9ca3af';
+        btn.textContent = ativo ? 'Manter Oracle: ON' : 'Manter Oracle: OFF';
     }
 
     var CHAVE_STORAGE_MODO = 'fpw.modoAjuste';
@@ -242,6 +287,7 @@
             '<span style="font-size:10px;color:#9ca3af;">Modo:</span>' +
             '<button id="btn-modo-auto" type="button" title="Modo Autom\u00E1tico: percorre toda a lista" style="padding:2px 8px;font-size:10px;font-weight:600;border-radius:4px;border:1px solid #374151;cursor:pointer;font-family:inherit;">Autom\u00E1tico</button>' +
             '<button id="btn-modo-superv" type="button" title="Modo Supervisionado: confirma\u00E7\u00E3o pr\u00E9via folha a folha" style="padding:2px 8px;font-size:10px;font-weight:600;border-radius:4px;border:1px solid #374151;cursor:pointer;font-family:inherit;">Supervisionado</button>' +
+            '<button id="btn-oracle-keepalive" type="button" title="Manter sess\u00E3o da aba Oracle ativa via pulsos in\u00F3cuos peri\u00F3dicos" style="margin-left:4px;padding:2px 6px;font-size:9px;font-weight:600;border-radius:4px;border:1px solid #374151;cursor:pointer;font-family:inherit;background:#374151;color:#9ca3af;">Manter Oracle: OFF</button>' +
             '</div>' +
 
             // Barra de status
@@ -371,6 +417,18 @@
                 modoAtual = 'supervisionado';
                 salvarModoAjuste(modoAtual);
                 renderizarModo(docC, modoAtual);
+            };
+        }
+
+        var oracleKeepaliveAtivo = obterOracleKeepaliveAtivo();
+        renderizarOracleKeepalive(docC, oracleKeepaliveAtivo);
+
+        var btnOracleKeepalive = docC.getElementById('btn-oracle-keepalive');
+        if (btnOracleKeepalive) {
+            btnOracleKeepalive.onclick = function () {
+                oracleKeepaliveAtivo = !oracleKeepaliveAtivo;
+                salvarOracleKeepaliveAtivo(oracleKeepaliveAtivo);
+                renderizarOracleKeepalive(docC, oracleKeepaliveAtivo);
             };
         }
 

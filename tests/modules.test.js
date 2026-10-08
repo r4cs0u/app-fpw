@@ -65,22 +65,54 @@ test('entry script running on oraclecloud.com runs sentinel only and does not lo
     let gmSetKey = null;
     let gmSetValue = null;
     let httpRequests = 0;
+    const store = {};
 
     const window = {
-        location: { hostname: 'elny.fa.la1.oraclecloud.com', pathname: '/fscmUI/faces/FuseWelcome' }
+        location: { hostname: 'elny.fa.la1.oraclecloud.com', pathname: '/fscmUI/faces/FuseWelcome' },
+        addEventListener: () => {}
     };
     const context = {
         window,
+        document: { body: { innerText: '' } },
         console: { info() {}, error() {}, log() {} },
-        GM_setValue: (k, v) => { gmSetKey = k; gmSetValue = v; },
+        GM_getValue: (k, def) => (k in store ? store[k] : def),
+        GM_setValue: (k, v) => { store[k] = v; gmSetKey = k; gmSetValue = v; },
         GM_xmlhttpRequest: () => { httpRequests++; },
         setInterval: (fn, ms) => {}
     };
 
-    vm.runInNewContext(main, context);
+    const mainSource = readFileSync(join(root, '99-main.user.js'), 'utf8');
+    vm.runInNewContext(mainSource, context);
 
     assert.equal(httpRequests, 0, 'Must not issue HTTP requests to download automation modules on Oracle origin');
-    assert.equal(gmSetKey, 'fpw_oracle_liveness');
-    assert.ok(typeof gmSetValue === 'number' && gmSetValue > 0);
+    assert.ok(store.fpw_oracle_liveness > 0);
+    assert.ok(Array.isArray(store.fpw_oracle_diag));
+    assert.equal(store.fpw_oracle_diag[0].ev, 'abertura');
+    assert.equal(store.fpw_oracle_diag[0].path, '/fscmUI/faces/FuseWelcome');
     assert.equal(window.AutomacaoFolha, undefined, 'Must not initialize AutomacaoFolha on Oracle origin');
+});
+
+test('sentinel registers expired state on signin or expired notice in document', () => {
+    const store = {};
+    const window = {
+        location: { hostname: 'elny.fa.la1.oraclecloud.com', pathname: '/fscmUI/faces/SessionExpired' },
+        addEventListener: () => {}
+    };
+    const context = {
+        window,
+        document: { body: { innerText: 'Sua sessão expirou por inatividade' } },
+        console: { info() {}, error() {}, log() {} },
+        GM_getValue: (k, def) => (k in store ? store[k] : def),
+        GM_setValue: (k, v) => { store[k] = v; },
+        GM_xmlhttpRequest: () => {},
+        setInterval: () => {}
+    };
+
+    const mainSource = readFileSync(join(root, '99-main.user.js'), 'utf8');
+    vm.runInNewContext(mainSource, context);
+
+    assert.equal(store.fpw_oracle_estado, 'expired');
+    const diagExpirada = store.fpw_oracle_diag.find(d => d.ev === 'expirada');
+    assert.ok(diagExpirada);
+    assert.equal(diagExpirada.temAviso, true);
 });

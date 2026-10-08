@@ -141,3 +141,7 @@ The automation verifies structural contracts before starting adjustments and bef
   - O uso de `iframe` da página Oracle dentro do WebPonto é inviabilizado por políticas de cabeçalhos de segurança (frame-ancestors) e alteraria a estrutura de frames do WebPonto.
   - Requisição HTTP direta do MyWay para o Oracle via `GM_xmlhttpRequest` pode não satisfazer o ciclo de vida do Oracle ADF (que depende de estado na UI e na conexão da aba).
   - A abordagem viável e segura é a **hipótese 1 do design**: o userscript do Tampermonkey também carregar no domínio `https://elny.fa.la1.oraclecloud.com/*` em modo exclusivamente sentinela/liveness (sem automações de folha nem injeção de painel), gravando carimbos de presença periódicos via `GM_setValue`. A instância do userscript no MyWay consome esse sinal via `GM_addValueChangeListener` / `GM_getValue`, apresentando o status da sessão Oracle e avisando quando o sinal for interrompido.
+- **Keepalive Ativo e Diagnóstico Passivo (oracle-active-keepalive)**:
+  - Registro passivo de diagnósticos em `fpw_oracle_diag` (abertura, atividade recente, expiração) sem segredos ou tokens.
+  - Detecção ativa de expiração com sinalização em `fpw_oracle_estado = 'expired'`.
+  - Opção no painel ("Manter Oracle: ON/OFF") que comanda pulsos periódicos de leitura inócua (`HEAD /fscmUI/faces/...`) na própria aba aberta para renovar a sessão perante o Oracle sem navegação ou envio de dados.

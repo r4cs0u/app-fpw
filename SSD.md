@@ -27,7 +27,7 @@ The repository uses branch `main` as its stable production reference and branch 
 | `60-relatorios.js` | Builds the live HTML report, copies per-employee irregularity text, opens expandable per-employee adjustment detail rows, opens the team irregularity export window for the visible table rows (title lists active filters and search), provides the name-search field, and supports report navigation and TSV copying. |
 | `65-supervisionado.js` | Orchestrates supervised adjustment mode workflow (idle, confirming, applying, completed, stopped, interrupted), confirmation popup with pre-analysis and adjustment detail results. |
 | `70-sons.js` | Provides optional audio cues for execution events: start, completion, user stop, failure and attention cue. Opening the live report plays no sound. |
-| `80-painel.js` | Builds the injected controls (including mode selector Automático/Supervisionado and the always-available Log button), status display, Oracle companion session status indicator/warning, and instruction side panel. |
+| `80-painel.js` | Builds the injected controls (including mode selector Automático/Supervisionado, Oracle keepalive toggle `Manter Oracle: ON/OFF`, and the always-available Log button), status display, Oracle companion session status indicator/warning, and instruction side panel. |
 | `85-ambiente.js` | Sets experimental environment, version, repository, and branch metadata. |
 
 The modules share a global `window.AutomacaoFolha` namespace rather than using a bundler or module system. The core and workflow modules access the legacy same-origin frames through `window.top`; the analysis, mapping, popup, and adjustment flows are consequently coupled to the WebPonto DOM and its navigation behavior.

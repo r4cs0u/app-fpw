@@ -969,9 +969,12 @@ window.AutomacaoFolha = window.AutomacaoFolha || {
         var ultimoSinal = entrada.ultimoSinal;
         var estadoAnterior = entrada.estadoAnterior || 'unknown';
         var janelaMs = entrada.janelaMs || JANELA_EXPIRACAO_ORACLE_MS;
+        var estadoExplicito = entrada.estadoExplicito;
 
         var novoEstado;
-        if (!ultimoSinal) {
+        if (estadoExplicito === 'expired') {
+            novoEstado = 'expired';
+        } else if (!ultimoSinal) {
             novoEstado = 'unknown';
         } else if (agora - ultimoSinal <= janelaMs && agora >= ultimoSinal) {
             novoEstado = 'active';
@@ -979,29 +982,57 @@ window.AutomacaoFolha = window.AutomacaoFolha || {
             novoEstado = 'inactive';
         }
 
-        var houvePerda = (estadoAnterior === 'active' && novoEstado === 'inactive');
+        var houvePerda = (estadoAnterior === 'active' && (novoEstado === 'inactive' || novoEstado === 'expired'));
+        var houveExpiracao = (estadoAnterior !== 'expired' && novoEstado === 'expired');
         var transicao = (estadoAnterior !== novoEstado);
 
         return {
             estado: novoEstado,
             transicao: transicao,
             houvePerda: houvePerda,
+            houveExpiracao: houveExpiracao,
             ultimoSinal: ultimoSinal || null,
             momento: agora
         };
     };
 
+    AF.sessao.decidirPulsoAtivo = function (entrada) {
+        entrada = entrada || {};
+        var ativo = !!entrada.ativo;
+        var estado = entrada.estado || 'unknown';
+        var agora = entrada.agora !== undefined ? entrada.agora : Date.now();
+        var ultimoPulso = entrada.ultimoPulso || 0;
+        var intervalo = entrada.intervalo || (5 * 60 * 1000); // 5 min padrão seguro
+
+        if (!ativo) {
+            return { devePulsar: false, motivo: 'desligado' };
+        }
+        if (estado === 'expired') {
+            return { devePulsar: false, motivo: 'expirado' };
+        }
+        if (estado === 'inactive') {
+            return { devePulsar: false, motivo: 'inativo' };
+        }
+        if (!ultimoPulso || (agora - ultimoPulso >= intervalo)) {
+            return { devePulsar: true, motivo: 'intervalo_decorrido' };
+        }
+        return { devePulsar: false, motivo: 'aguardando_intervalo', restanteMs: intervalo - (agora - ultimoPulso) };
+    };
+
     AF.sessao.iniciarMonitorOracle = function (callback) {
         function verificar() {
             var ultimo = null;
+            var explicito = null;
             try {
                 if (typeof GM_getValue === 'function') {
                     ultimo = GM_getValue('fpw_oracle_liveness', null);
+                    explicito = GM_getValue('fpw_oracle_estado', null);
                 }
             } catch (e) {}
 
             var avaliacao = AF.sessao.avaliarEstadoOracle({
                 ultimoSinal: ultimo,
+                estadoExplicito: explicito,
                 estadoAnterior: AF.estado.sessaoOracleEstado || 'unknown'
             });
 
@@ -1011,7 +1042,10 @@ window.AutomacaoFolha = window.AutomacaoFolha || {
 
             if (avaliacao.houvePerda) {
                 if (AF.log && typeof AF.log.evento === 'function') {
-                    AF.log.evento('perda-sessao-oracle', avaliacao, 'Sessao da pagina Oracle foi perdida ou expirou.', '#f97316');
+                    var msg = avaliacao.estado === 'expired' ?
+                        'Sessao Oracle expirou (notificacao/login detectado).' :
+                        'Sessao da pagina Oracle foi perdida ou ficou inativa.';
+                    AF.log.evento('perda-sessao-oracle', avaliacao, msg, '#f97316');
                 }
             }
 
