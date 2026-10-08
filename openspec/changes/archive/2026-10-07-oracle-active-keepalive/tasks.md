@@ -3,8 +3,8 @@
 ## 1. Medição (diagnóstico passivo e leitura via MCP)
 
 - [x] 1.1 No sentinela (`99-main.user.js`), adicionar diagnóstico passivo que grava via `GM_setValue` um registro limitado (últimas N entradas, sem URLs com parâmetros nem valores sensíveis): abertura da página, último evento de atividade observado, avisos de expiração e instante em que a página indica sessão expirada. Verificar em teste com `window`/`document` simulados: o registro respeita o limite, não contém query string nem tokens, e não acessa formulários.
-- [ ] 1.2 Publicar em `test`, orientar o responsável a reinstalar o userscript (procedimento do `AGENT.md`) e deixar a aba Oracle aberta e o computador ocioso até a próxima queda. Verificar lendo o registro de diagnóstico (console ou `GM_getValue`) com as horas de abertura e de expiração.
-- [ ] 1.3 Em paralelo, tentar via MCP somente leitura observar a aba Oracle: requisições periódicas da própria página, avisos de expiração, mecanismo de renovação e sinais de página expirada (login/aviso). Verificar com notas em `PAGE_STRUCTURE.md` (sem identificadores, tokens ou URLs completas); se o MCP expirar de novo, registrar que não foi observado, sem afirmar o contrário.
+- [x] 1.2 Publicar em `test`, orientar o responsável a reinstalar o userscript (procedimento do `AGENT.md`) e deixar a aba Oracle aberta e o computador ocioso até a próxima queda. Verificar lendo o registro de diagnóstico (console ou `GM_getValue`) com as horas de abertura e de expiração.
+- [x] 1.3 Em paralelo, tentar via MCP somente leitura observar a aba Oracle: requisições periódicas da própria página, avisos de expiração, mecanismo de renovação e sinais de página expirada (login/aviso). Verificar com notas em `PAGE_STRUCTURE.md` (sem identificadores, tokens ou URLs completas); se o MCP expirar de novo, registrar que não foi observado, sem afirmar o contrário.
 - [x] 1.4 Fechar a medição: timeout de inatividade, o que conta como atividade, existência de limite absoluto e o sinal de "expirada". Verificar com a conclusão escrita em `PAGE_STRUCTURE.md` e a escolha do tipo e do intervalo do pulso.
 - [x] 1.5 Atualizar esta change com `/openspec-update-change` conforme a medição (tipo de pulso, intervalo, sinais de expiração, `@connect` se necessário). Verificar com `openspec validate oracle-active-keepalive --strict` e o grupo 2 reescrito em tarefas específicas.
 
@@ -23,4 +23,4 @@
 
 - [x] 4.1 Atualizar `AGENT.md` (reinstalação do userscript e leitura do diagnóstico), `SSD.md`, `PAGE_STRUCTURE.md` e `ROADMAP.md`. Verificar com `Select-String -Pattern 'Manter Oracle' AGENT.md SSD.md ROADMAP.md`.
 - [x] 4.2 Rodar `node --test` completo e `openspec validate oracle-active-keepalive --strict`, sem falhas.
-- [ ] 4.3 Validação de runtime em `test`: com a opção ligada, aba Oracle aberta e MyWay ocioso por mais que o timeout medido, registrar período e resultado (sessão mantida ou perdida); depois com a opção desligada, confirmar que não há pulsos. Registrar no `ROADMAP.md`. Não executar Ajuste.
+- [x] 4.3 Validação de runtime em `test`: com a opção ligada, aba Oracle aberta e MyWay ocioso por mais que o timeout medido, registrar período e resultado (sessão mantida ou perdida); depois com a opção desligada, confirmar que não há pulsos. Registrar no `ROADMAP.md`. Não executar Ajuste.
