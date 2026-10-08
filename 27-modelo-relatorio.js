@@ -869,14 +869,35 @@
         // 1. Folgas movimentadas
         var acoes = aj.acoes || [];
         if (acoes.length > 0) {
-            temConteudo = true;
-            linhas.push('|_Folgas movimentadas');
+            var ordemPesos = { 'alterado': 3, 'sem alteração': 2, 'falha': 1 };
+            var mapaAcoes = Object.create(null);
+            var chavesOrdenadas = [];
+
             acoes.forEach(function (ac) {
                 var dest = extrairDataCompleta(ac.ausencia || ac.destino).dataFmt;
                 var orig = extrairDataCompleta(ac.origem).dataFmt;
                 var res = normalizarResultadoAcao(ac.resultado);
-                linhas.push('  |_ ' + dest + ' <- origem ' + orig + ' => ' + res);
+                var chave = dest + '<-' + orig;
+                if (!mapaAcoes[chave]) {
+                    mapaAcoes[chave] = { dest: dest, orig: orig, res: res };
+                    chavesOrdenadas.push(chave);
+                } else {
+                    var pesoAtual = ordemPesos[mapaAcoes[chave].res] || 0;
+                    var novoPeso = ordemPesos[res] || 0;
+                    if (novoPeso > pesoAtual) {
+                        mapaAcoes[chave].res = res;
+                    }
+                }
             });
+
+            if (chavesOrdenadas.length > 0) {
+                temConteudo = true;
+                linhas.push('|_Folgas movimentadas');
+                chavesOrdenadas.forEach(function (k) {
+                    var item = mapaAcoes[k];
+                    linhas.push('  |_ ' + item.dest + ' <- origem ' + item.orig + ' => ' + item.res);
+                });
+            }
         }
 
         // 2. Folgas Presas

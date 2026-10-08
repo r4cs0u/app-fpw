@@ -189,3 +189,63 @@ test('aplicar exibe status interrompido quando ajuste falha', async () => {
     const statusBox = fakeWin.document.getElementById('box-status');
     assert.match(statusBox.textContent, /Interrompido \(supervised-revalidation\): folha mudou/);
 });
+
+test('fechar a janela ou clicar cancelar durante a aplicacao cancela a execucao imediatamente', async () => {
+    const fakeWin = createFakeWindow();
+    let cancelou = false;
+    const AF = loadSupervisionado(fakeWin, { hasSel: true, nomeAtual: 'ANA' });
+    AF.core.cancelarTudo = () => { cancelou = true; };
+
+    await AF.supervisionado.iniciarConfirmacao();
+
+    // Simula clique em cancelar durante aplicando
+    fakeWin.document.getElementById('btn-cancelar').onclick();
+
+    assert.equal(cancelou, false); // no estado confirmando, nao estava rodando
+
+    // Durante aplicacao
+    AF.estado.rodando = true;
+    fakeWin.document.getElementById('btn-cancelar').onclick();
+    assert.equal(cancelou, true);
+});
+
+test('botao proxima folha apos conclusao avanca funcionario e carrega nova pre-analise', async () => {
+    const fakeWin = createFakeWindow();
+    let funcionarioAtual = 'ANA';
+    let avancouChamado = 0;
+
+    const AF = loadSupervisionado(fakeWin, { hasSel: true, nomeAtual: 'ANA' });
+    AF.core.nomeAtual = () => funcionarioAtual;
+    AF.core.avancarFuncionario = async () => {
+        avancouChamado++;
+        funcionarioAtual = 'BIA';
+        return { status: 'ready', value: 'ok' };
+    };
+    AF.preanalise.lerFolhaAtual = () => ({
+        nome: funcionarioAtual,
+        vazia: false,
+        intervalo: { texto: '01/09/2026 até 04/10/2026 (34 dias)' },
+        folgas: { total: 2, dias: ['03/09/2026', '10/09/2026'] },
+        cod47: { total: 0, dias: [] },
+        irregularidades: { semES: 1, interj: 0, britanica: 0, naoPreenchida: null },
+        horas: { HE: '00:00', HEF: '00:00', HEC: '00:00' }
+    });
+    AF.preanalise.texto = r => 'Pre-analise de ' + r.nome;
+
+    await AF.supervisionado.iniciarConfirmacao();
+    await fakeWin.document.getElementById('btn-aplicar').onclick();
+
+    assert.equal(AF.supervisionado.obterEstado(), 'concluido');
+
+    const btnProxima = fakeWin.document.getElementById('btn-proxima');
+    assert.equal(btnProxima.style.display, 'inline-flex');
+
+    // Clica em proxima folha
+    await btnProxima.onclick();
+
+    assert.equal(avancouChamado, 1);
+    assert.equal(AF.supervisionado.obterEstado(), 'confirmando');
+    assert.equal(fakeWin.document.getElementById('box-conteudo').textContent, 'Pre-analise de BIA');
+    assert.equal(fakeWin.document.getElementById('btn-aplicar').style.display, 'inline-flex');
+    assert.equal(fakeWin.document.getElementById('btn-aplicar').disabled, false);
+});

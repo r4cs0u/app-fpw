@@ -54,6 +54,7 @@
             + '<pre id="box-conteudo" class="pre-wrap">' + escaparHTML(textoResumo) + '</pre>'
             + '<div class="actions">'
             +   '<button id="btn-cancelar" class="btn btn-cancel">Cancelar</button>'
+            +   '<button id="btn-proxima" class="btn btn-apply" style="display:none;background:#2563eb;">Pr\u00F3xima folha &#10140;</button>'
             +   '<button id="btn-aplicar" class="btn btn-apply"' + (podeAplicar ? '' : ' disabled title="Folha sem marcações para ajustar"') + '>Aplicar nesta folha</button>'
             + '</div></body></html>';
     }
@@ -108,26 +109,38 @@
         var timerFechamento = setInterval(function () {
             if (!janelaSupervisionado || janelaSupervisionado.closed) {
                 clearInterval(timerFechamento);
+                if (estadoFluxo === 'aplicando' || (AF.estado && AF.estado.rodando)) {
+                    if (AF.core && typeof AF.core.cancelarTudo === 'function') {
+                        AF.core.cancelarTudo();
+                    }
+                }
                 encerrarConfirmacao('fechado');
             }
-        }, 800);
+        }, 500);
 
         var btnCancelar = win.document.getElementById('btn-cancelar');
         if (btnCancelar) {
             btnCancelar.onclick = function () {
                 clearInterval(timerFechamento);
+                if (estadoFluxo === 'aplicando' || (AF.estado && AF.estado.rodando)) {
+                    if (AF.core && typeof AF.core.cancelarTudo === 'function') {
+                        AF.core.cancelarTudo();
+                    }
+                }
                 try { win.close(); } catch (e) {}
                 encerrarConfirmacao('cancelado');
             };
         }
 
+        var btnProxima = win.document.getElementById('btn-proxima');
         var btnAplicar = win.document.getElementById('btn-aplicar');
         if (btnAplicar) {
             btnAplicar.onclick = async function () {
                 if (estadoFluxo !== 'confirmando') return;
                 estadoFluxo = 'aplicando';
                 btnAplicar.disabled = true;
-                btnCancelar.disabled = true;
+                if (btnProxima) btnProxima.style.display = 'none';
+                btnCancelar.disabled = false; // Permite fechar/parar pelo botão cancelar/fechar
 
                 var boxStatus = win.document.getElementById('box-status');
                 if (boxStatus) {
@@ -167,6 +180,10 @@
                             boxStatus.className = 'status-box status-concluido';
                             boxStatus.textContent = 'Ajuste concluído com sucesso!';
                         }
+                        btnAplicar.style.display = 'none';
+                        if (btnProxima) {
+                            btnProxima.style.display = 'inline-flex';
+                        }
                     }
 
                     var boxConteudo = win.document.getElementById('box-conteudo');
@@ -174,6 +191,62 @@
                         var textoFinal = AF.modelo.textoDetalheAjuste(nomeAtual);
                         boxConteudo.textContent = textoFinal;
                     }
+                }
+            };
+        }
+
+        if (btnProxima) {
+            btnProxima.onclick = async function () {
+                btnProxima.disabled = true;
+                btnCancelar.disabled = true;
+                var boxStatus = win.document.getElementById('box-status');
+                if (boxStatus) {
+                    boxStatus.className = 'status-box status-aplicando';
+                    boxStatus.textContent = 'Avançando para a próxima folha...';
+                }
+
+                var avancou = (AF.core && typeof AF.core.avancarFuncionario === 'function')
+                    ? await AF.core.avancarFuncionario()
+                    : 'fim';
+
+                if (avancou === 'fim' || (avancou && avancou.value === 'fim')) {
+                    if (boxStatus) {
+                        boxStatus.className = 'status-box status-concluido';
+                        boxStatus.textContent = 'Fim da lista de funcionários.';
+                    }
+                    btnProxima.style.display = 'none';
+                    btnCancelar.disabled = false;
+                    return;
+                }
+
+                nomeAtual = (AF.core && typeof AF.core.nomeAtual === 'function') ? AF.core.nomeAtual() : '';
+                resumo = (AF.preanalise && typeof AF.preanalise.lerFolhaAtual === 'function')
+                    ? AF.preanalise.lerFolhaAtual()
+                    : null;
+
+                estadoFluxo = 'confirmando';
+                if (AF.estado) AF.estado.confirmacaoPendente = true;
+
+                if (boxStatus) {
+                    boxStatus.className = 'status-box';
+                    boxStatus.style.display = 'none';
+                }
+                var boxConteudo = win.document.getElementById('box-conteudo');
+                if (boxConteudo && resumo && AF.preanalise && typeof AF.preanalise.texto === 'function') {
+                    boxConteudo.textContent = AF.preanalise.texto(resumo);
+                }
+
+                btnCancelar.disabled = false;
+                btnCancelar.textContent = 'Cancelar';
+                btnProxima.style.display = 'none';
+                btnProxima.disabled = false;
+                if (btnAplicar) {
+                    btnAplicar.style.display = 'inline-flex';
+                    btnAplicar.disabled = !!(resumo && resumo.vazia);
+                }
+
+                if (AF.sons && typeof AF.sons.tocar === 'function') {
+                    AF.sons.tocar('atencao');
                 }
             };
         }

@@ -158,6 +158,9 @@
 
     AF.analisar.analisarTodas = async function () {
         AF.estado.cancelado = false;
+        AF.estado.falhaAjuste = null;
+        AF.estado.falhaPrecondicao = false;
+        AF.estado.motivoParadaAjuste = null;
         AF.estado.rodando = true;
         AF.core.setBotoes(true);
         AF.core.getDocC().getElementById('log-box').innerHTML = '';

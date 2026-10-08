@@ -324,14 +324,21 @@
 
         docC.getElementById('btn-analisar').onclick = async function () {
             AF.estado.cancelado = false;
+            AF.estado.falhaAjuste = null;
+            AF.estado.falhaPrecondicao = false;
+            AF.estado.motivoParadaAjuste = null;
             setStatus(docC, 'Analisando...', '#60a5fa');
             await AF.analisar.analisarTodas();
         };
 
         docC.getElementById('btn-executar').onclick = async function () {
             AF.estado.cancelado = false;
+            AF.estado.falhaAjuste = null;
+            AF.estado.falhaPrecondicao = false;
+            AF.estado.motivoParadaAjuste = null;
             var modo = obterModoAjuste();
             if (modo === 'supervisionado') {
+                setStatus(docC, 'Ajuste supervisionado...', '#a78bfa');
                 if (AF.supervisionado && typeof AF.supervisionado.iniciarConfirmacao === 'function') {
                     await AF.supervisionado.iniciarConfirmacao();
                 } else {

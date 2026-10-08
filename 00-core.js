@@ -250,8 +250,17 @@ window.AutomacaoFolha = window.AutomacaoFolha || {
     };
 
     AF.core.esperar = function (ms) {
+        if (AF.estado && AF.estado.cancelado) return Promise.resolve();
         return new Promise(function (resolve) {
-            setTimeout(resolve, ms);
+            var decorrido = 0;
+            var intervalo = 50;
+            var iv = setInterval(function () {
+                decorrido += intervalo;
+                if (decorrido >= ms || (AF.estado && AF.estado.cancelado)) {
+                    clearInterval(iv);
+                    resolve();
+                }
+            }, intervalo);
         });
     };
 
@@ -721,21 +730,26 @@ window.AutomacaoFolha = window.AutomacaoFolha || {
     };
 
     AF.core.cancelarTudo = function () {
-        if (AF.estado.execucaoAjuste && AF.estado.execucaoAjuste.ativa) {
+        if (AF.estado) AF.estado.cancelado = true;
+        if (AF.estado && AF.estado.execucaoAjuste && AF.estado.execucaoAjuste.ativa) {
             AF.core.pararExecucaoAjuste({
                 status: 'cancelled',
                 stage: 'user-stop',
                 reason: 'Parada solicitada pelo usuario.'
             }, AF.estado.execucaoAjuste);
         } else {
-            AF.estado.cancelado = true;
+            if (AF.estado) AF.estado.rodando = false;
+            if (typeof AF.core.setBotoes === 'function') AF.core.setBotoes(false);
+            if (AF.painel && typeof AF.painel.setStatus === 'function') {
+                AF.painel.setStatus('Parado pelo usuario', '#f97316');
+            }
         }
         try {
-            if (AF.estado.ultimoPopup && !AF.estado.ultimoPopup.closed) {
+            if (AF.estado && AF.estado.ultimoPopup && !AF.estado.ultimoPopup.closed) {
                 AF.estado.ultimoPopup.close();
             }
         } catch (e) {}
-        AF.estado.ultimoPopup = null;
+        if (AF.estado) AF.estado.ultimoPopup = null;
     };
 
     AF.core.getSelNome = function () {
@@ -839,7 +853,7 @@ window.AutomacaoFolha = window.AutomacaoFolha || {
             var t = 0;
             var iv = setInterval(function () {
                 t++;
-                if (t > 20) { clearInterval(iv); resolve(); return; }
+                if (t > 20 || (AF.estado && AF.estado.cancelado)) { clearInterval(iv); resolve(); return; }
                 try {
                     var tx = AF.core.getDoc1().querySelectorAll('input[type=text]');
                     var ir = AF.core.getDoc1().querySelectorAll('input[name^="Irre"]');

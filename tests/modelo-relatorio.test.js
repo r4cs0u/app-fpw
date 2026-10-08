@@ -675,3 +675,22 @@ test('iniciarExecucao aceita opcoes.total sem alterar comportamento padrao', () 
     assert.equal(AF.modelo.obterEstado().execs.ajuste.total, 1);
     assert.equal(AF.modelo.obterEstado().ordem.length, 3);
 });
+
+test('textoDetalheAjuste consolida acoes com mesmo destino e origem para resultado mais conclusivo', () => {
+    const { AF } = loadModelo();
+    AF.modelo.iniciarExecucao('ajuste', ['ADOVALDO']);
+    AF.modelo.registrarAjuste('ADOVALDO', {
+        movidas: 0,
+        presas: [{ dataFolga: '13/09/2026' }],
+        acoes: [
+            { ausencia: '13/09/2026', origem: '07/09/2026', resultado: 'falha' },
+            { ausencia: '13/09/2026', origem: '07/09/2026', resultado: 'sem alteração' }
+        ]
+    });
+
+    const texto = AF.modelo.textoDetalheAjuste('ADOVALDO');
+    const linhas = texto.split('\n');
+    const acoesLinhas = linhas.filter(l => l.includes('13/09/2026 <- origem 07/09/2026'));
+    assert.equal(acoesLinhas.length, 1);
+    assert.match(acoesLinhas[0], /=> sem alteração$/);
+});
