@@ -155,6 +155,20 @@
 
         var btnProxima = win.document.getElementById('btn-proxima');
         var btnAplicar = win.document.getElementById('btn-aplicar');
+
+        // Folha sem marcações não tem o que aplicar: só resta avançar para a próxima.
+        function atualizarAcoesDaFolha(resumoAtual) {
+            var vazia = !!(resumoAtual && resumoAtual.vazia);
+            if (btnAplicar) {
+                btnAplicar.style.display = vazia ? 'none' : 'inline-flex';
+                btnAplicar.disabled = vazia;
+            }
+            if (btnProxima) {
+                btnProxima.style.display = vazia ? 'inline-flex' : 'none';
+                btnProxima.disabled = false;
+            }
+        }
+        atualizarAcoesDaFolha(resumo);
         if (btnAplicar) {
             btnAplicar.onclick = async function () {
                 if (estadoFluxo !== 'confirmando') return;
@@ -224,6 +238,8 @@
             btnProxima.onclick = async function () {
                 btnProxima.disabled = true;
                 btnCancelar.disabled = true;
+                var pulandoVazia = !!(resumo && resumo.vazia);
+                var nomePulado = nomeAtual;
                 var boxStatus = win.document.getElementById('box-status');
                 if (boxStatus) {
                     boxStatus.className = 'status-box status-aplicando';
@@ -233,6 +249,10 @@
                 var avancou = (AF.core && typeof AF.core.avancarFuncionario === 'function')
                     ? await AF.core.avancarFuncionario()
                     : 'fim';
+
+                if (pulandoVazia && AF.core && typeof AF.core.log === 'function') {
+                    AF.core.log('Sem marcacoes, pulando (supervisionado): ' + nomePulado, '#000000');
+                }
 
                 if (avancou === 'fim' || (avancou && avancou.value === 'fim')) {
                     if (boxStatus) {
@@ -263,12 +283,7 @@
 
                 btnCancelar.disabled = false;
                 btnCancelar.textContent = 'Cancelar';
-                btnProxima.style.display = 'none';
-                btnProxima.disabled = false;
-                if (btnAplicar) {
-                    btnAplicar.style.display = 'inline-flex';
-                    btnAplicar.disabled = !!(resumo && resumo.vazia);
-                }
+                atualizarAcoesDaFolha(resumo);
 
                 if (AF.sons && typeof AF.sons.tocar === 'function') {
                     AF.sons.tocar('atencao');

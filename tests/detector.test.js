@@ -135,6 +135,31 @@ test('rows outside the target month are never counted', () => {
     assert.equal(r.naoPreenchida.avaliada, false);
 });
 
+test('transition-week rows of the next month do not change any irregularity or the unfilled percentage', () => {
+    const base = [
+        ...diasSemana(1, 28, d => d % 4 === 0),
+        linha(10, '08:00 ', '', 's/marc de entrada/sa\u00edda'),
+        linha(11, '06:00*', '18:00*', ' ', { cabecalho: dd(11) + ' Qui [Interjornada]' }),
+        linha(12, '06:00*', '18:00*'), linha(13, '06:00*', '18:00*'), linha(14, '06:00*', '18:00*')
+    ];
+    const transicao = [
+        linha(1, '', '', 's/marc de entrada/sa\u00edda', { mes: 10 }),
+        linha(2, '', '', 'Ausencia de Marcacao', { mes: 10 }),
+        linha(3, '', '', 'Ausencia de Marcacao', { mes: 10, cabecalho: dd(3, 10) + ' Sex [Interjornada]' }),
+        linha(4, '06:00*', '18:00*', ' ', { mes: 10 }),
+        linha(5, '06:00*', '18:00*', ' ', { mes: 10 }),
+        linha(6, '06:00*', '18:00*', ' ', { mes: 10 })
+    ];
+
+    const soMes = detector.detectarFolha(base, SETEMBRO);
+    const comTransicao = detector.detectarFolha(base.concat(transicao), SETEMBRO);
+
+    assert.deepEqual(plain(comTransicao.contagens), plain(soMes.contagens));
+    assert.deepEqual(plain(comTransicao.dias), plain(soMes.dias));
+    assert.deepEqual(plain(comTransicao.naoPreenchida), plain(soMes.naoPreenchida));
+    assert.equal(comTransicao.naoPreenchida.visiveis, 28);
+});
+
 test('Interjornada is read from the day heading, once per day', () => {
     const cab = dd(5) + ' Sab Horario: 08:06 as 14:21 157/166 [Interjornada]';
     const r = detector.detectarFolha([
