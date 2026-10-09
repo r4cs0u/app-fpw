@@ -273,6 +273,15 @@ test('unfilled sheet: few filled days of the visible ones', () => {
     assert.equal(r.naoPreenchida.pctNaoPreenchida, 75);
 });
 
+test('unfilled sheet: percentage is over the visible days, not the days of the month', () => {
+    // 24 dias visíveis de um mês de 30, 8 sem marcação: 8/24 = 33%
+    const linhas = diasSemana(1, 24, d => d > 8);
+    const r = detector.detectarFolha(linhas, SETEMBRO);
+    assert.equal(r.naoPreenchida.visiveis, 24);
+    assert.equal(r.naoPreenchida.preenchidos, 16);
+    assert.equal(r.naoPreenchida.pctNaoPreenchida, 33);
+});
+
 test('unfilled sheet: five absences among sixteen visible days is not flagged', () => {
     const linhas = diasSemana(1, 16, d => d > 5);
     const r = detector.detectarFolha(linhas, SETEMBRO);

@@ -163,8 +163,10 @@ test('proxima folha a partir de folha vazia avanca sem aplicar, registra o pulo 
     const fakeWin = createFakeWindow();
     let funcionarioAtual = 'VAZIA';
     const logs = [];
+    const registros = [];
 
     const AF = loadSupervisionado(fakeWin, { hasSel: true, nomeAtual: 'VAZIA', vazia: true });
+    AF.modelo.registrarSemMarcacoes = (nome, tipo) => registros.push([nome, tipo]);
     AF.core.nomeAtual = () => funcionarioAtual;
     AF.core.log = (msg) => logs.push(msg);
     AF.core.avancarFuncionario = async () => {
@@ -185,6 +187,7 @@ test('proxima folha a partir de folha vazia avanca sem aplicar, registra o pulo 
     assert.equal(fakeWin.document.getElementById('btn-proxima').style.display, 'none');
     assert.equal(logs.length, 1);
     assert.ok(logs[0].includes('VAZIA'));
+    assert.deepEqual(registros, [['VAZIA', 'ajuste']]);
 });
 
 test('proxima folha vazia consecutiva mantem aplicar indisponivel e proxima disponivel', async () => {

@@ -3,7 +3,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: Folha sem marcações no modo Supervisionado
-Se a folha atual não tiver marcações, a janela SHALL apresentar o resumo informando que não há o que ajustar, SHALL NOT oferecer a aplicação e SHALL oferecer a opção de avançar para a próxima folha, além do fechamento. Avançar SHALL NOT executar nenhuma alteração na folha vazia e SHALL registrar no log que a folha foi pulada por não ter marcações.
+Se a folha atual não tiver marcações, a janela SHALL apresentar o resumo informando que não há o que ajustar, SHALL NOT oferecer a aplicação e SHALL oferecer a opção de avançar para a próxima folha, além do fechamento. Avançar SHALL NOT executar nenhuma alteração na folha vazia, SHALL registrar no log que a folha foi pulada por não ter marcações e SHALL registrar a folha no relatório como sem marcações, do mesmo modo que o modo Automático.
 
 #### Scenario: Folha vazia
 - **WHEN** o modo Supervisionado está ativo e a folha atual não tem marcações

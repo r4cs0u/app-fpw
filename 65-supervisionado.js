@@ -250,8 +250,13 @@
                     ? await AF.core.avancarFuncionario()
                     : 'fim';
 
-                if (pulandoVazia && AF.core && typeof AF.core.log === 'function') {
-                    AF.core.log('Sem marcacoes, pulando (supervisionado): ' + nomePulado, '#000000');
+                if (pulandoVazia) {
+                    if (AF.core && typeof AF.core.log === 'function') {
+                        AF.core.log('Sem marcacoes, pulando (supervisionado): ' + nomePulado, '#000000');
+                    }
+                    if (AF.modelo && typeof AF.modelo.registrarSemMarcacoes === 'function') {
+                        AF.modelo.registrarSemMarcacoes(nomePulado, 'ajuste');
+                    }
                 }
 
                 if (avancou === 'fim' || (avancou && avancou.value === 'fim')) {
