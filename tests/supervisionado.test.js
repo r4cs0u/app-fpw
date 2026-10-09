@@ -148,13 +148,70 @@ test('iniciarConfirmacao abre janela, toca som de atencao, e cancelamento volta 
     assert.deepEqual(AF.sonsTocados, ['atencao']);
 });
 
-test('folha sem marcacoes informa que nao ha ajustes e desabilita aplicar', async () => {
+test('folha sem marcacoes informa que nao ha ajustes, desabilita aplicar e oferece proxima folha', async () => {
     const fakeWin = createFakeWindow();
     const AF = loadSupervisionado(fakeWin, { hasSel: true, nomeAtual: 'VAZIA', vazia: true });
     await AF.supervisionado.iniciarConfirmacao();
 
     const btnAplicar = fakeWin.document.getElementById('btn-aplicar');
     assert.equal(btnAplicar.disabled, true);
+    assert.equal(btnAplicar.style.display, 'none');
+    assert.equal(fakeWin.document.getElementById('btn-proxima').style.display, 'inline-flex');
+});
+
+test('proxima folha a partir de folha vazia avanca sem aplicar, registra o pulo e carrega a nova pre-analise', async () => {
+    const fakeWin = createFakeWindow();
+    let funcionarioAtual = 'VAZIA';
+    const logs = [];
+
+    const AF = loadSupervisionado(fakeWin, { hasSel: true, nomeAtual: 'VAZIA', vazia: true });
+    AF.core.nomeAtual = () => funcionarioAtual;
+    AF.core.log = (msg) => logs.push(msg);
+    AF.core.avancarFuncionario = async () => {
+        funcionarioAtual = 'BIA';
+        return { status: 'ready', value: 'ok' };
+    };
+    AF.preanalise.texto = r => 'Pre-analise de ' + r.nome;
+
+    await AF.supervisionado.iniciarConfirmacao();
+    AF.preanalise.lerFolhaAtual = () => ({ nome: funcionarioAtual, vazia: false });
+    await fakeWin.document.getElementById('btn-proxima').onclick();
+
+    assert.equal(AF.processarTodasChamadoCom, undefined);
+    assert.equal(AF.supervisionado.obterEstado(), 'confirmando');
+    assert.equal(fakeWin.document.getElementById('box-conteudo').textContent, 'Pre-analise de BIA');
+    assert.equal(fakeWin.document.getElementById('btn-aplicar').style.display, 'inline-flex');
+    assert.equal(fakeWin.document.getElementById('btn-aplicar').disabled, false);
+    assert.equal(fakeWin.document.getElementById('btn-proxima').style.display, 'none');
+    assert.equal(logs.length, 1);
+    assert.ok(logs[0].includes('VAZIA'));
+});
+
+test('proxima folha vazia consecutiva mantem aplicar indisponivel e proxima disponivel', async () => {
+    const fakeWin = createFakeWindow();
+    const AF = loadSupervisionado(fakeWin, { hasSel: true, nomeAtual: 'VAZIA1', vazia: true });
+    AF.core.avancarFuncionario = async () => ({ status: 'ready', value: 'ok' });
+
+    await AF.supervisionado.iniciarConfirmacao();
+    await fakeWin.document.getElementById('btn-proxima').onclick();
+
+    assert.equal(fakeWin.document.getElementById('btn-aplicar').disabled, true);
+    assert.equal(fakeWin.document.getElementById('btn-aplicar').style.display, 'none');
+    assert.equal(fakeWin.document.getElementById('btn-proxima').style.display, 'inline-flex');
+    assert.equal(fakeWin.document.getElementById('btn-proxima').disabled, false);
+});
+
+test('avancar a partir de folha vazia no fim da lista informa o fim e nao oferece mais avanco', async () => {
+    const fakeWin = createFakeWindow();
+    const AF = loadSupervisionado(fakeWin, { hasSel: true, nomeAtual: 'VAZIA', vazia: true });
+    AF.core.avancarFuncionario = async () => ({ status: 'ready', value: 'fim' });
+
+    await AF.supervisionado.iniciarConfirmacao();
+    await fakeWin.document.getElementById('btn-proxima').onclick();
+
+    assert.equal(fakeWin.document.getElementById('box-status').textContent, 'Fim da lista de funcionários.');
+    assert.equal(fakeWin.document.getElementById('btn-proxima').style.display, 'none');
+    assert.equal(fakeWin.document.getElementById('btn-cancelar').disabled, false);
 });
 
 test('aplicar executa somente a folha atual com nome esperado e exibe status concluido com detalhe', async () => {
