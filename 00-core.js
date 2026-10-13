@@ -249,18 +249,23 @@ window.AutomacaoFolha = window.AutomacaoFolha || {
         return false;
     };
 
+    // O prazo vem de um único setTimeout: abas em segundo plano têm intervalos limitados pelo
+    // navegador, então contar ticks de um setInterval multiplicaria a espera. O intervalo só
+    // serve para reagir ao cancelamento.
     AF.core.esperar = function (ms) {
         if (AF.estado && AF.estado.cancelado) return Promise.resolve();
         return new Promise(function (resolve) {
-            var decorrido = 0;
-            var intervalo = 50;
-            var iv = setInterval(function () {
-                decorrido += intervalo;
-                if (decorrido >= ms || (AF.estado && AF.estado.cancelado)) {
-                    clearInterval(iv);
-                    resolve();
-                }
-            }, intervalo);
+            var timer = null;
+            var iv = null;
+            function concluir() {
+                clearTimeout(timer);
+                clearInterval(iv);
+                resolve();
+            }
+            timer = setTimeout(concluir, ms);
+            iv = setInterval(function () {
+                if (AF.estado && AF.estado.cancelado) concluir();
+            }, 50);
         });
     };
 

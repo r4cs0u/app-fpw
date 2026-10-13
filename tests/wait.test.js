@@ -96,6 +96,55 @@ function options(overrides = {}) {
     };
 }
 
+// Aba em segundo plano: o navegador não dispara nenhum timer em menos de 1 s.
+class BackgroundClock extends SyntheticClock {
+    setTimeout(callback, delay) {
+        return super.setTimeout(callback, Math.max(delay, 1000));
+    }
+
+    setInterval(callback, delay) {
+        return super.setInterval(callback, Math.max(delay, 1000));
+    }
+}
+
+test('fixed wait takes its own duration even when the tab is in the background', async () => {
+    const clock = new BackgroundClock();
+    const runtime = loadRuntime(clock);
+    runtime.estado = runtime.estado || {};
+    let settled = false;
+
+    runtime.core.esperar(6000).then(() => { settled = true; });
+    clock.advance(5000);
+    await Promise.resolve();
+    assert.equal(settled, false);
+
+    clock.advance(1000);
+    await Promise.resolve();
+    assert.equal(settled, true);
+    assert.equal(clock.timers.size, 0);
+});
+
+test('fixed wait is released by cancellation and leaves no timers behind', async () => {
+    const clock = new BackgroundClock();
+    const runtime = loadRuntime(clock);
+    let settled = false;
+
+    runtime.core.esperar(6000).then(() => { settled = true; });
+    clock.advance(1000);
+    await Promise.resolve();
+    assert.equal(settled, false);
+
+    runtime.estado.cancelado = true;
+    clock.advance(1000);
+    await Promise.resolve();
+    assert.equal(settled, true);
+    assert.equal(clock.timers.size, 0);
+
+    const already = await runtime.core.esperar(6000);
+    assert.equal(already, undefined);
+    assert.equal(clock.timers.size, 0);
+});
+
 test('adjustment wait recognizes variable response times before its finite deadline', async () => {
     for (const responseAt of [20, 50, 90]) {
         const clock = new SyntheticClock();
