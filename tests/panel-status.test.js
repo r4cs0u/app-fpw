@@ -232,49 +232,19 @@ test('stop button shows "Parando..." only while a run is ending and never when i
     assert.equal(emAndamento.doc.getElementById('fpw-status-text').textContent, 'Parado \u2014 Relatório de Análise pronto');
 });
 
-test('panel displays oracle badge across unknown, active, and inactive states and does not stop running automation on loss', () => {
+test('panel shows no Oracle session badge or warning', () => {
     const doc = createDocument();
     const AF = {
-        estado: { cancelado: false, rodando: true },
+        estado: { cancelado: false, rodando: false },
         core: { getDocC: () => doc },
         relatorios: {},
         sons: { tocar() {} }
     };
     loadPanel(AF, { sessionStorage: { removeItem() {} } }).iniciar(doc);
 
-    const badge = doc.getElementById('fpw-oracle-badge');
-    const warning = doc.getElementById('fpw-oracle-warning');
-    assert.ok(badge);
-    assert.ok(warning);
-
-    // Estado inicial: unknown
-    assert.equal(badge.textContent, 'Oracle: ?');
-    assert.equal(warning.style.display, 'none');
-
-    // Estado active
-    AF.painel.atualizarSessaoOracle({ estado: 'active' });
-    assert.equal(badge.textContent, 'Oracle: ativa');
-    assert.equal(warning.style.display, 'none');
-
-    // Estado inactive (perda de sessão)
-    AF.painel.atualizarSessaoOracle({ estado: 'inactive', houvePerda: true });
-    assert.equal(badge.textContent, 'Oracle: inativa');
-    assert.equal(warning.style.display, 'block');
-
-    // Automação em andamento NÃO é interrompida
-    assert.equal(AF.estado.rodando, true);
-    assert.equal(AF.estado.cancelado, false);
-
-    // Recuperação para active
-    AF.painel.atualizarSessaoOracle({ estado: 'active' });
-    assert.equal(badge.textContent, 'Oracle: ativa');
-    assert.equal(warning.style.display, 'none');
-
-    // Estado expired
-    AF.painel.atualizarSessaoOracle({ estado: 'expired', houvePerda: true });
-    assert.equal(badge.textContent, 'Oracle: expirada');
-    assert.equal(warning.style.display, 'block');
-    assert.ok(warning.textContent.includes('expirou'));
+    assert.equal(doc.getElementById('fpw-oracle-badge'), null);
+    assert.equal(doc.getElementById('fpw-oracle-warning'), null);
+    assert.equal(AF.painel.atualizarSessaoOracle, undefined);
 });
 
 test('panel mode selector initializes to supervisionado, toggles, persists in sessionStorage and falls back safely', () => {
