@@ -95,12 +95,26 @@ No modo Supervisionado, se nenhuma folha estiver selecionada, acionar Ajustar SH
 - **AND** nenhuma janela de confirmação nem execução SHALL ser iniciada
 
 ### Requirement: Folha sem marcações no modo Supervisionado
-Se a folha atual não tiver marcações, a janela SHALL apresentar o resumo informando que não há o que ajustar e SHALL NOT oferecer a aplicação, apenas o fechamento.
+Se a folha atual não tiver marcações, a janela SHALL apresentar o resumo informando que não há o que ajustar, SHALL NOT oferecer a aplicação e SHALL oferecer a opção de avançar para a próxima folha, além do fechamento. Avançar SHALL NOT executar nenhuma alteração na folha vazia, SHALL registrar no log que a folha foi pulada por não ter marcações e SHALL registrar a folha no relatório como sem marcações, do mesmo modo que o modo Automático.
 
 #### Scenario: Folha vazia
 - **WHEN** o modo Supervisionado está ativo e a folha atual não tem marcações
 - **THEN** a janela SHALL informar que não há o que ajustar
 - **AND** a opção de aplicar SHALL NOT estar disponível
+- **AND** a opção de avançar para a próxima folha SHALL estar disponível
+
+#### Scenario: Avançar a partir de folha vazia
+- **WHEN** o usuário aciona a opção de avançar em uma folha sem marcações
+- **THEN** o sistema SHALL selecionar o próximo funcionário da lista sem alterar a folha vazia
+- **AND** a janela SHALL mostrar a pré-análise da nova folha
+
+#### Scenario: Próxima folha também vazia
+- **WHEN** a folha seguinte também não tem marcações
+- **THEN** a janela SHALL manter a aplicação indisponível e a opção de avançar disponível
+
+#### Scenario: Fim da lista
+- **WHEN** o usuário avança a partir de uma folha vazia e não há próximo funcionário
+- **THEN** a janela SHALL informar o fim da lista e SHALL NOT oferecer mais avanço
 
 ### Requirement: Resumo final e status na mesma janela
 Durante e depois da aplicação, a mesma janela SHALL mostrar o andamento e, ao fim, o resultado, composto pelo status final (concluído, parado ou interrompido, com o motivo quando houver) e pelo texto do detalhe de ajustes do funcionário, o mesmo do detalhe expansível do relatório. O relatório SHALL refletir o Ajuste como em qualquer execução.
