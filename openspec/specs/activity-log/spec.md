@@ -51,11 +51,15 @@ O sistema SHALL registrar, para cada ação do Ajuste, a fase, a data de origem 
 - **AND** SHALL indicar quando o resultado de uma gravação não foi confirmado
 
 ### Requirement: Registro de análise por funcionário
-Para cada folha lida pela Análise o sistema SHALL registrar as contagens e as datas de Sem Entrada/Saída, Interjornada, Marcação britânica e Folha não preenchida (com a porcentagem e o critério), as folgas a movimentar, os dias com código 47 e as horas extras e saldo de compensação.
+Para cada folha lida pela Análise o sistema SHALL registrar as contagens e as datas de Sem Entrada/Saída, Interjornada, Marcação britânica e Folha não preenchida (com a porcentagem e o critério), as folgas a movimentar, os dias com código 47, as horas extras e saldo de compensação e as contagens de marcações por origem (biometria, Web, Mobile e Manual).
 
 #### Scenario: Funcionário sem irregularidades
 - **WHEN** a Análise lê uma folha sem irregularidades
-- **THEN** o log SHALL registrar essa folha como sem ocorrências, ainda com as contagens de folgas, código 47 e horas
+- **THEN** o log SHALL registrar essa folha como sem ocorrências, ainda com as contagens de folgas, código 47, horas e marcações por origem
+
+#### Scenario: Marcações por origem no registro
+- **WHEN** a Análise lê uma folha com 30 marcações manuais, 20 Web, 10 Mobile e 5 de biometria
+- **THEN** o registro da folha SHALL conter essas quatro contagens
 
 ### Requirement: Acúmulo e persistência do log durante a sessão
 O log SHALL ser acumulado entre execuções, e iniciar uma nova Análise ou Ajuste SHALL NOT apagar eventos anteriores. Cada execução SHALL ser demarcada no log com identificação, tipo e horário de início. O log SHALL sobreviver ao recarregamento da página e SHALL ser descartado quando a aba for fechada. Uma falha de persistência SHALL NOT interromper a execução e SHALL ser registrada. Quando o limite de armazenamento for atingido, os eventos mais antigos SHALL ser descartados e o log SHALL indicar que houve truncamento.

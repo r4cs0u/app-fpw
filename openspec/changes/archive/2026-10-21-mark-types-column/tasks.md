@@ -23,4 +23,4 @@
 
 - [x] 5.1 Atualizar `SSD.md` (e `README.md`, se citar colunas ou indicadores do relatório) com a coluna Marcações e o grupo de indicadores; verificar com `Select-String -Pattern 'Marcações' SSD.md README.md` que o texto aparece onde as colunas do relatório são descritas.
 - [x] 5.2 Rodar `node --test` completo e `openspec validate mark-types-column --strict`, e confirmar saída sem falhas.
-- [ ] 5.3 Validação manual na branch `test`, somente leitura: executar uma Análise, conferir a coluna, o grupo roxo, o filtro Manuais, a ordenação e a cópia TSV, e conferir que dados sem contagem (relatório restaurado antes da atualização) mostram `-` até nova Análise. Não executar Ajustar. Registrar o resultado.
+- [x] 5.3 Validação manual na branch `test`, somente leitura: executar uma Análise, conferir a coluna, o grupo roxo, o filtro Manuais, a ordenação e a cópia TSV, e conferir que dados sem contagem (relatório restaurado antes da atualização) mostram `-` até nova Análise. Não executar Ajustar. Registrar o resultado.
