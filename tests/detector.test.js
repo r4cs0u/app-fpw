@@ -405,3 +405,87 @@ test('the page reader returns structured rows and performs no writes', () => {
     assert.deepEqual(sheet.writes, []);
 });
 
+test('contagem de marcacoes por origem: soma entradas e saidas das quatro origens no mes alvo', () => {
+    const linhas = [
+        linha(1, '08:00 ', '17:00 '),
+        linha(2, '08:05W', '17:02M'),
+        linha(3, '08:10*', '17:10*')
+    ];
+    const r = detector.detectarFolha(linhas, SETEMBRO);
+    assert.deepEqual(plain(r.tiposMarcacao), {
+        avaliada: true,
+        manual: 2,
+        web: 1,
+        mobile: 1,
+        biometria: 2,
+        total: 6
+    });
+});
+
+test('contagem de marcacoes por origem: marcacoes intermediarias nao sao contabilizadas', () => {
+    const linhas = [
+        linha(1, '08:06*', '10:45*'),
+        linha(1, '10:45*', '14:21*'),
+        linha(1, '14:21*', '17:00 ')
+    ];
+    const r = detector.detectarFolha(linhas, SETEMBRO);
+    assert.deepEqual(plain(r.tiposMarcacao), {
+        avaliada: true,
+        manual: 1,
+        web: 0,
+        mobile: 0,
+        biometria: 1,
+        total: 2
+    });
+});
+
+test('contagem de marcacoes por origem: dia somente com entrada soma 1', () => {
+    const linhas = [linha(1, '08:00W', '')];
+    const r = detector.detectarFolha(linhas, SETEMBRO);
+    assert.equal(r.tiposMarcacao.avaliada, true);
+    assert.equal(r.tiposMarcacao.web, 1);
+    assert.equal(r.tiposMarcacao.total, 1);
+});
+
+test('contagem de marcacoes por origem: dia sem marcacoes e dias da transicao nao contam', () => {
+    const linhas = [
+        linha(1, '', '', 'Ausencia de Marcacao'),
+        linha(2, '08:00*', '17:00*', ' ', { mes: 10 })
+    ];
+    const r = detector.detectarFolha(linhas, SETEMBRO);
+    assert.deepEqual(plain(r.tiposMarcacao), {
+        avaliada: true,
+        manual: 0,
+        web: 0,
+        mobile: 0,
+        biometria: 0,
+        total: 0
+    });
+});
+
+test('contagem de marcacoes por origem: campos ausentes resultam em avaliada false', () => {
+    const linhas = [
+        { n: '1', dataStr: dd(1), cabecalho: dd(1), marc1: null, marc2: null, irre: ' ', codJust: null }
+    ];
+    const r = detector.detectarFolha(linhas, SETEMBRO);
+    assert.deepEqual(plain(r.tiposMarcacao), {
+        avaliada: false,
+        manual: 0,
+        web: 0,
+        mobile: 0,
+        biometria: 0,
+        total: 0
+    });
+});
+
+test('contagem de marcacoes por origem: execucoes repetidas produzem o mesmo resultado', () => {
+    const linhas = [
+        linha(1, '08:00W', '17:00M'),
+        linha(2, '08:00*', '17:00 ')
+    ];
+    const a = detector.detectarFolha(linhas, SETEMBRO);
+    const b = detector.detectarFolha(linhas, SETEMBRO);
+    assert.deepEqual(plain(a.tiposMarcacao), plain(b.tiposMarcacao));
+});
+
+

@@ -327,3 +327,37 @@ test('analysis writes the final panel status when it completes or is stopped', a
     });
     assert.deepEqual(parada, ['Relatório de Análise']);
 });
+
+test('analise devolve tiposMarcacao, folha vazia devolve nulo e evento de log contem contagens', () => {
+    const AF = load(ALL);
+    const sheet = createSheet([
+        { dia: 1, marc1: '08:00 ', marc2: '17:00 ' },
+        { dia: 2, marc1: '08:00W', marc2: '17:00M' },
+        { dia: 3, marc1: '08:00*', marc2: '17:00*' }
+    ]);
+    wireSheet(AF, sheet);
+    AF.utils.mesAlvoDaTabela = () => new Date(2026, 8, 1);
+
+    const r = AF.analisar.analisarFolhaAtual();
+    assert.deepEqual(plain(r.tiposMarcacao), {
+        avaliada: true,
+        manual: 2,
+        web: 1,
+        mobile: 1,
+        biometria: 2,
+        total: 6
+    });
+
+    // Folha vazia
+    AF.core.paginaVaziaAgora = () => true;
+    const rVazia = AF.analisar.analisarFolhaAtual();
+    assert.equal(rVazia.tiposMarcacao, null);
+
+    // Evento de log
+    AF.core.paginaVaziaAgora = () => false;
+    AF.log.iniciarExecucao('analise');
+    AF.log.definirFuncionario('CARLOS');
+    AF.analisar.registrarEventoAnalise('CARLOS', r);
+    const texto = AF.log.texto({ func: 'CARLOS' });
+    assert.match(texto, /tiposMarcacao:\n\s+manual: 2\n\s+web: 1\n\s+mobile: 1\n\s+biometria: 2\n\s+total: 6/);
+});

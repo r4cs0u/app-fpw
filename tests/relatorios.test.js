@@ -119,28 +119,40 @@ test('3.2 & 3.3: abrirJanela condutor, clique bloqueado durante execucao e naveg
     assert.match(writtenHTML, /FPW — Relatório Unificado/);
 });
 
-test('indicadores em tres grupos tematicos, um por linha: folgas, irregularidades e hora extra', () => {
+test('indicadores em quatro grupos tematicos, um por linha: folgas, irregularidades, marcacoes e hora extra', () => {
     const AF = loadRelatorios();
     AF.modelo.iniciarExecucao('analise', ['ANA']);
-    AF.modelo.registrarAnalise('ANA', { folgas: 3, irregs: 2, interj: 1, britanica: 3, HE: '07:19', HEF: '01:54', HEC: '-35:00' });
+    AF.modelo.registrarAnalise('ANA', {
+        folgas: 3, irregs: 2, interj: 1, britanica: 3,
+        tiposMarcacao: { avaliada: true, manual: 30, web: 20, mobile: 10, biometria: 5, total: 65 },
+        HE: '07:19', HEF: '01:54', HEC: '-35:00'
+    });
 
     const html = AF.relatorios.gerarCardsHTML(AF.modelo.resumo(), null);
     const posVerde = html.indexOf('grp-green');
     const posVermelho = html.indexOf('grp-red');
+    const posRoxo = html.indexOf('grp-purple');
     const posAzul = html.indexOf('grp-blue');
-    assert.ok(posVerde >= 0 && posVermelho > posVerde && posAzul > posVermelho, 'ordem: folgas, irregularidades, hora extra');
-    assert.equal((html.match(/class="grp grp-/g) || []).length, 3);
+    assert.ok(posVerde >= 0 && posVermelho > posVerde && posRoxo > posVermelho && posAzul > posRoxo, 'ordem: folgas, irregularidades, marcacoes, hora extra');
+    assert.equal((html.match(/class="grp grp-/g) || []).length, 4);
 
     const verde = html.slice(posVerde, posVermelho);
     assert.match(verde, />Folgas</);
     assert.match(verde, /Movim\./);
     assert.match(verde, /Presas/);
 
-    const vermelho = html.slice(posVermelho, posAzul);
+    const vermelho = html.slice(posVermelho, posRoxo);
     assert.match(vermelho, />Irregularidades</);
     assert.match(vermelho, /Sem Entrada\/Saída/);
     assert.match(vermelho, /Marc\. Britânicas/);
     assert.match(vermelho, /Folhas não Preenchidas/);
+
+    const roxo = html.slice(posRoxo, posAzul);
+    assert.match(roxo, />Marcações</);
+    assert.match(roxo, /Manuais/);
+    assert.match(roxo, /Web/);
+    assert.match(roxo, /Mobile/);
+    assert.match(roxo, /Biometria/);
 
     const azul = html.slice(posAzul);
     assert.match(azul, />Hora Extra</);
@@ -657,7 +669,7 @@ test('celula mesclada de folha sem marcacoes tem colspan igual ao total de colun
 
     const thead = AF.relatorios.gerarTheadHTML('nome', 1);
     const totalTh = (thead.match(/<th\b/g) || []).length;
-    assert.equal(totalTh, 12); // 10 metricas + 1 irreg + 1 detalhe
+    assert.equal(totalTh, 13); // 11 metricas + 1 irreg + 1 detalhe
 
     const tbody = AF.relatorios.gerarTbodyHTML(['VAZIA'], null, null);
     assert.match(tbody, new RegExp('<td class="cell-sem-marcacoes" colspan="' + (totalTh - 1) + '">Sem Marcações na Folha</td>'));
@@ -685,4 +697,87 @@ test('botao de detalhe fica habilitado para funcionario com irregularidades mesm
     assert.match(tbodyHTML, /class="detail-row" data-detalhe-de="CARLOS"/);
     assert.match(tbodyHTML, /Sem Entrada\/Saída/);
     assert.match(tbodyHTML, /01\/10\/2026/);
+});
+
+test('4.1: coluna Marcacoes na tabela, formato compacto, destaque vermelho, dica com percentual e dados sem contagem', () => {
+    const AF = loadRelatorios();
+    AF.modelo.iniciarExecucao('analise', ['ANA', 'BIA', 'SEM_CONTAGEM', 'VAZIA']);
+
+    AF.modelo.registrarAnalise('ANA', {
+        tiposMarcacao: { avaliada: true, manual: 30, web: 20, mobile: 10, biometria: 5, total: 65 }
+    });
+    AF.modelo.registrarAnalise('BIA', {
+        tiposMarcacao: { avaliada: true, manual: 0, web: 0, mobile: 0, biometria: 40, total: 40 }
+    });
+    AF.modelo.registrarAnalise('SEM_CONTAGEM', {
+        tiposMarcacao: { avaliada: false, manual: 0, web: 0, mobile: 0, biometria: 0, total: 0 }
+    });
+    AF.modelo.registrarSemMarcacoes('VAZIA', 'analise');
+
+    const thead = AF.relatorios.gerarTheadHTML('marcacoes', 1);
+    assert.match(thead, /data-col="marcacoes"[^>]*>Marcações/);
+    assert.match(AF.relatorios.gerarEsqueletoHTML(), /thead th\[data-col="marcacoes"\]\{width:130px\}/);
+
+    const tbody = AF.relatorios.gerarTbodyHTML(['ANA', 'BIA', 'SEM_CONTAGEM', 'VAZIA'], null, null);
+
+    // Formato e destaque para ANA: 30* em vermelho
+    assert.match(tbody, /<span style="color:var\(--red\);font-weight:700">30\*<\/span> · <span>20W<\/span> · <span>10M<\/span> · <span>5B<\/span>/);
+    // Dica de contexto com 46% (30 de 65)
+    assert.match(tbody, /title="Manual 30, Web 20, Mobile 10, Biometria 5, total 65 e 46% de manuais"/);
+
+    // BIA: tipos zerados omitidos, sem destaque vermelho
+    const linhaBia = tbody.split('</tr>').find(l => l.includes('data-nome="BIA"'));
+    assert.match(linhaBia, /<span>40B<\/span>/);
+    assert.doesNotMatch(linhaBia, /0\*|0W|0M/);
+
+    // SEM_CONTAGEM: chip-dash '-'
+    assert.match(tbody, /<span class="chip-dash">-<\/span>/);
+
+    // VAZIA: colspan 12 (13 - 1)
+    assert.match(tbody, /colspan="12">Sem Marcações na Folha<\/td>/);
+});
+
+test('4.2: grupo roxo Marcacoes, filtro por Manuais e caixas estaticas', () => {
+    const AF = loadRelatorios();
+    AF.modelo.iniciarExecucao('analise', ['ANA', 'BIA']);
+    AF.modelo.registrarAnalise('ANA', {
+        tiposMarcacao: { avaliada: true, manual: 15, web: 10, mobile: 5, biometria: 0, total: 30 }
+    });
+    AF.modelo.registrarAnalise('BIA', {
+        tiposMarcacao: { avaliada: true, manual: 0, web: 5, mobile: 0, biometria: 20, total: 25 }
+    });
+
+    const resumo = AF.modelo.resumo();
+    const semFiltro = AF.relatorios.gerarCardsHTML(resumo, null);
+
+    // So Manuais tem data-filtro no grupo Marcacoes
+    assert.match(semFiltro, /data-filtro="manuais"/);
+    assert.doesNotMatch(semFiltro, /data-filtro="web"|data-filtro="mobile"|data-filtro="biometria"/);
+    assert.match(semFiltro, /<span style="color:var\(--red\);font-weight:700">15<\/span>/);
+    assert.match(semFiltro, />1 func\.<\/span>/);
+
+    // Com filtro ativo
+    const comFiltro = AF.relatorios.gerarCardsHTML(resumo, ['manuais']);
+    assert.match(comFiltro, /card card-active[^>]*data-filtro="manuais"/);
+
+    // Interacao com janela
+    const { win, elementos } = janelaComElementos();
+    const AFWin = loadRelatorios(() => win);
+    AFWin.modelo.iniciarExecucao('analise', ['ANA', 'BIA']);
+    AFWin.modelo.registrarAnalise('ANA', { tiposMarcacao: { avaliada: true, manual: 15, web: 0, mobile: 0, biometria: 0, total: 15 } });
+    AFWin.modelo.registrarAnalise('BIA', { tiposMarcacao: { avaliada: true, manual: 0, web: 0, mobile: 0, biometria: 20, total: 20 } });
+    AFWin.relatorios.abrirJanela();
+
+    assert.deepEqual(ordemDaTabela(elementos), ['ANA', 'BIA']);
+
+    const cardManuais = elementos.get('fpw-cards-grid').querySelectorAll('.card[data-filtro]').find(c => c.getAttribute() === 'manuais');
+    assert.ok(cardManuais);
+
+    // Clica no card de Manuais para filtrar
+    cardManuais.onclick();
+    assert.deepEqual(ordemDaTabela(elementos), ['ANA']);
+
+    // Desliga o filtro
+    cardManuais.onclick();
+    assert.deepEqual(ordemDaTabela(elementos), ['ANA', 'BIA']);
 });

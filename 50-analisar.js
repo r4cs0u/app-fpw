@@ -97,6 +97,7 @@
             return {
                 vazia: true, folgas: 0, irregs: 0, interj: 0, cod47: 0, cod47Dias: [],
                 britanica: 0, naoPreenchida: null, dias: null,
+                tiposMarcacao: null,
                 HE: '00:00', HEF: '00:00', HEC: '00:00', HEmin: 0, HEFmin: 0
             };
         }
@@ -115,6 +116,7 @@
             cod47Dias: cod47Dias,
             britanica: deteccao.contagens.britanica,
             naoPreenchida: deteccao.naoPreenchida,
+            tiposMarcacao: deteccao.tiposMarcacao,
             dias: deteccao.dias,
             HE:     extras.HE,
             HEF:    extras.HEF,
@@ -141,6 +143,7 @@
             return;
         }
         var np = r.naoPreenchida || {};
+        var tm = r.tiposMarcacao;
         AF.log.evento('analise-folha', {
             folgasAMovimentar: r.folgas,
             cod47: { total: r.cod47, dias: r.cod47Dias },
@@ -151,6 +154,13 @@
                 ? { sinalizada: np.flag, pctNaoPreenchida: np.pctNaoPreenchida, criterios: np.criterios,
                     diasVisiveis: np.visiveis, diasPreenchidos: np.preenchidos }
                 : { sinalizada: false, avaliada: false },
+            tiposMarcacao: tm && tm.avaliada ? {
+                manual: tm.manual,
+                web: tm.web,
+                mobile: tm.mobile,
+                biometria: tm.biometria,
+                total: tm.total
+            } : null,
             horasExtras: { HE100: r.HE, HEF100: r.HEF, saldoHEC70: r.HEC }
         }, 'Analise da folha.', '#6b7280');
     }

@@ -183,7 +183,7 @@ test('1.5: TSV sob demanda formata fracoes com aspas e valores negativos', () =>
     });
 
     const tsv = AF.modelo.tsv();
-    assert.match(tsv, /ANA\t'4\/5\t1\t'1\/1\t2\t0\t0\t-\t00:00\t00:00\t'-05:00/);
+    assert.match(tsv, /ANA\t'4\/5\t1\t'1\/1\t2\t0\t0\t-\t\t\t\t\t00:00\t00:00\t'-05:00/);
 });
 
 test('1.6: Persistencia e recuperacao de execucao interrompida', () => {
@@ -725,4 +725,142 @@ test('textoDetalheAjuste inclui datas de irregularidades e percentual de folha n
 
     const dados = AF.modelo.obterDadosFunc('ANA');
     assert.equal(dados.temDetalhes, true);
+});
+
+test('2.2: registro de tiposMarcacao na Analise e no Ajuste, exposicao em obterDadosFunc e folha vazia', () => {
+    const { AF } = loadModelo();
+    AF.modelo.iniciarExecucao('analise', ['ANA', 'BIA', 'VAZIA']);
+
+    // Analise registra e expoe
+    AF.modelo.registrarAnalise('ANA', {
+        folgas: 1,
+        tiposMarcacao: { avaliada: true, manual: 30, web: 20, mobile: 10, biometria: 5, total: 65 }
+    });
+    let dAna = AF.modelo.obterDadosFunc('ANA');
+    assert.equal(dAna.marcacoes.avaliada, true);
+    assert.equal(dAna.marcacoes.texto, '30* · 20W · 10M · 5B');
+    assert.equal(dAna.marcacoes.manual, 30);
+    assert.equal(dAna.marcacoes.web, 20);
+    assert.equal(dAna.marcacoes.mobile, 10);
+    assert.equal(dAna.marcacoes.biometria, 5);
+    assert.equal(dAna.marcacoes.total, 65);
+
+    // Ajuste posterior mantem a contagem
+    AF.modelo.iniciarExecucao('ajuste', null);
+    AF.modelo.registrarAjuste('ANA', {
+        movidas: 1, presas: [],
+        leitura: {
+            tiposMarcacao: { avaliada: true, manual: 30, web: 20, mobile: 10, biometria: 5, total: 65 }
+        }
+    });
+    dAna = AF.modelo.obterDadosFunc('ANA');
+    assert.equal(dAna.marcacoes.texto, '30* · 20W · 10M · 5B');
+
+    // Nova analise substitui
+    AF.modelo.registrarAnalise('ANA', {
+        folgas: 0,
+        tiposMarcacao: { avaliada: true, manual: 0, web: 10, mobile: 0, biometria: 40, total: 50 }
+    });
+    dAna = AF.modelo.obterDadosFunc('ANA');
+    assert.equal(dAna.marcacoes.texto, '10W · 40B');
+    assert.equal(dAna.marcacoes.manual, 0);
+
+    // Folha vazia nao expoe contagem
+    AF.modelo.registrarSemMarcacoes('VAZIA', 'analise');
+    const dVazia = AF.modelo.obterDadosFunc('VAZIA');
+    assert.equal(dVazia.marcacoes.texto, '-');
+    assert.equal(dVazia.marcacoes.avaliada, false);
+
+    // Registro antigo restaurado sem tiposMarcacao
+    const storage = createStorage();
+    const legado = {
+        v: 1, versao: 1, mes: 'Setembro 2026',
+        execs: { analise: null, ajuste: null },
+        atual: null, ordem: ['ANTIGO'],
+        funcs: {
+            ANTIGO: {
+                vazia: false,
+                analise: { ts: Date.now(), folgas: 1, cod47: 0, cod47Dias: [] },
+                ajuste: null,
+                leitura: { semES: { total: 0, dias: [] } }
+            }
+        }
+    };
+    storage.setItem('fpw.relatorio.v1', JSON.stringify(legado));
+    const mAntigo = loadModelo(storage);
+    const dAntigo = mAntigo.AF.modelo.obterDadosFunc('ANTIGO');
+    assert.equal(dAntigo.marcacoes.texto, '-');
+    assert.equal(dAntigo.marcacoes.avaliada, false);
+});
+
+test('3.1: resumo por origem, filtro de manuais, ordenacao por manuais e colunas no TSV', () => {
+    const { AF } = loadModelo();
+    AF.modelo.iniciarExecucao('analise', ['ANA', 'BIA', 'CAIO', 'DORA', 'VAZIA', 'SEM_LEITURA']);
+
+    // ANA: 30 manuais, 1 interjornada
+    AF.modelo.registrarAnalise('ANA', {
+        interj: 1,
+        dias: { interj: ['05/09/2026'] },
+        tiposMarcacao: { avaliada: true, manual: 30, web: 20, mobile: 10, biometria: 5, total: 65 }
+    });
+    // BIA: 2 manuais, sem irregularidades
+    AF.modelo.registrarAnalise('BIA', {
+        tiposMarcacao: { avaliada: true, manual: 2, web: 5, mobile: 0, biometria: 20, total: 27 }
+    });
+    // CAIO: 0 manuais, 40 biometria
+    AF.modelo.registrarAnalise('CAIO', {
+        tiposMarcacao: { avaliada: true, manual: 0, web: 0, mobile: 0, biometria: 40, total: 40 }
+    });
+    // DORA: sem contagem avaliada (avaliada: false)
+    AF.modelo.registrarAnalise('DORA', {
+        tiposMarcacao: { avaliada: false, manual: 0, web: 0, mobile: 0, biometria: 0, total: 0 }
+    });
+    // VAZIA
+    AF.modelo.registrarSemMarcacoes('VAZIA', 'analise');
+
+    // 1. Resumo: totais por origem com 30/2/0 manuais resultando em 32 em 2 funcionarios
+    const r = AF.modelo.resumo();
+    assert.equal(r.marcacoes.manual.total, 32);
+    assert.equal(r.marcacoes.manual.funcs, 2);
+    assert.equal(r.marcacoes.web.total, 25);
+    assert.equal(r.marcacoes.web.funcs, 2);
+    assert.equal(r.marcacoes.mobile.total, 10);
+    assert.equal(r.marcacoes.mobile.funcs, 1);
+    assert.equal(r.marcacoes.biometria.total, 65);
+    assert.equal(r.marcacoes.biometria.funcs, 3);
+
+    // Manual nao altera os totais de irregularidades
+    assert.equal(r.irregularidades.semES.total, 0);
+    assert.equal(r.irregularidades.interj.total, 1);
+    assert.equal(r.irregularidades.interj.funcs, 1);
+    assert.equal(r.irregularidades.britanica.total, 0);
+
+    // Manual nao gera texto de irregularidades
+    assert.equal(AF.modelo.textoIrregularidades('BIA'), '');
+
+    // 2. Filtro manuais: funcionario sem contagem e folha vazia fora
+    const filtradosManuais = plain(AF.modelo.filtrar(['manuais']));
+    assert.deepEqual(filtradosManuais, ['ANA', 'BIA']);
+
+    // Combinado com interj por uniao (CAIO nao tem, DORA nao tem, ANA tem ambos, BIA tem manual)
+    const filtradosUniao = plain(AF.modelo.filtrar(['manuais', 'interj']));
+    assert.deepEqual(filtradosUniao, ['ANA', 'BIA']);
+
+    // Combinado com busca por intersecao
+    const buscaAna = plain(AF.modelo.filtrar(['manuais'], 'ana'));
+    assert.deepEqual(buscaAna, ['ANA']);
+
+    // 3. Ordenacao por marcacoes: descrescente por manuais e inversao no segundo clique
+    const ordDesc = plain(AF.modelo.ordenar(['BIA', 'CAIO', 'ANA'], 'marcacoes', 1));
+    assert.deepEqual(ordDesc, ['ANA', 'BIA', 'CAIO']);
+    const ordAsc = plain(AF.modelo.ordenar(['BIA', 'CAIO', 'ANA'], 'marcacoes', -1));
+    assert.deepEqual(ordAsc, ['CAIO', 'BIA', 'ANA']);
+
+    // 4. TSV contem as 4 colunas apos % Folha nao preenchida
+    const tsv = AF.modelo.tsv();
+    assert.match(tsv, /Nome\tFolgas\tPresas\tCód 47\tSem Entrada\/Saída\tInterjornada\tMarc\. britânicas\t% Folha não preenchida\tMarc\. manuais\tMarc\. web\tMarc\. mobile\tMarc\. biometria\tHE100%/);
+    // Linha de ANA: 30, 20, 10, 5
+    assert.match(tsv, /ANA\t0\t0\t0\t0\t1\t0\t-\t30\t20\t10\t5\t00:00\t00:00\t00:00/);
+    // Linha de DORA: colunas vazias
+    assert.match(tsv, /DORA\t0\t0\t0\t0\t0\t0\t-\t\t\t\t\t00:00\t00:00\t00:00/);
 });

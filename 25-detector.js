@@ -128,6 +128,48 @@
         };
     }
 
+    function contarMarcacoesPorOrigem(diasOrdenados, camposMarcacaoPresentes) {
+        if (!camposMarcacaoPresentes) {
+            return {
+                avaliada: false,
+                manual: 0,
+                web: 0,
+                mobile: 0,
+                biometria: 0,
+                total: 0
+            };
+        }
+        var manual = 0;
+        var web = 0;
+        var mobile = 0;
+        var biometria = 0;
+
+        function contabilizar(marca) {
+            if (!marca || !marca.origem) return;
+            if (marca.origem === 'manual') manual++;
+            else if (marca.origem === 'web') web++;
+            else if (marca.origem === 'mobile') mobile++;
+            else biometria++;
+        }
+
+        for (var i = 0; i < diasOrdenados.length; i++) {
+            var dia = diasOrdenados[i];
+            contabilizar(dia.entrada);
+            contabilizar(dia.saida);
+        }
+
+        return {
+            avaliada: true,
+            manual: manual,
+            web: web,
+            mobile: mobile,
+            biometria: biometria,
+            total: manual + web + mobile + biometria
+        };
+    }
+
+    AF.detector.contarMarcacoesPorOrigem = contarMarcacoesPorOrigem;
+
     // ── Regras puras: recebe linhas estruturadas e o mês alvo ──────────
 
     AF.detector.detectarFolha = function (linhas, alvo) {
@@ -192,11 +234,13 @@
 
         var britanica = detectarBritanica(ordem);
         var naoPreenchida = avaliarNaoPreenchida(ordem, camposMarcacaoPresentes);
+        var tiposMarcacao = contarMarcacoesPorOrigem(ordem, camposMarcacaoPresentes);
 
         return {
             dias: { semES: semES, interj: interj, britanica: britanica.lista },
             britanicaSequencias: britanica.sequencias,
             naoPreenchida: naoPreenchida,
+            tiposMarcacao: tiposMarcacao,
             contagens: {
                 semES: semES.length,
                 interj: interj.length,
