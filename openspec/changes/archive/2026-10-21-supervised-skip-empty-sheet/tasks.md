@@ -12,4 +12,4 @@
 ## 3. Validação
 
 - [x] 3.1 Rodar `node --test` completo e `openspec validate supervised-skip-empty-sheet --strict`.
-- [ ] 3.2 Validação manual na branch `test`, sem gravação: abrir o Ajuste supervisionado em uma folha sem marcações e confirmar que "Próxima folha" aparece e avança.
+- [x] 3.2 Validação manual na branch `test`, sem gravação: abrir o Ajuste supervisionado em uma folha sem marcações e confirmar que "Próxima folha" aparece e avança.

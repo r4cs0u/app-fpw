@@ -9,7 +9,7 @@
 
     AF.fases.analisarFolha = function () {
         if (AF.core.paginaVaziaAgora()) {
-            return { irregs: 0, semES: 0, interj: 0, britanica: 0, naoPreenchida: null, dias: null, vazia: true };
+            return { irregs: 0, semES: 0, interj: 0, britanica: 0, naoPreenchida: null, dias: null, tiposMarcacao: null, vazia: true };
         }
 
         var deteccao = AF.detector.lerFolhaAtual();
@@ -19,6 +19,7 @@
             interj: deteccao.contagens.interj,
             britanica: deteccao.contagens.britanica,
             naoPreenchida: deteccao.naoPreenchida,
+            tiposMarcacao: deteccao.tiposMarcacao,
             dias: deteccao.dias,
             vazia: false
         };
@@ -598,6 +599,7 @@
                     interj: det ? { total: det.contagens.interj, dias: det.dias.interj } : { total: contagensDepois.interj, dias: [] },
                     britanica: det ? { total: det.contagens.britanica, dias: det.dias.britanica } : { total: contagensDepois.britanica, dias: [] },
                     naoPreenchida: det ? det.naoPreenchida : null,
+                    tiposMarcacao: det ? det.tiposMarcacao : null,
                     HE: extras.HE,
                     HEF: extras.HEF,
                     HEC: saldoHEC
@@ -615,6 +617,7 @@
             entry.interj             = contagensDepois.interj;
             entry.britanica          = contagensDepois.britanica;
             entry.naoPreenchida      = estadoDepois ? estadoDepois.deteccao.naoPreenchida : null;
+            entry.tiposMarcacao      = estadoDepois ? estadoDepois.deteccao.tiposMarcacao : null;
             entry.dias               = estadoDepois ? estadoDepois.deteccao.dias : null;
             entry.HE                 = extras.HE;
             entry.HEF                = extras.HEF;

@@ -180,6 +180,7 @@
             interj: { total: 0, dias: [] },
             britanica: { total: 0, dias: [] },
             naoPreenchida: { avaliada: false, flag: false, pctNaoPreenchida: 0, criterios: [], visiveis: 0, preenchidos: 0 },
+            tiposMarcacao: null,
             HE: '00:00', HEF: '00:00', HEC: '00:00'
         };
         if (estado.execs[tipo]) estado.execs[tipo].feitas++;
@@ -205,6 +206,7 @@
             interj: { total: dados.interj || 0, dias: (dados.dias && dados.dias.interj) || [] },
             britanica: { total: dados.britanica || 0, dias: (dados.dias && dados.dias.britanica) || [] },
             naoPreenchida: dados.naoPreenchida || { avaliada: false, flag: false, pctNaoPreenchida: 0, criterios: [], visiveis: 0, preenchidos: 0 },
+            tiposMarcacao: dados.tiposMarcacao || null,
             HE: dados.HE || '00:00',
             HEF: dados.HEF || '00:00',
             HEC: dados.HEC || '00:00'
@@ -248,6 +250,9 @@
                 interj: normalizarOcorrencias(dados.leitura.interj),
                 britanica: normalizarOcorrencias(dados.leitura.britanica),
                 naoPreenchida: dados.leitura.naoPreenchida || { avaliada: false, flag: false, pctNaoPreenchida: 0, criterios: [], visiveis: 0, preenchidos: 0 },
+                tiposMarcacao: (dados.leitura.tiposMarcacao !== undefined)
+                    ? dados.leitura.tiposMarcacao
+                    : (f.leitura ? f.leitura.tiposMarcacao : null),
                 HE: dados.leitura.HE || '00:00',
                 HEF: dados.leitura.HEF || '00:00',
                 HEC: dados.leitura.HEC || '00:00'
@@ -318,6 +323,7 @@
                 interj: { total: null, dias: [] },
                 britanica: { total: null, dias: [] },
                 naoPreenchida: { texto: '-', pct: null, sinalizada: false, avaliada: false, criterios: [] },
+                marcacoes: { texto: '-', avaliada: false, manual: 0, web: 0, mobile: 0, biometria: 0, total: 0 },
                 HE: null,
                 HEF: null,
                 HEC: null
@@ -342,6 +348,7 @@
                 interj: { total: null, dias: [] },
                 britanica: { total: null, dias: [] },
                 naoPreenchida: { texto: '-', pct: null, sinalizada: false, avaliada: false, criterios: [], visiveis: 0, preenchidos: 0 },
+                marcacoes: { texto: '-', avaliada: false, manual: 0, web: 0, mobile: 0, biometria: 0, total: 0 },
                 HE: null,
                 HEF: null,
                 HEC: null
@@ -404,6 +411,36 @@
         var interj = l.interj || { total: 0, dias: [] };
         var britanica = l.britanica || { total: 0, dias: [] };
 
+        var tm = l.tiposMarcacao;
+        var marcacoesInfo;
+        if (!tm || !tm.avaliada) {
+            marcacoesInfo = {
+                texto: '-',
+                avaliada: false,
+                manual: 0,
+                web: 0,
+                mobile: 0,
+                biometria: 0,
+                total: 0
+            };
+        } else {
+            var partesMarc = [];
+            if (tm.manual > 0) partesMarc.push(tm.manual + '*');
+            if (tm.web > 0) partesMarc.push(tm.web + 'W');
+            if (tm.mobile > 0) partesMarc.push(tm.mobile + 'M');
+            if (tm.biometria > 0) partesMarc.push(tm.biometria + 'B');
+            var txtMarc = partesMarc.length ? partesMarc.join(' · ') : '0';
+            marcacoesInfo = {
+                texto: txtMarc,
+                avaliada: true,
+                manual: tm.manual || 0,
+                web: tm.web || 0,
+                mobile: tm.mobile || 0,
+                biometria: tm.biometria || 0,
+                total: tm.total || 0
+            };
+        }
+
         var temAjuste = !!f.ajuste;
         var temIrreg = (semES.total > 0) || (interj.total > 0) || (britanica.total > 0) || (np.avaliada && np.flag);
         var temDetalhes = temAjuste || temIrreg;
@@ -429,6 +466,7 @@
                 visiveis: np.visiveis || 0,
                 preenchidos: np.preenchidos || 0
             },
+            marcacoes: marcacoesInfo,
             HE: l.HE || '00:00',
             HEF: l.HEF || '00:00',
             HEC: l.HEC || '00:00'
@@ -467,6 +505,13 @@
             naoPreenchida: { total: 0, funcs: 0 }
         };
 
+        var marcacoesTotals = {
+            manual: { total: 0, funcs: 0 },
+            web: { total: 0, funcs: 0 },
+            mobile: { total: 0, funcs: 0 },
+            biometria: { total: 0, funcs: 0 }
+        };
+
         var heList = [];
         var hefList = [];
         var hecPosList = [];
@@ -502,6 +547,27 @@
             if (f.naoPreenchida.sinalizada) {
                 irregs.naoPreenchida.total++;
                 irregs.naoPreenchida.funcs++;
+            }
+
+            // Marcações
+            if (!f.vazia && f.marcacoes && f.marcacoes.avaliada) {
+                var m = f.marcacoes;
+                if (m.manual > 0) {
+                    marcacoesTotals.manual.total += m.manual;
+                    marcacoesTotals.manual.funcs++;
+                }
+                if (m.web > 0) {
+                    marcacoesTotals.web.total += m.web;
+                    marcacoesTotals.web.funcs++;
+                }
+                if (m.mobile > 0) {
+                    marcacoesTotals.mobile.total += m.mobile;
+                    marcacoesTotals.mobile.funcs++;
+                }
+                if (m.biometria > 0) {
+                    marcacoesTotals.biometria.total += m.biometria;
+                    marcacoesTotals.biometria.funcs++;
+                }
             }
 
             // Horas Extras
@@ -576,6 +642,7 @@
                 fracaoTexto: totalFolgasConsideradas > 0 ? (totalFolgasMovidas + '/' + totalFolgasConsideradas) : '0'
             },
             irregularidades: irregs,
+            marcacoes: marcacoesTotals,
             he: calcMinMaxTotal(heList),
             hef: calcMinMaxTotal(hefList),
             hecPos: calcMinMaxTotal(hecPosList),
@@ -593,7 +660,11 @@
         naoPreenchida: function (f) { return f.naoPreenchida.sinalizada; },
         presas: function (f) { return f.folgas.presas > 0; },
         // Movim.: tem folgas no indicador (a movimentar, movidas ou presas), antes e depois do Ajuste.
-        pendentes: function (f) { return f.folgas.den > 0; }
+        pendentes: function (f) { return f.folgas.den > 0; },
+        manuais: function (f) { return !!(f.marcacoes && f.marcacoes.avaliada && f.marcacoes.manual > 0); },
+        web: function (f) { return !!(f.marcacoes && f.marcacoes.avaliada && f.marcacoes.web > 0); },
+        mobile: function (f) { return !!(f.marcacoes && f.marcacoes.avaliada && f.marcacoes.mobile > 0); },
+        biometria: function (f) { return !!(f.marcacoes && f.marcacoes.avaliada && f.marcacoes.biometria > 0); }
     };
 
     function normalizarFiltros(filtros) {
@@ -673,6 +744,12 @@
                 var pctA = a.naoPreenchida.sinalizada ? a.naoPreenchida.pct : -1;
                 var pctB = b.naoPreenchida.sinalizada ? b.naoPreenchida.pct : -1;
                 return (pctB - pctA) * dir;
+            }
+
+            if (col === 'marcacoes') {
+                var manA = (a.marcacoes && a.marcacoes.avaliada) ? a.marcacoes.manual : 0;
+                var manB = (b.marcacoes && b.marcacoes.avaliada) ? b.marcacoes.manual : 0;
+                return (manB - manA) * dir;
             }
 
             if (col === 'he' || col === 'hef' || col === 'hec') {
@@ -787,7 +864,11 @@
         britanica: 'Marc. Britânicas',
         naoPreenchida: 'Folhas não Preenchidas',
         presas: 'Presas',
-        pendentes: 'Movim.'
+        pendentes: 'Movim.',
+        manuais: 'Manuais',
+        web: 'Web',
+        mobile: 'Mobile',
+        biometria: 'Biometria'
     };
 
     AF.modelo.rotuloFiltro = function (id) {
@@ -979,7 +1060,7 @@
 
     AF.modelo.tsv = function () {
         var T = '\t';
-        var cab = ['Nome', 'Folgas', 'Presas', 'Cód 47', 'Sem Entrada/Saída', 'Interjornada', 'Marc. britânicas', '% Folha não preenchida', 'HE100%', 'HEF100%', 'HEC70%'].join(T);
+        var cab = ['Nome', 'Folgas', 'Presas', 'Cód 47', 'Sem Entrada/Saída', 'Interjornada', 'Marc. britânicas', '% Folha não preenchida', 'Marc. manuais', 'Marc. web', 'Marc. mobile', 'Marc. biometria', 'HE100%', 'HEF100%', 'HEC70%'].join(T);
         var linhas = [cab];
 
         var nomes = estado.ordem.length ? estado.ordem : Object.keys(estado.funcs);
@@ -996,6 +1077,11 @@
             var hecTexto = f.HEC || '00:00';
             if (hecTexto.charAt(0) === '-') hecTexto = "'" + hecTexto;
 
+            var mMan = (f.marcacoes && f.marcacoes.avaliada) ? f.marcacoes.manual : '';
+            var mWeb = (f.marcacoes && f.marcacoes.avaliada) ? f.marcacoes.web : '';
+            var mMob = (f.marcacoes && f.marcacoes.avaliada) ? f.marcacoes.mobile : '';
+            var mBio = (f.marcacoes && f.marcacoes.avaliada) ? f.marcacoes.biometria : '';
+
             var row = [
                 f.nome,
                 fTexto,
@@ -1005,6 +1091,10 @@
                 f.interj.total != null ? f.interj.total : 0,
                 f.britanica.total != null ? f.britanica.total : 0,
                 f.naoPreenchida.texto,
+                mMan,
+                mWeb,
+                mMob,
+                mBio,
                 f.HE || '00:00',
                 f.HEF || '00:00',
                 hecTexto

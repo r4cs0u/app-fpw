@@ -82,6 +82,7 @@
             + '.grp-items{flex:1;display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:5px}'
             + '.grp-green{--grp-bg:rgba(34,197,94,.06);--grp-border:rgba(34,197,94,.28);--grp-fg:#4ade80;--card-bg:rgba(34,197,94,.12)}'
             + '.grp-red{--grp-bg:rgba(239,68,68,.06);--grp-border:rgba(239,68,68,.28);--grp-fg:#f87171;--card-bg:rgba(239,68,68,.12)}'
+            + '.grp-purple{--grp-bg:rgba(168,85,247,.06);--grp-border:rgba(168,85,247,.28);--grp-fg:#c084fc;--card-bg:rgba(168,85,247,.12)}'
             + '.grp-blue{--grp-bg:rgba(59,130,246,.06);--grp-border:rgba(59,130,246,.28);--grp-fg:#60a5fa;--card-bg:rgba(59,130,246,.12)}'
             + '.card{background:var(--card-bg);border:1px solid var(--grp-border);border-radius:5px;padding:3px 7px;display:flex;flex-direction:column;gap:1px;cursor:pointer;transition:border-color .15s,box-shadow .15s;user-select:none}'
             + '.card:hover{border-color:var(--grp-fg)}'
@@ -102,6 +103,7 @@
             + 'table{width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed}'
             + 'thead th{background:var(--tbl-head);color:var(--tbl-head-txt);font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.05em;padding:6px 10px;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:5;user-select:none;text-align:right}'
             + 'thead th:first-child{text-align:left;width:180px}'
+            + 'thead th[data-col="marcacoes"]{width:130px}'
             + 'thead th[data-col]{cursor:pointer}'
             + 'thead th.sort-active{color:var(--blue)}'
             + 'thead th.irreg-copy-col{width:44px;text-align:center}'
@@ -217,6 +219,12 @@
 
         var fol = resumo.folgas;
         var irr = resumo.irregularidades;
+        var marc = resumo.marcacoes || {
+            manual: { total: 0, funcs: 0 },
+            web: { total: 0, funcs: 0 },
+            mobile: { total: 0, funcs: 0 },
+            biometria: { total: 0, funcs: 0 }
+        };
 
         var gFolgas = grupo('green', 'Folgas',
             card('pendentes', 'Movim.', escaparHTML(fol.fracaoTexto),
@@ -229,6 +237,14 @@
             + card('interj', 'Interjornada', String(irr.interj.total), '<span>' + irr.interj.funcs + ' func.</span>')
             + card('britanica', 'Marc. Britânicas', String(irr.britanica.total), '<span>' + irr.britanica.funcs + ' func.</span>')
             + card('naoPreenchida', 'Folhas não Preenchidas', String(irr.naoPreenchida.total), '<span>' + irr.naoPreenchida.funcs + ' folha(s)</span>')
+        );
+
+        var valManual = '<span style="color:var(--red);font-weight:700">' + marc.manual.total + '</span>';
+        var gMarc = grupo('purple', 'Marcações',
+            card('manuais', 'Manuais', valManual, '<span>' + marc.manual.funcs + ' func.</span>', 'Marcações manuais (*). Clique para filtrar.')
+            + card('web', 'Web', String(marc.web.total), '<span>' + marc.web.funcs + ' func.</span>', 'Marcações na Web (W). Clique para filtrar.')
+            + card('mobile', 'Mobile', String(marc.mobile.total), '<span>' + marc.mobile.funcs + ' func.</span>', 'Marcações no App Mobile (M). Clique para filtrar.')
+            + card('biometria', 'Biometria', String(marc.biometria.total), '<span>' + marc.biometria.funcs + ' func.</span>', 'Marcações por biometria / relógio. Clique para filtrar.')
         );
 
         function miniHec(rotuloSinal, dados, sinal) {
@@ -250,7 +266,7 @@
             + cardHec
         );
 
-        return gFolgas + gIrreg + gHoras;
+        return gFolgas + gIrreg + gMarc + gHoras;
     };
     // ── Renderização do Cabeçalho da Tabela ───────────────────────────────
 
@@ -262,6 +278,7 @@
         { id: 'interj', label: 'Interj.', align: 'right' },
         { id: 'britanica', label: 'Britânicas', align: 'right' },
         { id: 'naoPreenchida', label: '% Não Preench.', align: 'right' },
+        { id: 'marcacoes', label: 'Marcações', align: 'right' },
         { id: 'he', label: 'HE 100%', align: 'right' },
         { id: 'hef', label: 'HEF 100%', align: 'right' },
         { id: 'hec', label: 'HEC 70%', align: 'right' }
@@ -311,6 +328,13 @@
         if (np.criterios && np.criterios.length) {
             t += ' (Critério: ' + np.criterios.join(', ') + ')';
         }
+        return ' title="' + escaparHTML(t) + '"';
+    }
+
+    function formatarTooltipMarcacoes(m) {
+        if (!m || !m.avaliada) return '';
+        var pct = m.total > 0 ? Math.round((100 * m.manual) / m.total) : 0;
+        var t = 'Manual ' + m.manual + ', Web ' + m.web + ', Mobile ' + m.mobile + ', Biometria ' + m.biometria + ', total ' + m.total + ' e ' + pct + '% de manuais';
         return ' title="' + escaparHTML(t) + '"';
     }
 
@@ -365,6 +389,20 @@
 
             var chipNP = d.naoPreenchida.texto === '-' ? '<span class="chip-dash">-</span>' :
                 '<span class="cell-chip chip-red"' + formatarTooltipNaoPreenchida(d.naoPreenchida) + '>' + d.naoPreenchida.texto + '</span>';
+
+            // Marcações
+            function cellMarcacoes(m) {
+                if (!m || !m.avaliada || m.texto === '-') return '<span class="chip-dash">-</span>';
+                if (m.total === 0) return '<span class="chip-zero">0</span>';
+                var partes = [];
+                if (m.manual > 0) partes.push('<span style="color:var(--red);font-weight:700">' + m.manual + '*</span>');
+                if (m.web > 0) partes.push('<span>' + m.web + 'W</span>');
+                if (m.mobile > 0) partes.push('<span>' + m.mobile + 'M</span>');
+                if (m.biometria > 0) partes.push('<span>' + m.biometria + 'B</span>');
+                var html = partes.length ? partes.join(' · ') : '<span class="chip-zero">0</span>';
+                return '<span class="cell-marcacoes"' + formatarTooltipMarcacoes(m) + '>' + html + '</span>';
+            }
+
             var textoIrregularidades = AF.modelo.textoIrregularidades(nome);
             var botaoIrregularidades = '<button type="button" class="btn-copy-irreg" data-nome="' + escaparHTML(nome) + '"'
                 + (textoIrregularidades ? '' : ' disabled')
@@ -395,6 +433,7 @@
                 + '<td>' + chipIrreg(d.interj.total, d.interj.dias, 'Interjornada') + '</td>'
                 + '<td>' + chipIrreg(d.britanica.total, d.britanica.dias, 'Marcação Britânica') + '</td>'
                 + '<td>' + chipNP + '</td>'
+                + '<td>' + cellMarcacoes(d.marcacoes) + '</td>'
                 + '<td>' + cellHora(d.HE) + '</td>'
                 + '<td>' + cellHora(d.HEF) + '</td>'
                 + '<td>' + cellHora(d.HEC) + '</td>'
