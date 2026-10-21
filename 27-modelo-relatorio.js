@@ -661,7 +661,10 @@
         presas: function (f) { return f.folgas.presas > 0; },
         // Movim.: tem folgas no indicador (a movimentar, movidas ou presas), antes e depois do Ajuste.
         pendentes: function (f) { return f.folgas.den > 0; },
-        manuais: function (f) { return !!(f.marcacoes && f.marcacoes.avaliada && f.marcacoes.manual > 0); }
+        manuais: function (f) { return !!(f.marcacoes && f.marcacoes.avaliada && f.marcacoes.manual > 0); },
+        web: function (f) { return !!(f.marcacoes && f.marcacoes.avaliada && f.marcacoes.web > 0); },
+        mobile: function (f) { return !!(f.marcacoes && f.marcacoes.avaliada && f.marcacoes.mobile > 0); },
+        biometria: function (f) { return !!(f.marcacoes && f.marcacoes.avaliada && f.marcacoes.biometria > 0); }
     };
 
     function normalizarFiltros(filtros) {
@@ -862,7 +865,10 @@
         naoPreenchida: 'Folhas não Preenchidas',
         presas: 'Presas',
         pendentes: 'Movim.',
-        manuais: 'Manuais'
+        manuais: 'Manuais',
+        web: 'Web',
+        mobile: 'Mobile',
+        biometria: 'Biometria'
     };
 
     AF.modelo.rotuloFiltro = function (id) {

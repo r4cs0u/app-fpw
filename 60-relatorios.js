@@ -242,9 +242,9 @@
         var valManual = '<span style="color:var(--red);font-weight:700">' + marc.manual.total + '</span>';
         var gMarc = grupo('purple', 'Marcações',
             card('manuais', 'Manuais', valManual, '<span>' + marc.manual.funcs + ' func.</span>', 'Marcações manuais (*). Clique para filtrar.')
-            + card(null, 'Web', String(marc.web.total), '')
-            + card(null, 'Mobile', String(marc.mobile.total), '')
-            + card(null, 'Biometria', String(marc.biometria.total), '')
+            + card('web', 'Web', String(marc.web.total), '<span>' + marc.web.funcs + ' func.</span>', 'Marcações na Web (W). Clique para filtrar.')
+            + card('mobile', 'Mobile', String(marc.mobile.total), '<span>' + marc.mobile.funcs + ' func.</span>', 'Marcações no App Mobile (M). Clique para filtrar.')
+            + card('biometria', 'Biometria', String(marc.biometria.total), '<span>' + marc.biometria.funcs + ' func.</span>', 'Marcações por biometria / relógio. Clique para filtrar.')
         );
 
         function miniHec(rotuloSinal, dados, sinal) {

@@ -33,11 +33,11 @@ Coluna `marcacoes` entre `naoPreenchida` e `he` em `COLUNAS_TABELA` (o `colspan`
 - Alternativa descartada: célula em duas linhas, que aumenta a altura de todas as linhas de uma tabela já densa.
 - Ordem com manuais primeiro foi escolhida para o destaque; é só apresentação e fácil de inverter.
 
-### 4. Ordenação e filtro pelas manuais
-`AF.modelo.ordenar` ganha `col === 'marcacoes'` pela quantidade de manuais (ausentes valem 0), no mesmo estilo das colunas de irregularidade. `predicadosFiltro.manuais` retorna verdadeiro para `marcacoes.avaliada && marcacoes.manual > 0`; o rótulo `Manuais` entra em `rotulosFiltroIrregularidade` para o título do filtro ativo. Com o filtro `manuais` ativo, a exportação de irregularidades do time pode resultar em "Nenhuma irregularidade para exportar", o que é coerente: manual não é irregularidade.
+### 4. Ordenação e filtros de marcações
+`AF.modelo.ordenar` ganha `col === 'marcacoes'` pela quantidade de manuais (ausentes valem 0), no mesmo estilo das colunas de irregularidade. `predicadosFiltro` ganha `manuais`, `web`, `mobile` e `biometria`, retornando verdadeiro quando `marcacoes.avaliada && marcacoes[tipo] > 0`; os rótulos entram em `rotulosFiltroIrregularidade` para o título do filtro ativo. Com os filtros de marcações ativos, a exportação de irregularidades do time pode resultar em "Nenhuma irregularidade para exportar", o que é coerente: marcação não é irregularidade.
 
 ### 5. Quarta linha de indicadores, em roxo
-`AF.modelo.resumo` devolve `marcacoes: { manual, web, mobile, biometria }`, cada um com `total` e `funcs`, somando apenas funcionários processados, de folha com marcações e com contagem avaliada. `gerarCardsHTML` ganha o grupo `purple` (nova classe `.grp-purple`) entre Irregularidades e Hora Extra. Só a caixa Manuais é clicável (`data-filtro="manuais"`, valor em vermelho); as demais usam o estilo estático já existente (`card-static`).
+`AF.modelo.resumo` devolve `marcacoes: { manual, web, mobile, biometria }`, cada um com `total` e `funcs`, somando apenas funcionários processados, de folha com marcações e com contagem avaliada. `gerarCardsHTML` ganha o grupo `purple` (nova classe `.grp-purple`) entre Irregularidades e Hora Extra. As quatro caixas são clicáveis e filtram a tabela (`data-filtro`), com valor de Manuais em vermelho e contagem de funcionários afetados em cada uma.
 - Observação de layout: `.cards-grid` tem `max-height: 40vh` com rolagem; com a quarta linha a área de cards ocupa mais altura, mas continua rolável e sem mudar a tabela.
 
 ### 6. Cópia TSV e log

@@ -842,6 +842,11 @@ test('3.1: resumo por origem, filtro de manuais, ordenacao por manuais e colunas
     const filtradosManuais = plain(AF.modelo.filtrar(['manuais']));
     assert.deepEqual(filtradosManuais, ['ANA', 'BIA']);
 
+    // Filtros de web, mobile e biometria
+    assert.deepEqual(plain(AF.modelo.filtrar(['web'])), ['ANA', 'BIA']);
+    assert.deepEqual(plain(AF.modelo.filtrar(['mobile'])), ['ANA']);
+    assert.deepEqual(plain(AF.modelo.filtrar(['biometria'])), ['ANA', 'BIA', 'CAIO']);
+
     // Combinado com interj por uniao (CAIO nao tem, DORA nao tem, ANA tem ambos, BIA tem manual)
     const filtradosUniao = plain(AF.modelo.filtrar(['manuais', 'interj']));
     assert.deepEqual(filtradosUniao, ['ANA', 'BIA']);

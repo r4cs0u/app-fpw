@@ -737,22 +737,27 @@ test('4.1: coluna Marcacoes na tabela, formato compacto, destaque vermelho, dica
     assert.match(tbody, /colspan="12">Sem Marcações na Folha<\/td>/);
 });
 
-test('4.2: grupo roxo Marcacoes, filtro por Manuais e caixas estaticas', () => {
+test('4.2: grupo roxo Marcacoes, filtros por Manuais, Web, Mobile e Biometria', () => {
     const AF = loadRelatorios();
-    AF.modelo.iniciarExecucao('analise', ['ANA', 'BIA']);
+    AF.modelo.iniciarExecucao('analise', ['ANA', 'BIA', 'CAIO']);
     AF.modelo.registrarAnalise('ANA', {
         tiposMarcacao: { avaliada: true, manual: 15, web: 10, mobile: 5, biometria: 0, total: 30 }
     });
     AF.modelo.registrarAnalise('BIA', {
         tiposMarcacao: { avaliada: true, manual: 0, web: 5, mobile: 0, biometria: 20, total: 25 }
     });
+    AF.modelo.registrarAnalise('CAIO', {
+        tiposMarcacao: { avaliada: true, manual: 0, web: 0, mobile: 8, biometria: 10, total: 18 }
+    });
 
     const resumo = AF.modelo.resumo();
     const semFiltro = AF.relatorios.gerarCardsHTML(resumo, null);
 
-    // So Manuais tem data-filtro no grupo Marcacoes
+    // Todos os 4 cards tem data-filtro no grupo Marcacoes
     assert.match(semFiltro, /data-filtro="manuais"/);
-    assert.doesNotMatch(semFiltro, /data-filtro="web"|data-filtro="mobile"|data-filtro="biometria"/);
+    assert.match(semFiltro, /data-filtro="web"/);
+    assert.match(semFiltro, /data-filtro="mobile"/);
+    assert.match(semFiltro, /data-filtro="biometria"/);
     assert.match(semFiltro, /<span style="color:var\(--red\);font-weight:700">15<\/span>/);
     assert.match(semFiltro, />1 func\.<\/span>/);
 
@@ -763,21 +768,41 @@ test('4.2: grupo roxo Marcacoes, filtro por Manuais e caixas estaticas', () => {
     // Interacao com janela
     const { win, elementos } = janelaComElementos();
     const AFWin = loadRelatorios(() => win);
-    AFWin.modelo.iniciarExecucao('analise', ['ANA', 'BIA']);
-    AFWin.modelo.registrarAnalise('ANA', { tiposMarcacao: { avaliada: true, manual: 15, web: 0, mobile: 0, biometria: 0, total: 15 } });
-    AFWin.modelo.registrarAnalise('BIA', { tiposMarcacao: { avaliada: true, manual: 0, web: 0, mobile: 0, biometria: 20, total: 20 } });
+    AFWin.modelo.iniciarExecucao('analise', ['ANA', 'BIA', 'CAIO']);
+    AFWin.modelo.registrarAnalise('ANA', { tiposMarcacao: { avaliada: true, manual: 15, web: 10, mobile: 5, biometria: 0, total: 30 } });
+    AFWin.modelo.registrarAnalise('BIA', { tiposMarcacao: { avaliada: true, manual: 0, web: 5, mobile: 0, biometria: 20, total: 25 } });
+    AFWin.modelo.registrarAnalise('CAIO', { tiposMarcacao: { avaliada: true, manual: 0, web: 0, mobile: 8, biometria: 10, total: 18 } });
     AFWin.relatorios.abrirJanela();
 
-    assert.deepEqual(ordemDaTabela(elementos), ['ANA', 'BIA']);
+    assert.deepEqual(ordemDaTabela(elementos), ['ANA', 'BIA', 'CAIO']);
 
-    const cardManuais = elementos.get('fpw-cards-grid').querySelectorAll('.card[data-filtro]').find(c => c.getAttribute() === 'manuais');
-    assert.ok(cardManuais);
+    const cards = elementos.get('fpw-cards-grid').querySelectorAll('.card[data-filtro]');
+    const cardManuais = cards.find(c => c.getAttribute() === 'manuais');
+    const cardWeb = cards.find(c => c.getAttribute() === 'web');
+    const cardMobile = cards.find(c => c.getAttribute() === 'mobile');
+    const cardBiometria = cards.find(c => c.getAttribute() === 'biometria');
+    assert.ok(cardManuais && cardWeb && cardMobile && cardBiometria);
 
-    // Clica no card de Manuais para filtrar
+    // Clica no card de Manuais para filtrar: apenas ANA
     cardManuais.onclick();
     assert.deepEqual(ordemDaTabela(elementos), ['ANA']);
 
-    // Desliga o filtro
+    // Desliga Manuais
     cardManuais.onclick();
+    assert.deepEqual(ordemDaTabela(elementos), ['ANA', 'BIA', 'CAIO']);
+
+    // Clica em Web: ANA e BIA
+    cardWeb.onclick();
     assert.deepEqual(ordemDaTabela(elementos), ['ANA', 'BIA']);
+    cardWeb.onclick();
+
+    // Clica em Mobile: ANA e CAIO
+    cardMobile.onclick();
+    assert.deepEqual(ordemDaTabela(elementos), ['ANA', 'CAIO']);
+    cardMobile.onclick();
+
+    // Clica em Biometria: BIA e CAIO
+    cardBiometria.onclick();
+    assert.deepEqual(ordemDaTabela(elementos), ['BIA', 'CAIO']);
+    cardBiometria.onclick();
 });

@@ -35,26 +35,27 @@ O resumo SHALL mostrar, para cada origem de marcação (Manuais, Web, Mobile e B
 - **WHEN** a janela está aberta e a Análise lê a folha de um funcionário com 4 marcações manuais
 - **THEN** a caixa Manuais SHALL refletir essas 4 marcações sem reabrir a janela
 
-### Requirement: Filtro da tabela pelo indicador Manuais
-Clicar na caixa Manuais SHALL ligar ou desligar o filtro de marcações manuais, com o mesmo comportamento dos demais indicadores filtráveis: o indicador ativo SHALL ser destacado, os indicadores ativos SHALL se somar por união, a combinação com a busca por nome SHALL ser por interseção, os filtros SHALL permanecer quando a tabela for atualizada e os valores do resumo SHALL continuar refletindo o time inteiro. A tabela SHALL mostrar os funcionários processados, de folha com marcações e com contagem por origem disponível que tenham pelo menos uma marcação manual. As caixas Web, Mobile e Biometria SHALL NOT filtrar a tabela.
+### Requirement: Filtros da tabela pelos indicadores de marcações
+Clicar em qualquer uma das caixas do grupo Marcações (Manuais, Web, Mobile ou Biometria) SHALL ligar ou desligar o filtro correspondente, com o mesmo comportamento dos demais indicadores filtráveis: o indicador ativo SHALL ser destacado, os indicadores ativos SHALL se somar por união, a combinação com a busca por nome SHALL ser por interseção, os filtros SHALL permanecer quando a tabela for atualizada e os valores do resumo SHALL continuar refletindo o time inteiro. A tabela SHALL mostrar os funcionários processados, de folha com marcações e com contagem por origem disponível que tenham pelo menos uma marcação do tipo selecionado.
 
 #### Scenario: Filtrar por manuais
 - **WHEN** o usuário clica no indicador Manuais
 - **THEN** a tabela SHALL mostrar somente os funcionários com marcação manual maior que zero
 - **AND** o indicador SHALL aparecer destacado
 
+#### Scenario: Filtrar por Web, Mobile ou Biometria
+- **WHEN** o usuário clica no indicador Web, Mobile ou Biometria
+- **THEN** a tabela SHALL mostrar os funcionários com marcação maior que zero no tipo correspondente
+- **AND** o indicador clicado SHALL aparecer destacado
+
 #### Scenario: Combinar com outro indicador
 - **WHEN** o indicador de Interjornada está ativo e o usuário clica em Manuais
 - **THEN** a tabela SHALL mostrar os funcionários com interjornada e também os com marcação manual, cada um uma única vez
 
 #### Scenario: Limpar o filtro
-- **WHEN** o único indicador ativo é Manuais e o usuário clica nele novamente
+- **WHEN** o único indicador ativo é clicado novamente
 - **THEN** a tabela SHALL voltar a mostrar todos os funcionários
 
 #### Scenario: Ordenar o resultado do filtro
 - **WHEN** o filtro Manuais está ativo e o usuário ordena pela coluna Marcações
 - **THEN** a tabela SHALL mostrar os funcionários filtrados em ordem decrescente de marcações manuais
-
-#### Scenario: Caixas informativas
-- **WHEN** o usuário clica nas caixas Web, Mobile ou Biometria
-- **THEN** a tabela SHALL NOT ser filtrada

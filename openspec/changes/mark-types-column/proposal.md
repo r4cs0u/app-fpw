@@ -9,7 +9,7 @@ As marcações de ponto deveriam ser feitas no momento em que a pessoa chega ou 
 - A leitura da folha passa a contar, por funcionário e somente no mês alvo, quantas marcações são de cada tipo: biometria (relógio de ponto, sem sufixo), Web (`W`), Mobile (`M`) e Manual (`*`). Por dia entram apenas a primeira entrada e a última saída, na regra já usada pelo detector. Marcações intermediárias não entram, pois são criadas pelo próprio sistema.
 - Nova coluna **Marcações** na tabela do relatório, entre `% Não Preench.` e `HE 100%`, no formato compacto `30* · 20W · 10M · 5B`: manuais primeiro e em vermelho, tipos com zero omitidos, e dica de contexto com o detalhamento, o total e o percentual de manuais.
 - Ordenação pela coluna Marcações sempre pela quantidade de manuais.
-- Nova linha de indicadores **Marcações** (roxo), entre Irregularidades e Hora Extra, com o total do time por tipo (Manuais, Web, Mobile, Biometria). O indicador Manuais filtra a tabela pelos funcionários com pelo menos uma marcação manual e se soma aos demais filtros.
+- Nova linha de indicadores **Marcações** (roxo), entre Irregularidades e Hora Extra, com o total do time por tipo (Manuais, Web, Mobile, Biometria). Cada um dos indicadores filtra a tabela pelos funcionários com marcações do tipo correspondente e se soma aos demais filtros.
 - A cópia TSV do relatório ganha as quatro colunas de contagem por tipo.
 - O log de análise registra as contagens por tipo de cada folha.
 - A marcação manual não é irregularidade: não entra nos totais de irregularidades, no texto de irregularidades nem na exportação do time.
@@ -22,7 +22,7 @@ As marcações de ponto deveriam ser feitas no momento em que a pessoa chega ou 
 ### Modified Capabilities
 - `sheet-irregularities`: nova contagem de marcações por origem, no mês alvo, igual na Análise e no Ajuste.
 - `team-report`: coluna Marcações (exibição, dica, dados antigos), ordenação por manuais e colunas novas na cópia TSV.
-- `report-summary`: linha de indicadores Marcações em quatro linhas temáticas e filtro pelo indicador Manuais.
+- `report-summary`: linha de indicadores Marcações em quatro linhas temáticas e filtros pelos indicadores de marcações (Manuais, Web, Mobile, Biometria).
 - `activity-log`: o registro de análise inclui as contagens de marcações por tipo.
 
 ## Impact
