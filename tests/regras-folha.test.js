@@ -92,7 +92,7 @@ test('current folga count uses eligible week destinations and preserves current 
         }
     });
 
-    assert.equal(AF.analisar.contarFolgas(), 3);
+    assert.equal(AF.analisar.contarFolgas(), 4);
 });
 
 test('current code 47 collection includes transition-week dates by default and preserves DOM order', () => {
@@ -213,13 +213,13 @@ test('listarFolgasAMovimentar preserves reading order, hidden days, month absenc
                 ausenciasMes: [{ dataStr: date(1) }],
                 feriados: [],
                 folgasVisiveis: [{ dataStr: date(4), foraDoMes: true }],
-                folgasOcultas: [{ dataStr: date(5) }]
+                folgasOcultas: [date(5), { dataStr: date(6) }]
             }
         }
     };
     const alvo = new Date(2026, 8, 1);
     const dias = plain(AF.regras.listarFolgasAMovimentar(mapa, alvo));
-    assert.deepEqual(dias, [date(2), date(3), date(4), date(5)]);
+    assert.deepEqual(dias, [date(2), date(3), date(4), date(5), date(6)]);
     assert.equal(AF.regras.contarFolgasAMovimentar(mapa, alvo), dias.length);
 });
 

@@ -500,6 +500,7 @@ test('equal-hours rejection remains no-change when OK closes popup and reloads t
     assert.equal(outcome.status, 'no-change');
     assert.equal(outcome.message, 'Dias selecionados possuem horários iguais!');
     assert.equal(outcome.popupClosed, true);
+    assert.equal(attempt.candidatasDisponiveis, 1);
     assert.equal(popup.state.saves, 1);
     assert.equal(env.frameListeners.size, 0);
     run.cancel('test finished');
@@ -582,6 +583,7 @@ test('candidate exhaustion remains a confirmed no-change outcome without save su
 
     assert.equal(outcome.status, 'no-change');
     assert.equal(outcome.exhausted, true);
+    assert.equal(attempt.candidatasDisponiveis, 0);
     assert.equal(attempt.submitted, false);
     assert.equal(popup.state.saves, 0);
     assert.equal(popup.closed, true);

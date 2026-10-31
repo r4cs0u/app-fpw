@@ -53,6 +53,33 @@ function estadoSintetico(AF, linhas, cod47 = [], folgas = 0) {
     return AF.fases.montarEstadoFolha({ semanas: {} }, deteccao, cod47, folgas);
 }
 
+test('phase 2 reports a hidden folga as trapped only when the popup offered its date', async () => {
+    async function processar(candidataDisponivel) {
+        const AF = loadFases();
+        AF.core.log = () => {};
+        AF.mapa.mapearFolhaAtual = () => ({ semanas: {} });
+        AF.planejamento.planejarFase2Rodada = () => ({
+            acabou: false,
+            tipo: 'oculta',
+            acao: {
+                semanaId: '26/10/2026',
+                dataAusencia: '27/10/2026',
+                dataOrigem: '01/11/2026',
+                numAbrirPopup: '1'
+            }
+        });
+        AF.popup.executarAcaoFolga = async () => ({
+            ok: false,
+            semAlteracao: true,
+            candidataDisponivel
+        });
+        return AF.fases.processarFase2({ isActive: () => true });
+    }
+
+    assert.deepEqual(plain(await processar(false)), { movidas: 0, presas: [] });
+    assert.equal((await processar(true)).presas.length, 1);
+});
+
 test('state snapshot lists folgas, absences, holidays, hidden days, cod 47 and irregularity days', () => {
     const AF = loadFases();
     const itens = [
@@ -225,7 +252,7 @@ test('phase 1 and 2 actions record results and trapped reasons', async () => {
 
     const rodadas2 = [{ acao: { dataAusencia: dd(16), dataOrigem: dd(20), semanaId: 's', numAbrirPopup: '6' }, tipo: 'oculta' }];
     AF.planejamento.planejarFase2Rodada = () => rodadas2.length ? rodadas2.shift() : { acabou: true };
-    AF.popup.executarAcaoFolga = async () => ({ ok: false, semAlteracao: true });
+    AF.popup.executarAcaoFolga = async () => ({ ok: false, semAlteracao: true, candidataDisponivel: true });
     const r2 = await AF.fases.processarFase2(execucao);
     assert.equal(r2.presas[0].motivo, 'sem alteracao no popup (folga oculta)');
 

@@ -100,6 +100,8 @@
             return execucao.isActive();
         }
 
+        tentativa = tentativa || {};
+        tentativa.candidatasDisponiveis = tentativa.candidatasDisponiveis || 0;
         while (aindaAtiva()) {
             try {
                 if (popup.closed) return erro('popup-readiness', 'Popup fechado antes do envio.');
@@ -157,6 +159,7 @@
                 idx++;
                 continue;
             }
+            tentativa.candidatasDisponiveis++;
 
             if (!aindaAtiva()) return { status: 'cancelled', stage: 'popup-edit' };
             if (AF.core && typeof AF.core.exigirEstrutura === 'function' &&
@@ -511,7 +514,12 @@
             sessionStorage.removeItem('autodatasCandidatasPopup');
             AF.estado.ajustePopupTentativa = null;
             AF.estado.ultimoPopup = null;
-            return { ok: false, semAlteracao: true, outcome: resultado };
+            return {
+                ok: false,
+                semAlteracao: true,
+                candidataDisponivel: tentativa.candidatasDisponiveis > 0,
+                outcome: resultado
+            };
         }
 
         if (!execucao.isActive()) return { ok: false, semAlteracao: true };

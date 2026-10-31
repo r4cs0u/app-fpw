@@ -231,7 +231,7 @@
             AF.fases.registrarAcaoFolga(2, acao, r, rodada.tipo);
             if (r.ok) { movidas++; continue; }
             if (r.fatal) break;
-            if (rodada.tipo === 'oculta') presas.push({ fase: 2, semanaId: acao.semanaId, dataFolga: acao.dataOrigem, numFolga: acao.numAbrirPopup,
+            if (rodada.tipo === 'oculta' && r.candidataDisponivel) presas.push({ fase: 2, semanaId: acao.semanaId, dataFolga: acao.dataOrigem, numFolga: acao.numAbrirPopup,
                 motivo: 'sem alteracao no popup (folga oculta)' });
             break;
         }

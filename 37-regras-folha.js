@@ -4,6 +4,10 @@
     var AF = window.AutomacaoFolha;
     AF.regras = AF.regras || {};
 
+    function obterDataFolga(folga) {
+        return typeof folga === 'string' ? folga : (folga && folga.dataStr);
+    }
+
     AF.regras.listarFolgasAMovimentar = function (mapa, alvo) {
         var chaves = Object.keys((mapa && mapa.semanas) || {});
         var dias = [];
@@ -16,7 +20,7 @@
                 .concat(semana.folgasOcultas || []);
 
             for (var k = 0; k < todasFolgas.length; k++) {
-                var dataObj = AF.utils.parseDataBR(todasFolgas[k].dataStr);
+                var dataObj = AF.utils.parseDataBR(obterDataFolga(todasFolgas[k]));
                 if (dataObj && AF.utils.ehMesAlvo(dataObj, alvo)) {
                     semanaValida = true;
                     break;
@@ -39,28 +43,29 @@
 
             for (var j = 0; j < (semana.folgas || []).length; j++) {
                 var folga = semana.folgas[j];
-                var fDataObj = AF.utils.parseDataBR(folga.dataStr);
+                var dataFolga = obterDataFolga(folga);
+                var fDataObj = AF.utils.parseDataBR(dataFolga);
                 if (!fDataObj || !AF.utils.ehMesAlvo(fDataObj, alvo)) continue;
                 if ((semana.ausencias && semana.ausencias.length > 0) || (semana.feriados && semana.feriados.length > 0)) {
-                    dias.push(folga.dataStr);
+                    dias.push(dataFolga);
                 }
             }
 
             var temAusenciaMes = (semana.ausenciasMes && semana.ausenciasMes.length > 0);
             if (temAusenciaMes) {
                 var fv = (semana.folgasVisiveis || []).filter(function (f) {
-                    var fd = AF.utils.parseDataBR(f.dataStr);
+                    var fd = AF.utils.parseDataBR(obterDataFolga(f));
                     return fd && AF.utils.ehMesAlvo(fd, alvo) && f.foraDoMes;
                 });
                 for (var v = 0; v < fv.length; v++) {
-                    dias.push(fv[v].dataStr);
+                    dias.push(obterDataFolga(fv[v]));
                 }
                 var fo = (semana.folgasOcultas || []).filter(function (f) {
-                    var fd = AF.utils.parseDataBR(f.dataStr);
+                    var fd = AF.utils.parseDataBR(obterDataFolga(f));
                     return fd && AF.utils.ehMesAlvo(fd, alvo);
                 });
                 for (var o = 0; o < fo.length; o++) {
-                    dias.push(fo[o].dataStr);
+                    dias.push(obterDataFolga(fo[o]));
                 }
             }
         }
