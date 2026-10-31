@@ -46,7 +46,10 @@
                 var dataFolga = obterDataFolga(folga);
                 var fDataObj = AF.utils.parseDataBR(dataFolga);
                 if (!fDataObj || !AF.utils.ehMesAlvo(fDataObj, alvo)) continue;
-                if ((semana.ausencias && semana.ausencias.length > 0) || (semana.feriados && semana.feriados.length > 0)) {
+                var temDestinoVisivel = (semana.ausencias && semana.ausencias.length > 0) || (semana.feriados && semana.feriados.length > 0);
+                var temDestinoOcultoFase3 = (semana.feriadosOcultos && semana.feriadosOcultos.length > 0) ||
+                    (semana.domingosOcultos && semana.domingosOcultos.length > 0);
+                if (temDestinoVisivel || temDestinoOcultoFase3) {
                     dias.push(dataFolga);
                 }
             }

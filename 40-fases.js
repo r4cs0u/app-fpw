@@ -520,7 +520,7 @@
             var r3 = await AF.popup.executarAcaoFolga(acao, execucao);
             AF.fases.registrarAcaoFolga(3, acao, r3, acao.tipo);
             if (r3.ok) totalMovidas++;
-            else if (!r3.fatal) {
+            else if (!r3.fatal && r3.candidataDisponivel) {
                 presasFinais.push({
                     fase: 3,
                     semanaId: acao.semanaId,

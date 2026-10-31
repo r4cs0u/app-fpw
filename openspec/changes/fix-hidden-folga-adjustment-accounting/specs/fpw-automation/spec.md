@@ -1,5 +1,18 @@
 # Spec Delta
 
+## ADDED Requirements
+
+### Requirement: Phase 3 trapped status requires an available popup origin
+The adjustment SHALL report a Phase 3 folga as trapped after no change only when at least one requested origin date is available in the popup selector. A missing candidate date SHALL NOT be reported as a trapped folga.
+
+#### Scenario: Phase 3 origin is absent from the popup
+- **WHEN** a Phase 3 hidden holiday or Sunday candidate is not present in the popup selector
+- **THEN** the adjustment SHALL NOT add that folga to the trapped results
+
+#### Scenario: Phase 3 origin is offered but produces no change
+- **WHEN** at least one Phase 3 origin candidate is present in the popup selector but the attempt ends without a schedule change
+- **THEN** the adjustment SHALL report the folga as trapped with its Phase 3 reason
+
 ## MODIFIED Requirements
 
 ### Requirement: Hidden folga origins are limited to non-worked days

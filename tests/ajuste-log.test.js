@@ -215,7 +215,8 @@ test('state capture failure is recorded and the sheet still completes', async ()
 test('phase 3 actions and results are recorded with origin and destination', async () => {
     const h = harness({
         acoesFase3: [{ tipo: 'domingo_oculto', semanaId: 's', dataAusencia: dd(2), dataOrigem: dd(6), numAbrirPopup: '4' }],
-        executarAcaoFolga: async () => ({ ok: false, semAlteracao: true, outcome: { status: 'no-change', stage: 'popup-save' } })
+        executarAcaoFolga: async () => ({ ok: false, semAlteracao: true, candidataDisponivel: true,
+            outcome: { status: 'no-change', stage: 'popup-save' } })
     });
     await h.run();
     const texto = h.AF.log.texto();
@@ -223,6 +224,19 @@ test('phase 3 actions and results are recorded with origin and destination', asy
     assert.match(texto, /tipo: domingo_oculto/);
     assert.match(texto, /Folga presa: 06\/09\/2026 \(fase 3\)/);
     assert.match(texto, /motivo: sem alteracao no popup \(fase 3\)/);
+});
+
+test('phase 3 does not report a folga as trapped when no origin candidate was offered', async () => {
+    const h = harness({
+        acoesFase3: [{ tipo: 'domingo_oculto', semanaId: 's', dataAusencia: dd(6), dataOrigem: dd(7), dataFolgaOriginal: dd(14), numAbrirPopup: '4' }],
+        executarAcaoFolga: async () => ({ ok: false, semAlteracao: true, candidataDisponivel: false,
+            outcome: { status: 'no-change', stage: 'popup-save' } })
+    });
+    await h.run();
+
+    const texto = h.AF.log.texto();
+    assert.doesNotMatch(texto, /Folga presa: 14\/09\/2026 \(fase 3\)/);
+    assert.equal(h.entry.folgasSemAlteracao, 1);
 });
 
 test('phase 1 and 2 actions record results and trapped reasons', async () => {

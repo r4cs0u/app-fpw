@@ -203,6 +203,39 @@ test('pure folga rule counts only qualifying folgas in the target month', () => 
     assert.deepEqual(plain(AF.regras.listarFolgasAMovimentar(mapa, new Date(2026, 8, 1))), [date(2), date(9)]);
 });
 
+test('visible target-month folgas count hidden Phase 3 destinations but not hidden weekdays', () => {
+    const { AF } = createAnalysis();
+    const alvo = new Date(2026, 9, 1);
+    const mapa = {
+        semanas: {
+            hiddenHoliday: {
+                folgas: [{ dataStr: date(18, 10) }],
+                ausencias: [],
+                feriados: [],
+                feriadosOcultos: [date(12, 10)],
+                domingosOcultos: []
+            },
+            transitionSunday: {
+                folgas: [{ dataStr: date(30, 10) }],
+                ausencias: [],
+                feriados: [],
+                feriadosOcultos: [],
+                domingosOcultos: ['01/11/2026']
+            },
+            hiddenWeekday: {
+                folgas: [{ dataStr: date(20, 10) }],
+                ausencias: [],
+                feriados: [],
+                feriadosOcultos: [],
+                domingosOcultos: [],
+                folgasOcultas: [date(21, 10)]
+            }
+        }
+    };
+
+    assert.deepEqual(plain(AF.regras.listarFolgasAMovimentar(mapa, alvo)), [date(18, 10), date(30, 10)]);
+});
+
 test('listarFolgasAMovimentar preserves reading order, hidden days, month absences, and repetition', () => {
     const { AF } = createAnalysis();
     const mapa = {
