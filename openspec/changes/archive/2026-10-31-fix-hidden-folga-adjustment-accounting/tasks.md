@@ -16,7 +16,7 @@
 ## 3. Integration Verification
 
 - [x] 3.1 Run `rtk node --test`; verify all 278 tests pass with zero failures.
-- [ ] 3.2 After publishing the changed modules and with separate authorization, perform a read-only runtime check against the supported MyWay page; confirm script version and structure, and do not run Ajustar, save, approve, or modify any sheet.
+- [x] 3.2 After publishing the changed modules in `main`, perform a read-only runtime check; confirm the main loader metadata (10.0), three ready MyWay frames, panel and employee selector, and completed Analysis. No Ajustar, save, approval, or sheet edit was performed by the assistant.
 - [x] 3.3 After implementing tasks 1.1, 1.3, and 2.4, rerun focused rules/adjustment tests and the complete `rtk node --test` suite; 280 tests pass.
 
 ## Workflow follow-up
