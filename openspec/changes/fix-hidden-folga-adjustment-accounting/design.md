@@ -19,11 +19,11 @@ See `proposal.md` for the incident and intended behavior. The map emits hidden d
 
 ## Decisions
 
-1. Normalize the date at the counting boundary. Accept a string or a record with `dataStr`, then apply the same target-month and eligibility checks. This avoids changing the map's public shape or mutating its entries. Converting the whole map to one representation was rejected because it expands the change beyond the counting defect.
+1. Count movement sources from visible folga entries only and deduplicate by `dataStr`. Multiple `Irre` rows may share one visible day header, so row count is not calendar-date count. Do not add `folgasOcultas` as source dates; hidden Sundays and holidays remain eligible destinations through their dedicated map fields. This avoids changing the map's public shape.
 
 2. Track whether the popup selector offered at least one requested candidate. Use that evidence when deciding whether Phase 2 or Phase 3 records a trapped folga. The existing popup loop already avoids selecting or submitting a date that is absent from the selector. Relying on `no-change` alone was rejected because it conflates candidate exhaustion with rejection of an available date.
 
-3. Align the Analysis candidate count with the planner's existing eligible Phase 3 destinations: hidden Sundays and supported hidden holidays only. Do not treat arbitrary absent weekdays as folgas or candidates. This makes the count describe attempts the adjustment can plan, not guaranteed popup success.
+3. Align the Analysis candidate count with the planner's existing eligible Phase 3 destinations: hidden Sundays and supported hidden holidays only. Count each visible source date once; do not treat arbitrary absent weekdays or other hidden dates as folgas. This makes the count describe attempts the adjustment can plan, not guaranteed popup success.
 
 4. Keep regression tests at the existing module boundaries: candidate counting in rules tests, selector availability in popup tests, and Phase 2/3 classification in adjustment tests. The full suite is the required regression gate because popup result metadata crosses module boundaries.
 
@@ -31,6 +31,7 @@ See `proposal.md` for the incident and intended behavior. The map emits hidden d
 
 - The popup may still need to open to establish whether a hidden date is selectable; this design prevents a false trapped result but does not suppress that read-only candidate inspection. No save is submitted for a missing date.
 - A candidate can be offered but rejected by FPW for a schedule-specific reason; retaining the trapped result in that case preserves existing reporting semantics.
+- Excluding hidden dates as sources means the analysis will not count a day merely because it is absent from the DOM; only a visible Folga heading establishes a source folga.
 - Analysis can count a hidden-destination candidate that the popup later does not offer; the adjustment must then avoid classifying it as trapped solely from candidate exhaustion.
 - Live sheet layout or server behavior may differ from synthetic tests; any later runtime check must confirm the installed version and remain read-only unless separately authorized.
 

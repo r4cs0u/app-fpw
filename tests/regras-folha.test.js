@@ -92,7 +92,7 @@ test('current folga count uses eligible week destinations and preserves current 
         }
     });
 
-    assert.equal(AF.analisar.contarFolgas(), 4);
+    assert.equal(AF.analisar.contarFolgas(), 3);
 });
 
 test('current code 47 collection includes transition-week dates by default and preserves DOM order', () => {
@@ -203,20 +203,20 @@ test('pure folga rule counts only qualifying folgas in the target month', () => 
     assert.deepEqual(plain(AF.regras.listarFolgasAMovimentar(mapa, new Date(2026, 8, 1))), [date(2), date(9)]);
 });
 
-test('visible target-month folgas count hidden Phase 3 destinations but not hidden weekdays', () => {
+test('visible target-month folgas count once with hidden Phase 3 destinations but not hidden weekdays', () => {
     const { AF } = createAnalysis();
     const alvo = new Date(2026, 9, 1);
     const mapa = {
         semanas: {
             hiddenHoliday: {
-                folgas: [{ dataStr: date(18, 10) }],
+                folgas: [{ dataStr: date(18, 10) }, { dataStr: date(18, 10) }],
                 ausencias: [],
                 feriados: [],
                 feriadosOcultos: [date(12, 10)],
                 domingosOcultos: []
             },
             transitionSunday: {
-                folgas: [{ dataStr: date(30, 10) }],
+                folgas: [{ dataStr: date(30, 10) }, { dataStr: date(30, 10) }],
                 ausencias: [],
                 feriados: [],
                 feriadosOcultos: [],
@@ -236,12 +236,12 @@ test('visible target-month folgas count hidden Phase 3 destinations but not hidd
     assert.deepEqual(plain(AF.regras.listarFolgasAMovimentar(mapa, alvo)), [date(18, 10), date(30, 10)]);
 });
 
-test('listarFolgasAMovimentar preserves reading order, hidden days, month absences, and repetition', () => {
+test('listarFolgasAMovimentar counts visible dates once and ignores hidden folga sources', () => {
     const { AF } = createAnalysis();
     const mapa = {
         semanas: {
             s1: {
-                folgas: [{ dataStr: date(2) }, { dataStr: date(3) }],
+                folgas: [{ dataStr: date(2) }, { dataStr: date(2) }, { dataStr: date(3) }],
                 ausencias: [{ dataStr: date(1) }],
                 ausenciasMes: [{ dataStr: date(1) }],
                 feriados: [],
@@ -252,7 +252,7 @@ test('listarFolgasAMovimentar preserves reading order, hidden days, month absenc
     };
     const alvo = new Date(2026, 8, 1);
     const dias = plain(AF.regras.listarFolgasAMovimentar(mapa, alvo));
-    assert.deepEqual(dias, [date(2), date(3), date(4), date(5), date(6)]);
+    assert.deepEqual(dias, [date(2), date(3), date(4)]);
     assert.equal(AF.regras.contarFolgasAMovimentar(mapa, alvo), dias.length);
 });
 

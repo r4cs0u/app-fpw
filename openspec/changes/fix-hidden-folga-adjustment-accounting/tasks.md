@@ -2,9 +2,9 @@
 
 ## 1. Hidden Folga Counting
 
-- [x] 1.1 Normalize hidden-folga dates represented as strings or `dataStr` records; verify target-month dates are counted once and transition dates outside the month are excluded by the rules tests.
+- [x] 1.1 Count only visible target-month folga dates, deduplicate multiple rows per date, and exclude absent hidden dates as sources; verify with rules tests.
 - [x] 1.2 Preserve Analysis and pre-analysis parity for the same sheet state; verify with the complete repository test suite.
-- [x] 1.3 Count visible folgas whose week has a hidden Sunday or supported hidden holiday as Phase 3 candidates; add rules tests for hidden holiday, transition Sunday, and ineligible hidden weekday.
+- [x] 1.3 Count unique visible folgas whose week has a hidden Sunday or supported hidden holiday as Phase 3 candidates; test hidden holiday, transition Sunday, ineligible hidden weekday, and repeated visible rows.
 
 ## 2. Popup Candidate Outcomes
 
@@ -16,8 +16,8 @@
 ## 3. Integration Verification
 
 - [x] 3.1 Run `rtk node --test`; verify all 278 tests pass with zero failures.
-- [ ] 3.2 If separately authorized, perform a read-only runtime check against the supported MyWay page; confirm script version and structure, and do not run Ajustar, save, approve, or modify any sheet.
-- [x] 3.3 After implementing tasks 1.3 and 2.4, rerun focused rules/adjustment tests and the complete `rtk node --test` suite; 280 tests pass.
+- [ ] 3.2 After publishing the changed modules and with separate authorization, perform a read-only runtime check against the supported MyWay page; confirm script version and structure, and do not run Ajustar, save, approve, or modify any sheet.
+- [x] 3.3 After implementing tasks 1.1, 1.3, and 2.4, rerun focused rules/adjustment tests and the complete `rtk node --test` suite; 280 tests pass.
 
 ## Workflow follow-up
 

@@ -11,13 +11,19 @@
     AF.regras.listarFolgasAMovimentar = function (mapa, alvo) {
         var chaves = Object.keys((mapa && mapa.semanas) || {});
         var dias = [];
+        var diasVistos = new Set();
+
+        function adicionarDia(dataStr) {
+            if (diasVistos.has(dataStr)) return;
+            diasVistos.add(dataStr);
+            dias.push(dataStr);
+        }
 
         for (var i = 0; i < chaves.length; i++) {
             var semana = mapa.semanas[chaves[i]];
             var semanaValida = false;
             var todasFolgas = (semana.folgas || [])
-                .concat(semana.folgasVisiveis || [])
-                .concat(semana.folgasOcultas || []);
+                .concat(semana.folgasVisiveis || []);
 
             for (var k = 0; k < todasFolgas.length; k++) {
                 var dataObj = AF.utils.parseDataBR(obterDataFolga(todasFolgas[k]));
@@ -50,7 +56,7 @@
                 var temDestinoOcultoFase3 = (semana.feriadosOcultos && semana.feriadosOcultos.length > 0) ||
                     (semana.domingosOcultos && semana.domingosOcultos.length > 0);
                 if (temDestinoVisivel || temDestinoOcultoFase3) {
-                    dias.push(dataFolga);
+                    adicionarDia(dataFolga);
                 }
             }
 
@@ -61,14 +67,7 @@
                     return fd && AF.utils.ehMesAlvo(fd, alvo) && f.foraDoMes;
                 });
                 for (var v = 0; v < fv.length; v++) {
-                    dias.push(obterDataFolga(fv[v]));
-                }
-                var fo = (semana.folgasOcultas || []).filter(function (f) {
-                    var fd = AF.utils.parseDataBR(obterDataFolga(f));
-                    return fd && AF.utils.ehMesAlvo(fd, alvo);
-                });
-                for (var o = 0; o < fo.length; o++) {
-                    dias.push(obterDataFolga(fo[o]));
+                    adicionarDia(obterDataFolga(fv[v]));
                 }
             }
         }
